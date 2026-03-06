@@ -42,8 +42,8 @@ const DEFAULT_STATE = {
 };
 
 const formatDate = (iso) => { const d = new Date(iso + "T12:00:00"); return d.toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" }); };
-const rc = (r) => { const l = (r||"").toLowerCase(); return l === "overweight" ? "#27864a" : l === "neutral" ? "#e6a817" : l === "underweight" ? "#c0392b" : "#666"; };
-const rb = (r) => { const l = (r||"").toLowerCase(); return l === "overweight" ? "#e8f5e9" : l === "neutral" ? "#fff8e1" : l === "underweight" ? "#fbe9e7" : "#f5f5f5"; };
+const rc = (r) => { const l = (r||"").toLowerCase(); return l === "overweight" ? "#27864a" : l === "neutral" ? "#e6a817" : l === "underweight" ? "#c0392b" : l === "nr" ? "#888" : l === "ur" ? "#7b5ea7" : "#666"; };
+const rb = (r) => { const l = (r||"").toLowerCase(); return l === "overweight" ? "#e8f5e9" : l === "neutral" ? "#fff8e1" : l === "underweight" ? "#fbe9e7" : l === "nr" ? "#f0f0f0" : l === "ur" ? "#f3eef8" : "#f5f5f5"; };
 
 function res(c, analysts) {
   const a = analysts.find(x => x.id === c.analystId);
@@ -153,7 +153,7 @@ export default function App() {
                   <tbody>{a.coverage.map((cv, ci) => (
                     <tr key={ci} style={{ background: ci % 2 === 0 ? "#fff" : "#f8fafc" }}>
                       <td style={{ padding: 3 }}><input value={cv.ticker} onChange={e => uc(a.id, ci, "ticker", e.target.value.toUpperCase())} style={{ ...is, width: "100%", fontWeight: 700 }} /></td>
-                      <td style={{ padding: 3 }}><select value={cv.rating} onChange={e => uc(a.id, ci, "rating", e.target.value)} style={{ ...ss, width: "100%", color: rc(cv.rating), fontWeight: 600 }}><option value="Overweight">Overweight</option><option value="Neutral">Neutral</option><option value="Underweight">Underweight</option></select></td>
+                      <td style={{ padding: 3 }}><select value={cv.rating} onChange={e => uc(a.id, ci, "rating", e.target.value)} style={{ ...ss, width: "100%", color: rc(cv.rating), fontWeight: 600 }}><option value="Overweight">Overweight</option><option value="Neutral">Neutral</option><option value="Underweight">Underweight</option><option value="NR">NR (Not Rated)</option><option value="UR">UR (Under Review)</option></select></td>
                       <td style={{ padding: 3 }}><input value={cv.tp} onChange={e => uc(a.id, ci, "tp", e.target.value)} placeholder="$0.00" style={{ ...is, width: "100%" }} /></td>
                       <td style={{ padding: 3, textAlign: "center" }}><X onClick={() => dc(a.id, ci)} /></td>
                     </tr>
