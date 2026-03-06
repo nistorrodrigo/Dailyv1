@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 68" fill="none">
+  <!-- Icon: stylized leaf/shield -->
+  <path d="M8 58 C8 58 8 28 28 12 C36 5 46 4 50 4 C50 4 42 18 42 34 C42 50 50 62 50 62 C50 62 36 66 22 62 C14 60 8 58 8 58Z" fill="#5C8FD8"/>
+  <path d="M28 64 C28 64 28 34 48 18 C56 11 66 10 70 10 C70 10 62 24 62 40 C62 56 70 66 70 66 C70 66 56 68 42 66 C34 64 28 64 28 64Z" fill="#0d0e37"/>
+  <!-- Text: LATIN -->
+  <text x="82" y="32" font-family="'Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="26" font-weight="700" letter-spacing="2.5" fill="#0d0e37">LATIN</text>
+  <!-- Text: SECURITIES -->
+  <text x="82" y="58" font-family="'Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="26" font-weight="700" letter-spacing="2.5" fill="#0d0e37">SECURITIES</text>
+</svg>
