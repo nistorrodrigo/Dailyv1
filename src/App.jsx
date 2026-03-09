@@ -50,6 +50,7 @@ const DEFAULT_STATE = {
   signatures: [{ id: "s1", name: "Rodrigo Nistor", role: "Institutional Sales", email: "rodrigo.nistor@latinsecurities.ar" }],
   analysts: DEFAULT_ANALYSTS,
   bcraData: null,
+  bcraHiddenRows: {},
 };
 
 const formatDate = (iso) => { const d = new Date(iso + "T12:00:00"); return d.toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" }); };
@@ -89,23 +90,43 @@ function generateHTML(s) {
   // BCRA section
   const bcraHtml = (() => {
     if (!s.sections.find(x=>x.key==="bcra")?.on) return "";
-    const d = s.bcraData;
-    if (!d) return `<tr><td style="padding:0 32px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:14px;"><tr><td><div style="font-size:11px;font-weight:700;color:#fff;background:${B.blue};text-transform:uppercase;letter-spacing:1.5px;padding:5px 12px;display:inline-block;">BCRA Dashboard</div></td></tr></table><div style="font-size:12px;color:#999;font-style:italic;">No BCRA data fetched yet.</div></td></tr>`;
-    const row = (data, unit, label, decimals=0) => {
-      if (!data) return `<tr><td style="padding:5px 8px;font-size:12px;color:#333;border-bottom:1px solid #eee;">${label}</td><td colspan="4" style="padding:5px 8px;font-size:12px;color:#999;border-bottom:1px solid #eee;">N/D</td></tr>`;
-      const vc = (v) => v==null?"#666":v>=0?"#27864a":"#c0392b";
-      const fs = (v,dec=0) => v==null?"N/D":Number(v).toLocaleString("es-AR",{minimumFractionDigits:dec,maximumFractionDigits:dec});
-      const fp = (v) => v==null?"":` (${v>=0?"+":""}${Number(v).toFixed(1)}%)`;
-      return `<tr style="background:#fafbfc;"><td style="padding:5px 8px;font-size:12px;font-weight:600;color:#333;border-bottom:1px solid #eee;white-space:nowrap;">${label}</td><td style="padding:5px 8px;font-size:12px;color:#333;text-align:right;border-bottom:1px solid #eee;white-space:nowrap;"><strong>${fs(data.ultimo,decimals)}</strong> <span style="font-size:10px;color:#999;">${unit}</span><br><span style="font-size:10px;color:#888;">${data.fecha||""}</span></td><td style="padding:5px 8px;font-size:12px;text-align:right;border-bottom:1px solid #eee;white-space:nowrap;color:${vc(data.varDiaria)};"><strong>${data.varDiaria!=null?(data.varDiaria>=0?"+":"")+fs(data.varDiaria,decimals):"N/D"}</strong><br><span style="font-size:10px;">${fp(data.varDiariaPC)}</span></td><td style="padding:5px 8px;font-size:12px;text-align:right;border-bottom:1px solid #eee;white-space:nowrap;color:${vc(data.varMTD)};"><strong>${data.varMTD!=null?(data.varMTD>=0?"+":"")+fs(data.varMTD,decimals):"N/D"}</strong><br><span style="font-size:10px;">${fp(data.varMTDPC)}</span></td><td style="padding:5px 8px;font-size:12px;text-align:right;border-bottom:1px solid #eee;white-space:nowrap;color:${vc(data.varYTD)};"><strong>${data.varYTD!=null?(data.varYTD>=0?"+":"")+fs(data.varYTD,decimals):"N/D"}</strong><br><span style="font-size:10px;">${fp(data.varYTDPC)}</span></td></tr>`;
+    const bd = s.bcraData;
+    if (!bd || !bd.data) return `<tr><td style="padding:0 32px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:14px;"><tr><td><div style="font-size:11px;font-weight:700;color:#fff;background:${B.blue};text-transform:uppercase;letter-spacing:1.5px;padding:5px 12px;display:inline-block;">BCRA Dashboard</div></td></tr></table><div style="font-size:12px;color:#999;font-style:italic;">No BCRA data fetched yet.</div></td></tr>`;
+    const d = bd.data;
+    const hidden = s.bcraHiddenRows || {};
+    const fetchDate = bd.fetchedAt ? new Date(bd.fetchedAt).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}) : "";
+
+    const fN = (v) => v == null ? "—" : Number(v).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    const fV = (v) => v == null ? "—" : (v >= 0 ? "+" : "") + fN(v);
+    const fP = (v) => v == null ? "" : ` (${v >= 0 ? "+" : ""}${Number(v).toFixed(1)}%)`;
+    const vc = (v) => v == null ? "#888" : v >= 0 ? "#27864a" : "#c0392b";
+
+    const row = (rowKey, label, unit) => {
+      if (hidden[rowKey]) return "";
+      const r = d[rowKey];
+      if (!r || r.value == null) return "";
+      return `<tr style="border-bottom:1px solid #eee;"><td style="padding:5px 8px;font-size:12px;font-weight:600;color:#333;">${label}<div style="font-size:10px;color:#aaa;font-weight:400;">as of ${r.date||""}</div></td><td style="padding:5px 8px;font-size:12px;text-align:right;"><strong>${fN(r.value)}</strong> <span style="font-size:10px;color:#999;">${unit}</span></td><td style="padding:5px 8px;font-size:12px;text-align:right;color:${vc(r.d1)};">${fV(r.d1)}<div style="font-size:10px;">${fP(r.d1pct)}</div></td><td style="padding:5px 8px;font-size:12px;text-align:right;color:${vc(r.mtd)};">${fV(r.mtd)}<div style="font-size:10px;">${fP(r.mtdpct)}</div></td><td style="padding:5px 8px;font-size:12px;text-align:right;color:${vc(r.ytd)};">${fV(r.ytd)}<div style="font-size:10px;">${fP(r.ytdpct)}</div></td></tr>`;
     };
-    const simpleRow = (val, unit, label, decimals=0) => {
-      if (val==null) return `<tr><td style="padding:5px 8px;font-size:12px;color:#333;border-bottom:1px solid #eee;">${label}</td><td style="padding:5px 8px;font-size:12px;color:#999;border-bottom:1px solid #eee;">N/D</td></tr>`;
-      return `<tr><td style="padding:5px 8px;font-size:12px;font-weight:600;color:#333;border-bottom:1px solid #eee;">${label}</td><td style="padding:5px 8px;font-size:12px;color:#333;text-align:right;border-bottom:1px solid #eee;"><strong>${Number(val).toLocaleString("es-AR",{minimumFractionDigits:decimals,maximumFractionDigits:decimals})}</strong> <span style="font-size:10px;color:#999;">${unit}</span></td></tr>`;
-    };
-    const hdr = `<tr style="background:${B.navy};"><td style="padding:6px 8px;font-size:11px;font-weight:700;color:#fff;">Variable</td><td style="padding:6px 8px;font-size:11px;font-weight:700;color:#fff;text-align:right;">Último</td><td style="padding:6px 8px;font-size:11px;font-weight:700;color:#fff;text-align:right;">Diario</td><td style="padding:6px 8px;font-size:11px;font-weight:700;color:#fff;text-align:right;">MTD</td><td style="padding:6px 8px;font-size:11px;font-weight:700;color:#fff;text-align:right;">YTD</td></tr>`;
-    const dd = d.data || {};
-    const depPesoTotal = (dd.depCCPesos?.ultimo||0)+(dd.depCAPesos?.ultimo||0)+(dd.depPFPesos?.ultimo||0);
-    return `<tr><td style="padding:0 32px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:14px;"><tr><td><div style="font-size:11px;font-weight:700;color:#fff;background:${B.blue};text-transform:uppercase;letter-spacing:1.5px;padding:5px 12px;display:inline-block;">BCRA Dashboard</div><span style="font-size:10px;color:#999;margin-left:12px;">Fuente: BCRA API · ${d.fecha||""}</span></td></tr></table><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #dde3ea;margin-bottom:10px;">${hdr}${row(dd.reservas,"USD M","Reservas Internacionales")}${row(dd.comprasBCRA,"USD M","Compras netas BCRA (MLC)")}</table><div style="font-size:11px;font-weight:700;color:${B.navy};text-transform:uppercase;margin:10px 0 4px;">Depósitos Sector Privado (M$)</div><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #dde3ea;margin-bottom:10px;">${hdr}${row(dd.depCCPesos,"M$","Cuentas Corrientes (ARS)")}${row(dd.depCAPesos,"M$","Caja de Ahorro (ARS)")}${row(dd.depPFPesos,"M$","Plazo Fijo (ARS)")}${row(dd.depUSD,"USD M","Depósitos (USD)")}</table><div style="font-size:11px;font-weight:700;color:${B.navy};text-transform:uppercase;margin:10px 0 4px;">Préstamos Sector Privado</div><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #dde3ea;margin-bottom:16px;">${hdr}${row(dd.prestPesos,"M$","Préstamos (ARS)")}${row(dd.prestUSD,"USD M","Préstamos (USD)")}</table></td></tr>`;
+    const sectionHdr = (title) => `<tr style="background:#edf2f7;"><td colspan="5" style="padding:5px 8px;font-size:10px;font-weight:700;color:${B.navy};text-transform:uppercase;letter-spacing:1px;">${title}</td></tr>`;
+    const hdr = `<tr style="background:${B.navy};"><td style="padding:6px 8px;font-size:11px;font-weight:700;color:#fff;">Variable</td><td style="padding:6px 8px;font-size:11px;font-weight:700;color:#fff;text-align:right;">Latest</td><td style="padding:6px 8px;font-size:11px;font-weight:700;color:#fff;text-align:right;">D/D</td><td style="padding:6px 8px;font-size:11px;font-weight:700;color:#fff;text-align:right;">MTD</td><td style="padding:6px 8px;font-size:11px;font-weight:700;color:#fff;text-align:right;">YTD</td></tr>`;
+
+    const bodyRows = [
+      sectionHdr("Reserves & FX Intervention"),
+      row("reservas",    "International Reserves",       "USD M"),
+      row("comprasBCRA", "BCRA Net FX Purchases (MLC)",  "USD M"),
+      sectionHdr("Private Sector Deposits"),
+      row("depCC",   "Demand Deposits (ARS)",  "ARS M"),
+      row("depCA",   "Savings Deposits (ARS)", "ARS M"),
+      row("depPF",   "Time Deposits (ARS)",    "ARS M"),
+      row("depUSD",  "USD Deposits",           "USD M"),
+      sectionHdr("Private Sector Loans"),
+      row("prestARS","Loans (ARS)",            "ARS M"),
+      row("prestUSD","Loans (USD)",            "USD M"),
+    ].join("");
+
+    if (!bodyRows.replace(/<tr[^>]*><td[^>]*>[^<]*<\/td><\/tr>/g,"").trim()) return "";
+
+    return `<tr><td style="padding:0 32px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:14px;"><tr><td><div style="font-size:11px;font-weight:700;color:#fff;background:${B.blue};text-transform:uppercase;letter-spacing:1.5px;padding:5px 12px;display:inline-block;">BCRA Dashboard</div><span style="font-size:10px;color:#999;margin-left:12px;">Source: BCRA API · ${fetchDate}</span></td></tr></table><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #dde3ea;margin-bottom:16px;">${hdr}${bodyRows}</table></td></tr>`;
   })();
 
   const sig = s.signatures.map(x => `<div style="margin-bottom:8px;"><div style="font-size:13px;font-weight:700;color:${B.navy};">${x.name}</div><div style="font-size:12px;color:#666;">${x.role}</div><div style="font-size:12px;color:${B.blue};">${x.email}</div></div>`).join("");
@@ -122,7 +143,7 @@ function generateBBG(s) {
     macroEstimates: () => { L.push("", `MACRO ESTIMATES (source: ${s.macroSource})`, ""); s.macroRows.forEach(r => L.push(`${r.label}: ${s.macroCols.map(c => `${c} ${r.vals[c]||""}`).join(" | ")}`)); L.push("", "---"); },
     corporate: () => { L.push("", "CORPORATE", ""); s.corpBlocks.forEach(c => { const r = res(c, s.analysts); L.push(`${r.tickers.join(" / ")} \u2013 ${r.headline}`); r.covs.filter(cv=>cv.ticker).forEach(cv => { const ups = fmtUpside(cv.tp, cv.last); L.push(`  ${cv.ticker} | ${cv.rating} | TP ${cv.tp}${cv.last ? ` | Last ${cv.last}` : ""}${ups ? ` | ${ups}` : ""}`); }); L.push(`  ${r.analyst}`); if (r.body) L.push(r.body); if (r.link) L.push(`Link: ${r.link}`); L.push(""); }); L.push("---"); },
     research: () => { if (!s.researchReports?.length) return; L.push("", "RESEARCH REPORTS", ""); s.researchReports.filter(r=>r.title).forEach(r => { L.push(`[${r.type}] ${r.title}`); if (r.author) L.push(`  ${r.author}`); if (r.body) L.push(r.body); if (r.link) L.push(`Link: ${r.link}`); L.push(""); }); L.push("---"); },
-    bcra: () => { const d = s.bcraData?.data; if (!d) return; L.push("", "BCRA DASHBOARD", ""); const f=(v,dec=0)=>v==null?"N/D":Number(v).toLocaleString("es-AR",{minimumFractionDigits:dec,maximumFractionDigits:dec}); const fp=(v)=>v==null?"":`(${v>=0?"+":""}${Number(v).toFixed(1)}%)`; const line=(label,data,unit)=>{ if(!data)return; L.push(`${label}: ${f(data.ultimo)} ${unit} | Diario: ${data.varDiaria!=null?(data.varDiaria>=0?"+":"")+f(data.varDiaria):"N/D"} ${fp(data.varDiariaPC)} | MTD: ${data.varMTD!=null?(data.varMTD>=0?"+":"")+f(data.varMTD):"N/D"} ${fp(data.varMTDPC)} | YTD: ${data.varYTD!=null?(data.varYTD>=0?"+":"")+f(data.varYTD):"N/D"} ${fp(data.varYTDPC)}`); }; line("Reservas",d.reservas,"USD M"); line("Compras netas BCRA",d.comprasBCRA,"USD M"); L.push(""); L.push("Depositos Sector Privado:"); line("  CC (ARS)",d.depCCPesos,"M$"); line("  CA (ARS)",d.depCAPesos,"M$"); line("  PF (ARS)",d.depPFPesos,"M$"); line("  Depositos (USD)",d.depUSD,"USD M"); L.push(""); L.push("Prestamos Sector Privado:"); line("  Prestamos (ARS)",d.prestPesos,"M$"); line("  Prestamos (USD)",d.prestUSD,"USD M"); L.push("", "---"); },
+    bcra: () => { const bd = s.bcraData; const d = bd?.data; if (!d) return; const hidden = s.bcraHiddenRows||{}; L.push("", "BCRA DASHBOARD", `Source: BCRA API · ${bd.fetchedAt ? new Date(bd.fetchedAt).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}) : ""}`, ""); const fN=(v)=>v==null?"N/D":Number(v).toLocaleString("en-US",{minimumFractionDigits:0,maximumFractionDigits:0}); const fV=(v)=>v==null?"N/D":(v>=0?"+":"")+fN(v); const fP=(v)=>v==null?"":` (${v>=0?"+":""}${Number(v).toFixed(1)}%)`; const line=(key,label,unit)=>{ if(hidden[key]) return; const r=d[key]; if(!r||r.value==null) return; L.push(`${label} [as of ${r.date}]: ${fN(r.value)} ${unit} | D/D: ${fV(r.d1)}${fP(r.d1pct)} | MTD: ${fV(r.mtd)}${fP(r.mtdpct)} | YTD: ${fV(r.ytd)}${fP(r.ytdpct)}`); }; L.push("Reserves & FX:"); line("reservas","  International Reserves","USD M"); line("comprasBCRA","  BCRA Net FX Purchases","USD M"); L.push("","Private Deposits:"); line("depCC","  Demand Deposits (ARS)","ARS M"); line("depCA","  Savings Deposits (ARS)","ARS M"); line("depPF","  Time Deposits (ARS)","ARS M"); line("depUSD","  USD Deposits","USD M"); L.push("","Private Loans:"); line("prestARS","  Loans (ARS)","ARS M"); line("prestUSD","  Loans (USD)","USD M"); L.push("","---"); },
   };
   s.sections.filter(x => x.on).forEach(x => bbgSec[x.key]?.());
   L.push(""); s.signatures.forEach(x => { L.push(x.name, x.role, x.email, ""); }); return L.join("\n");
@@ -134,40 +155,66 @@ const Inp = ({ label, value, onChange, multi, rows = 2, placeholder }) => (<div 
 const X = ({ onClick }) => <button onClick={onClick} style={{ background: "none", border: "none", color: "#c0392b", cursor: "pointer", fontSize: 18, padding: "0 4px", lineHeight: 1 }}>{"\u00D7"}</button>;
 const DashBtn = ({ onClick, children, color = BRAND.blue }) => <button onClick={onClick} style={{ width: "100%", padding: 10, border: "2px dashed #d0d5dd", borderRadius: 6, background: "transparent", color, fontWeight: 600, fontSize: 12, cursor: "pointer" }}>{children}</button>;
 
-function BcraCard({ bcraData, onFetch }) {
+const BCRA_DEFAULT_HIDDEN = {};
+function BcraCard({ bcraData, onFetch, hiddenRows = {}, onToggleRow }) {
   const loading = bcraData?.loading;
   const error = bcraData?.error;
   const d = bcraData?.data || {};
-  const fecha = bcraData?.fecha;
+  const fetchedAt = bcraData?.fetchedAt ? new Date(bcraData.fetchedAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : null;
 
-  const vc = (v) => v == null ? "#666" : v >= 0 ? "#27864a" : "#c0392b";
-  const fN = (v, dec = 0) => v == null ? "—" : Number(v).toLocaleString("es-AR", { minimumFractionDigits: dec, maximumFractionDigits: dec });
+  const vc = (v) => v == null ? "#888" : v >= 0 ? "#27864a" : "#c0392b";
+  const fN = (v, dec = 0) => v == null ? "—" : Number(v).toLocaleString("en-US", { minimumFractionDigits: dec, maximumFractionDigits: dec });
   const fV = (v, dec = 0) => { if (v == null) return "—"; return (v >= 0 ? "+" : "") + fN(v, dec); };
   const fP = (v) => v == null ? "" : ` (${v >= 0 ? "+" : ""}${Number(v).toFixed(1)}%)`;
 
-  const Row = ({ label, data, unit, dec = 0 }) => (
-    <tr style={{ borderBottom: "1px solid #f0f2f5" }}>
-      <td style={{ padding: "6px 10px", fontSize: 12, fontWeight: 600, color: "#333", whiteSpace: "nowrap" }}>{label}</td>
-      <td style={{ padding: "6px 10px", fontSize: 12, textAlign: "right", whiteSpace: "nowrap" }}>
-        {data ? <><strong>{fN(data.ultimo, dec)}</strong> <span style={{ fontSize: 10, color: "#999" }}>{unit}</span><br /><span style={{ fontSize: 10, color: "#aaa" }}>{data.fecha || ""}</span></> : <span style={{ color: "#ccc" }}>N/D</span>}
-      </td>
-      <td style={{ padding: "6px 10px", fontSize: 12, textAlign: "right", whiteSpace: "nowrap", color: vc(data?.varDiaria) }}>
-        {data ? <>{fV(data.varDiaria, dec)}<br /><span style={{ fontSize: 10 }}>{fP(data.varDiariaPC)}</span></> : "—"}
-      </td>
-      <td style={{ padding: "6px 10px", fontSize: 12, textAlign: "right", whiteSpace: "nowrap", color: vc(data?.varMTD) }}>
-        {data ? <>{fV(data.varMTD, dec)}<br /><span style={{ fontSize: 10 }}>{fP(data.varMTDPC)}</span></> : "—"}
-      </td>
-      <td style={{ padding: "6px 10px", fontSize: 12, textAlign: "right", whiteSpace: "nowrap", color: vc(data?.varYTD) }}>
-        {data ? <>{fV(data.varYTD, dec)}<br /><span style={{ fontSize: 10 }}>{fP(data.varYTDPC)}</span></> : "—"}
-      </td>
-    </tr>
-  );
   const Hdr = () => (
     <tr style={{ background: BRAND.navy }}>
-      {["Variable", "Último", "Diario", "MTD", "YTD"].map(h => (
-        <th key={h} style={{ padding: "6px 10px", fontSize: 11, fontWeight: 700, color: "#fff", textAlign: h === "Variable" ? "left" : "right", whiteSpace: "nowrap" }}>{h}</th>
+      {["", "Variable", "Latest", "D/D", "MTD", "YTD"].map((h, i) => (
+        <th key={i} style={{ padding: "6px 10px", fontSize: 11, fontWeight: 700, color: "#fff", textAlign: i <= 1 ? "left" : "right", whiteSpace: "nowrap" }}>{h}</th>
       ))}
     </tr>
+  );
+
+  const Row = ({ rowKey, label, data, unit }) => {
+    if (!data?.value && data?.value !== 0) return (
+      <tr style={{ borderBottom: "1px solid #f0f2f5", opacity: 0.4 }}>
+        <td style={{ padding: "4px 6px" }}><input type="checkbox" checked={!hiddenRows[rowKey]} onChange={() => onToggleRow(rowKey)} /></td>
+        <td colSpan={5} style={{ padding: "6px 10px", fontSize: 12, color: "#bbb", fontStyle: "italic" }}>{label} — no data available</td>
+      </tr>
+    );
+    const hidden = hiddenRows[rowKey];
+    return (
+      <tr style={{ borderBottom: "1px solid #f0f2f5", background: hidden ? "#fafafa" : "#fff", opacity: hidden ? 0.45 : 1 }}>
+        <td style={{ padding: "4px 6px", textAlign: "center" }}>
+          <input type="checkbox" checked={!hidden} onChange={() => onToggleRow(rowKey)} title="Show in email" />
+        </td>
+        <td style={{ padding: "6px 10px", fontSize: 12, fontWeight: 600, color: "#333" }}>
+          {label}
+          <div style={{ fontSize: 10, color: "#aaa", fontWeight: 400 }}>as of {data.date}</div>
+        </td>
+        <td style={{ padding: "6px 10px", fontSize: 12, textAlign: "right", whiteSpace: "nowrap" }}>
+          <strong>{fN(data.value)}</strong> <span style={{ fontSize: 10, color: "#999" }}>{unit}</span>
+        </td>
+        <td style={{ padding: "6px 10px", fontSize: 12, textAlign: "right", whiteSpace: "nowrap", color: vc(data.d1) }}>
+          {fV(data.d1)}<br /><span style={{ fontSize: 10 }}>{fP(data.d1pct)}</span>
+        </td>
+        <td style={{ padding: "6px 10px", fontSize: 12, textAlign: "right", whiteSpace: "nowrap", color: vc(data.mtd) }}>
+          {fV(data.mtd)}<br /><span style={{ fontSize: 10 }}>{fP(data.mtdpct)}</span>
+        </td>
+        <td style={{ padding: "6px 10px", fontSize: 12, textAlign: "right", whiteSpace: "nowrap", color: vc(data.ytd) }}>
+          {fV(data.ytd)}<br /><span style={{ fontSize: 10 }}>{fP(data.ytdpct)}</span>
+        </td>
+      </tr>
+    );
+  };
+
+  const Section = ({ title, rows }) => (
+    <>
+      <tr style={{ background: "#edf2f7" }}>
+        <td colSpan={6} style={{ padding: "5px 10px", fontSize: 10, fontWeight: 700, color: BRAND.navy, textTransform: "uppercase", letterSpacing: 1 }}>{title}</td>
+      </tr>
+      {rows.map(r => <Row key={r.rowKey} {...r} />)}
+    </>
   );
 
   return (
@@ -175,9 +222,9 @@ function BcraCard({ bcraData, onFetch }) {
       <div style={{ background: "#005a9c", padding: "8px 16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <span style={{ fontSize: 11, fontWeight: 700, color: "#fff", letterSpacing: 1.2, textTransform: "uppercase" }}>BCRA Dashboard</span>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          {fecha && <span style={{ fontSize: 10, color: "#aad4ff" }}>Datos al {fecha}</span>}
+          {fetchedAt && <span style={{ fontSize: 10, color: "#aad4ff" }}>Fetched {fetchedAt}</span>}
           <button onClick={onFetch} disabled={loading} style={{ padding: "5px 14px", borderRadius: 5, border: "1px solid #aad4ff", background: loading ? "#003d6b" : "transparent", color: loading ? "#aad4ff" : "#fff", fontSize: 11, fontWeight: 700, cursor: loading ? "default" : "pointer", textTransform: "uppercase" }}>
-            {loading ? "⏳ Cargando..." : "↻ Fetch BCRA"}
+            {loading ? "⏳ Loading..." : "↻ Fetch BCRA"}
           </button>
         </div>
       </div>
@@ -185,39 +232,32 @@ function BcraCard({ bcraData, onFetch }) {
         {error && <div style={{ padding: "8px 12px", background: "#fdf0f0", border: "1px solid #f5c6c6", borderRadius: 6, color: "#c0392b", fontSize: 12, marginBottom: 12 }}>Error: {error}</div>}
         {!bcraData && !loading && (
           <div style={{ textAlign: "center", padding: "20px 0", color: "#aaa", fontSize: 13 }}>
-            Presioná <strong>↻ Fetch BCRA</strong> para traer los datos del día desde la API del BCRA.
+            Click <strong>↻ Fetch BCRA</strong> to load the latest available data from the BCRA API.<br />
+            <span style={{ fontSize: 11, color: "#ccc" }}>Uses most recent published figure — checkbox to hide rows from the email.</span>
           </div>
         )}
-        {(bcraData || loading) && !error && (
+        {loading && <div style={{ textAlign: "center", padding: "20px 0", color: "#888", fontSize: 13 }}>Loading from BCRA API...</div>}
+        {bcraData && !loading && !error && (
           <>
-            <div style={{ overflowX: "auto", marginBottom: 12 }}>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead><Hdr /></thead>
-                <tbody>
-                  <Row label="🏦 Reservas Internacionales" data={d.reservas} unit="USD M" />
-                  <Row label="💵 Compras netas BCRA (MLC)" data={d.comprasBCRA} unit="USD M" />
-                </tbody>
-              </table>
-            </div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: BRAND.navy, textTransform: "uppercase", marginBottom: 6 }}>Depósitos Sector Privado</div>
-            <div style={{ overflowX: "auto", marginBottom: 12 }}>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead><Hdr /></thead>
-                <tbody>
-                  <Row label="CC (ARS)" data={d.depCCPesos} unit="M$" />
-                  <Row label="CA (ARS)" data={d.depCAPesos} unit="M$" />
-                  <Row label="PF (ARS)" data={d.depPFPesos} unit="M$" />
-                  <Row label="Depósitos (USD)" data={d.depUSD} unit="USD M" />
-                </tbody>
-              </table>
-            </div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: BRAND.navy, textTransform: "uppercase", marginBottom: 6 }}>Préstamos Sector Privado</div>
+            <div style={{ fontSize: 11, color: "#999", marginBottom: 8 }}>✓ Check rows to include in email. Data shows latest available figure from BCRA.</div>
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead><Hdr /></thead>
                 <tbody>
-                  <Row label="Préstamos (ARS)" data={d.prestPesos} unit="M$" />
-                  <Row label="Préstamos (USD)" data={d.prestUSD} unit="USD M" />
+                  <Section title="Reserves & FX Intervention" rows={[
+                    { rowKey: "reservas",    label: "International Reserves",        data: d.reservas,    unit: "USD M" },
+                    { rowKey: "comprasBCRA", label: "BCRA Net FX Purchases (MLC)",   data: d.comprasBCRA, unit: "USD M" },
+                  ]} />
+                  <Section title="Private Sector Deposits" rows={[
+                    { rowKey: "depCC",    label: "Demand Deposits (ARS)",       data: d.depCC,    unit: "ARS M" },
+                    { rowKey: "depCA",    label: "Savings Deposits (ARS)",      data: d.depCA,    unit: "ARS M" },
+                    { rowKey: "depPF",    label: "Time Deposits (ARS)",         data: d.depPF,    unit: "ARS M" },
+                    { rowKey: "depUSD",   label: "USD Deposits",                data: d.depUSD,   unit: "USD M" },
+                  ]} />
+                  <Section title="Private Sector Loans" rows={[
+                    { rowKey: "prestARS", label: "Loans (ARS)",  data: d.prestARS, unit: "ARS M" },
+                    { rowKey: "prestUSD", label: "Loans (USD)",  data: d.prestUSD, unit: "USD M" },
+                  ]} />
                 </tbody>
               </table>
             </div>
@@ -499,7 +539,7 @@ export default function App() {
             </div>
           ))}<DashBtn onClick={() => al("researchReports", { id: `rr${Date.now()}`, type: "Macro", title: "", author: "", body: "", link: "" })} color="#6a1b9a">+ Add Report</DashBtn></Card>}
 
-          {s.sections.find(x=>x.key==="bcra")?.on && <BcraCard bcraData={s.bcraData} onFetch={async () => {
+          {s.sections.find(x=>x.key==="bcra")?.on && <BcraCard bcraData={s.bcraData} hiddenRows={s.bcraHiddenRows||{}} onToggleRow={(key) => setS(p => ({ ...p, bcraHiddenRows: { ...(p.bcraHiddenRows||{}), [key]: !(p.bcraHiddenRows||{})[key] } }))} onFetch={async () => {
             setS(p => ({ ...p, bcraData: { ...(p.bcraData||{}), loading: true, error: null } }));
             try {
               const r = await fetch("/api/bcra");

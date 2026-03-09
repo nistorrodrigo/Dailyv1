@@ -2,128 +2,161 @@ export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
 
   const BASE = "https://api.bcra.gob.ar/estadisticas/v3.0/monetarias";
-  const HDR  = { "Accept-Language": "es-AR", "User-Agent": "Mozilla/5.0" };
+  const HDR  = { "Accept-Language": "es-AR", "User-Agent": "Mozilla/5.0", "Accept": "application/json" };
 
-  /* ── helpers ─────────────────────────────────────────── */
-  const today = () => new Date().toISOString().slice(0, 10);
-  const daysAgo = (n) => {
-    const d = new Date(); d.setDate(d.getDate() - n);
+  // Confirmed BCRA variable IDs (v3 API)
+  const KNOWN = {
+    reservas:  1,
+    depCC:    22,
+    depCA:    23,
+    depPF:    24,
+    prestARS: 26,
+  };
+
+  const LABELS = {
+    reservas:    { label: "International Reserves",        unit: "USD M"  },
+    comprasBCRA: { label: "BCRA Net FX Purchases (MLC)",   unit: "USD M"  },
+    depCC:       { label: "Demand Deposits (ARS)",         unit: "ARS M"  },
+    depCA:       { label: "Savings Deposits (ARS)",        unit: "ARS M"  },
+    depPF:       { label: "Time Deposits (ARS)",           unit: "ARS M"  },
+    depUSD:      { label: "USD Deposits",                  unit: "USD M"  },
+    prestARS:    { label: "Private Sector Loans (ARS)",    unit: "ARS M"  },
+    prestUSD:    { label: "Private Sector Loans (USD)",    unit: "USD M"  },
+  };
+
+  function dateStr(d) {
     return d.toISOString().slice(0, 10);
-  };
-  const startOfYear = () => `${new Date().getFullYear()}-01-01`;
-  const startOfMonth = () => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
-  };
-
-  async function fetchList() {
-    const r = await fetch(BASE, { headers: HDR });
-    const j = await r.json();
-    return j.results || [];
   }
 
-  async function fetchSeries(id, desde) {
-    const url = `${BASE}/${id}?desde=${desde}&hasta=${today()}&limit=120`;
-    const r = await fetch(url, { headers: HDR });
-    const j = await r.json();
-    return (j.results || []).sort((a, b) => a.fecha.localeCompare(b.fecha));
+  async function fetchSeries(id) {
+    // Fetch last 400 days to ensure we have YTD baseline
+    const hasta  = dateStr(new Date());
+    const desde  = dateStr(new Date(Date.now() - 400 * 86400000));
+    const url    = `${BASE}/${id}?desde=${desde}&hasta=${hasta}`;
+    try {
+      const r = await fetch(url, { headers: HDR, signal: AbortSignal.timeout(12000) });
+      if (!r.ok) return null;
+      const j = await r.json();
+      const rows = (j.results || []).sort((a, b) => a.fecha.localeCompare(b.fecha));
+      return rows.length ? rows : null;
+    } catch (e) {
+      return null;
+    }
   }
 
-  /* Returns { ultimo, fecha, varDiaria, varDiariaPC, varMTD, varMTDPC, varYTD, varYTDPC } */
-  function calcVariations(series) {
-    if (!series.length) return null;
-    const last = series[series.length - 1];
-    const sm   = startOfMonth();
-    const sy   = startOfYear();
+  async function fetchVarList() {
+    try {
+      const r = await fetch(BASE, { headers: HDR, signal: AbortSignal.timeout(12000) });
+      if (!r.ok) return [];
+      const j = await r.json();
+      return j.results || [];
+    } catch {
+      return [];
+    }
+  }
 
-    // previous business day value
+  function findVar(list, mustContain, mustNot = []) {
+    const mc = mustContain.map(k => k.toLowerCase());
+    const mn = mustNot.map(k => k.toLowerCase());
+    return list.find(v => {
+      const d = (v.descripcion || "").toLowerCase();
+      return mc.every(k => d.includes(k)) && mn.every(k => !d.includes(k));
+    }) || null;
+  }
+
+  function calcStats(series) {
+    if (!series || !series.length) return null;
+    const last      = series[series.length - 1];
+    const lastDate  = last.fecha;              // "YYYY-MM-DD"
+    const lastYear  = lastDate.slice(0, 4);
+    const lastMonth = lastDate.slice(0, 7);    // "YYYY-MM"
+
     const prev = series.length >= 2 ? series[series.length - 2] : null;
-    // value at/just before start of month
-    const eom  = series.filter(s => s.fecha < sm).pop() || null;
-    // value at/just before start of year
-    const eoy  = series.filter(s => s.fecha < sy).pop() || null;
 
-    const diff  = (a, b) => b && a ? a.valor - b.valor : null;
-    const pct   = (a, b) => b && a && b.valor ? ((a.valor - b.valor) / Math.abs(b.valor)) * 100 : null;
+    // Last entry strictly before start of current month
+    const eom = [...series].reverse().find(s => s.fecha < `${lastMonth}-01`) || null;
+
+    // Last entry strictly before start of current year
+    const eoy = [...series].reverse().find(s => s.fecha < `${lastYear}-01-01`) || null;
+
+    const diff = (a, b) => a != null && b != null ? +(a - b).toFixed(4) : null;
+    const pct  = (a, b) => a != null && b != null && b !== 0 ? +((a - b) / Math.abs(b) * 100).toFixed(2) : null;
 
     return {
-      ultimo: last.valor,
-      fecha:  last.fecha,
-      varDiaria:   diff(last, prev),
-      varDiariaPC: pct(last, prev),
-      varMTD:      diff(last, eom),
-      varMTDPC:    pct(last, eom),
-      varYTD:      diff(last, eoy),
-      varYTDPC:    pct(last, eoy),
+      value:   last.valor,
+      date:    last.fecha,
+      d1:      diff(last.valor, prev?.valor),
+      d1pct:   pct(last.valor,  prev?.valor),
+      mtd:     diff(last.valor, eom?.valor),
+      mtdpct:  pct(last.valor,  eom?.valor),
+      mtdRef:  eom?.fecha || null,
+      ytd:     diff(last.valor, eoy?.valor),
+      ytdpct:  pct(last.valor,  eoy?.valor),
+      ytdRef:  eoy?.fecha || null,
     };
   }
 
-  /* Match a variable in the list by scoring against keywords */
-  function findVar(list, mustContain, mustNotContain = []) {
-    const mc = mustContain.map(k => k.toLowerCase());
-    const mn = mustNotContain.map(k => k.toLowerCase());
-    const matches = list.filter(v => {
-      const d = v.descripcion.toLowerCase();
-      return mc.every(k => d.includes(k)) && mn.every(k => !d.includes(k));
-    });
-    return matches[0] || null;
-  }
-
-  /* ── main ────────────────────────────────────────────── */
   try {
-    const list = await fetchList();
+    // 1. Fetch known-ID series in parallel
+    const [resSeries, ccSeries, caSeries, pfSeries, prestARSSeries] = await Promise.all([
+      fetchSeries(KNOWN.reservas),
+      fetchSeries(KNOWN.depCC),
+      fetchSeries(KNOWN.depCA),
+      fetchSeries(KNOWN.depPF),
+      fetchSeries(KNOWN.prestARS),
+    ]);
 
-    // ---- Define what we want -------------------------------------------------
-    const slots = {
-      reservas:     findVar(list, ["reservas internacionales"]),
-      comprasBCRA:  findVar(list, ["compras"]) || findVar(list, ["posición de cambios"]) || findVar(list, ["posicion de cambios"]),
-      depCCPesos:   findVar(list, ["cuentas corrientes"], ["dólar","usd","me "]),
-      depCAPesos:   findVar(list, ["caja de ahorro"],    ["dólar","usd","me "]),
-      depPFPesos:   findVar(list, ["plazo"],             ["dólar","usd","me ","porcentaje","tasa"]),
-      depUSD:       findVar(list, ["depósito"],          ["pesos","cuenta","corriente","ahorro"]) ||
-                    findVar(list, ["deposito"],          ["pesos","cuenta","corriente","ahorro"]),
-      prestPesos:   findVar(list, ["préstamos"],         ["dólar","usd","me ","tasa","interés"]) ||
-                    findVar(list, ["prestamos"],         ["dólar","usd","me ","tasa","interes"]),
-      prestUSD:     findVar(list, ["préstamos","dólar"]) ||
-                    findVar(list, ["préstamos","me "])   ||
-                    findVar(list, ["prestamos","dólar"]) ||
-                    findVar(list, ["prestamos","me "]),
+    // 2. Search variable list for unknown-ID variables
+    const varList = await fetchVarList();
+
+    const comprasVar  = findVar(varList, ["compras netas"], []);
+    const depUSDVar   = findVar(varList, ["depósitos", "dólar", "sector privado"], ["tasa", "plazo fijo"]);
+    const prestUSDVar = findVar(varList, ["préstamos", "dólar", "sector privado"], ["tasa"]);
+
+    const [comprasSeries, depUSDSeries, prestUSDSeries] = await Promise.all([
+      comprasVar  ? fetchSeries(comprasVar.idVariable)  : Promise.resolve(null),
+      depUSDVar   ? fetchSeries(depUSDVar.idVariable)   : Promise.resolve(null),
+      prestUSDVar ? fetchSeries(prestUSDVar.idVariable) : Promise.resolve(null),
+    ]);
+
+    const data = {
+      reservas:    { ...LABELS.reservas,    ...calcStats(resSeries)       },
+      comprasBCRA: { ...LABELS.comprasBCRA, ...calcStats(comprasSeries),
+                     varId: comprasVar?.idVariable || null,
+                     varDesc: comprasVar?.descripcion || null },
+      depCC:       { ...LABELS.depCC,       ...calcStats(ccSeries)        },
+      depCA:       { ...LABELS.depCA,       ...calcStats(caSeries)        },
+      depPF:       { ...LABELS.depPF,       ...calcStats(pfSeries)        },
+      depUSD:      { ...LABELS.depUSD,      ...calcStats(depUSDSeries),
+                     varId: depUSDVar?.idVariable || null,
+                     varDesc: depUSDVar?.descripcion || null },
+      prestARS:    { ...LABELS.prestARS,    ...calcStats(prestARSSeries)  },
+      prestUSD:    { ...LABELS.prestUSD,    ...calcStats(prestUSDSeries),
+                     varId: prestUSDVar?.idVariable || null,
+                     varDesc: prestUSDVar?.descripcion || null },
     };
 
-    // ---- Fetch series for slots that were found ------------------------------
-    const desde = daysAgo(90); // 90 days covers YTD for most variables
-    const results = {};
-
-    for (const [key, v] of Object.entries(slots)) {
-      if (!v) { results[key] = null; continue; }
-      try {
-        const series = await fetchSeries(v.idVariable, desde < startOfYear() ? startOfYear() : desde);
-        results[key] = {
-          id:         v.idVariable,
-          descripcion: v.descripcion,
-          ...calcVariations(series),
-        };
-      } catch {
-        results[key] = null;
-      }
-    }
-
-    // ---- Compute pesos deposit total (CC + CA + PF) -------------------------
-    const sumLatest = (...keys) => {
-      const vals = keys.map(k => results[k]?.ultimo).filter(v => v != null);
-      return vals.length === keys.length ? vals.reduce((a, b) => a + b, 0) : null;
-    };
-    results.depTotalPesos = sumLatest("depCCPesos", "depCAPesos", "depPFPesos") !== null
-      ? { ultimo: sumLatest("depCCPesos", "depCAPesos", "depPFPesos") }
-      : null;
-
-    // ---- Return --------------------------------------------------------------
     res.status(200).json({
-      fecha: today(),
-      variables: slots,   // debug: show which IDs were matched
-      data: results,
+      fetchedAt: new Date().toISOString(),
+      data,
+      debug: {
+        varListCount: varList.length,
+        comprasVarFound:  comprasVar  ? `${comprasVar.idVariable}: ${comprasVar.descripcion}`  : "NOT FOUND",
+        depUSDVarFound:   depUSDVar   ? `${depUSDVar.idVariable}: ${depUSDVar.descripcion}`    : "NOT FOUND",
+        prestUSDVarFound: prestUSDVar ? `${prestUSDVar.idVariable}: ${prestUSDVar.descripcion}`: "NOT FOUND",
+        seriesLengths: {
+          reservas: resSeries?.length || 0,
+          depCC:    ccSeries?.length  || 0,
+          depCA:    caSeries?.length  || 0,
+          depPF:    pfSeries?.length  || 0,
+          prestARS: prestARSSeries?.length || 0,
+          compras:  comprasSeries?.length  || 0,
+          depUSD:   depUSDSeries?.length   || 0,
+          prestUSD: prestUSDSeries?.length || 0,
+        }
+      }
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 }
