@@ -105,6 +105,10 @@ function generateHTML(s) {
       if (hidden[rowKey]) return "";
       const r = d[rowKey];
       if (!r || r.value == null) return "";
+      if (r.isFlow) {
+        const vc2 = (v) => v == null ? "#888" : v >= 0 ? "#27864a" : "#c0392b";
+        return `<tr style="border-bottom:1px solid #eee;"><td style="padding:5px 8px;font-size:12px;font-weight:600;color:#333;">${label}<div style="font-size:10px;color:#aaa;font-weight:400;">daily flow · as of ${r.date||""}</div></td><td style="padding:5px 8px;font-size:12px;text-align:right;color:${vc2(r.value)};"><strong>${fV(r.value)}</strong> <span style="font-size:10px;color:#999;">${unit}</span></td><td style="padding:5px 8px;font-size:11px;text-align:center;color:#aaa;">N/A</td><td style="padding:5px 8px;font-size:12px;text-align:right;color:${vc2(r.mtdSum)};"><strong>${fV(r.mtdSum)}</strong><div style="font-size:10px;color:#aaa;">MTD cum. (${r.mtdDays}d)</div></td><td style="padding:5px 8px;font-size:12px;text-align:right;color:${vc2(r.ytdSum)};"><strong>${fV(r.ytdSum)}</strong><div style="font-size:10px;color:#aaa;">YTD cum. (${r.ytdDays}d)</div></td></tr>`;
+      }
       return `<tr style="border-bottom:1px solid #eee;"><td style="padding:5px 8px;font-size:12px;font-weight:600;color:#333;">${label}<div style="font-size:10px;color:#aaa;font-weight:400;">as of ${r.date||""}</div></td><td style="padding:5px 8px;font-size:12px;text-align:right;"><strong>${fN(r.value)}</strong> <span style="font-size:10px;color:#999;">${unit}</span></td><td style="padding:5px 8px;font-size:12px;text-align:right;color:${vc(r.d1)};">${fV(r.d1)}<div style="font-size:10px;">${fP(r.d1pct)}</div></td><td style="padding:5px 8px;font-size:12px;text-align:right;color:${vc(r.mtd)};">${fV(r.mtd)}<div style="font-size:10px;">${fP(r.mtdpct)}</div></td><td style="padding:5px 8px;font-size:12px;text-align:right;color:${vc(r.ytd)};">${fV(r.ytd)}<div style="font-size:10px;">${fP(r.ytdpct)}</div></td></tr>`;
     };
     const sectionHdr = (title) => `<tr style="background:#edf2f7;"><td colspan="5" style="padding:5px 8px;font-size:10px;font-weight:700;color:${B.navy};text-transform:uppercase;letter-spacing:1px;">${title}</td></tr>`;
@@ -183,6 +187,32 @@ function BcraCard({ bcraData, onFetch, hiddenRows = {}, onToggleRow }) {
       </tr>
     );
     const hidden = hiddenRows[rowKey];
+    if (data.isFlow) {
+      // Daily flow variable: show today's value, MTD cumulative, YTD cumulative
+      return (
+        <tr style={{ borderBottom: "1px solid #f0f2f5", background: hidden ? "#fafafa" : "#fff", opacity: hidden ? 0.45 : 1 }}>
+          <td style={{ padding: "4px 6px", textAlign: "center" }}>
+            <input type="checkbox" checked={!hidden} onChange={() => onToggleRow(rowKey)} title="Show in email" />
+          </td>
+          <td style={{ padding: "6px 10px", fontSize: 12, fontWeight: 600, color: "#333" }}>
+            {label}
+            <div style={{ fontSize: 10, color: "#aaa", fontWeight: 400 }}>daily flow · as of {data.date}</div>
+          </td>
+          <td style={{ padding: "6px 10px", fontSize: 12, textAlign: "right", whiteSpace: "nowrap", color: vc(data.value) }}>
+            <strong>{fV(data.value)}</strong> <span style={{ fontSize: 10, color: "#999" }}>{unit}</span>
+          </td>
+          <td style={{ padding: "6px 10px", fontSize: 12, textAlign: "right", color: "#888" }} colSpan={1}>
+            <span style={{ fontSize: 10 }}>N/A (flow)</span>
+          </td>
+          <td style={{ padding: "6px 10px", fontSize: 12, textAlign: "right", whiteSpace: "nowrap", color: vc(data.mtdSum) }}>
+            <strong>{fV(data.mtdSum)}</strong><br /><span style={{ fontSize: 10, color: "#888" }}>MTD cum. ({data.mtdDays}d)</span>
+          </td>
+          <td style={{ padding: "6px 10px", fontSize: 12, textAlign: "right", whiteSpace: "nowrap", color: vc(data.ytdSum) }}>
+            <strong>{fV(data.ytdSum)}</strong><br /><span style={{ fontSize: 10, color: "#888" }}>YTD cum. ({data.ytdDays}d)</span>
+          </td>
+        </tr>
+      );
+    }
     return (
       <tr style={{ borderBottom: "1px solid #f0f2f5", background: hidden ? "#fafafa" : "#fff", opacity: hidden ? 0.45 : 1 }}>
         <td style={{ padding: "4px 6px", textAlign: "center" }}>
