@@ -29,6 +29,9 @@ const DEFAULT_STATE = {
     { key: "corporate", label: "Corporate", on: true },
     { key: "research", label: "Research Reports", on: true },
     { key: "bcra", label: "BCRA Dashboard", on: false },
+    { key: "events", label: "Events & Webinars", on: false },
+    { key: "keyEvents", label: "Key Events to Watch", on: false },
+    { key: "chart", label: "Chart / Image", on: false },
   ],
   summaryBar: "",
   macroBlocks: [{ id: "1", title: "TREASURY AUCTION RESULTS", body: "", lsPick: "" }, { id: "2", title: "FX / BCRA", body: "", lsPick: "" }],
@@ -51,6 +54,9 @@ const DEFAULT_STATE = {
   analysts: DEFAULT_ANALYSTS,
   bcraData: null,
   bcraHiddenRows: {},
+  events: [],
+  keyEvents: [],
+  chartImage: null,
 };
 
 const formatDate = (iso) => { const d = new Date(iso + "T12:00:00"); return d.toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" }); };
@@ -141,8 +147,36 @@ function generateHTML(s) {
     return `<tr><td style="padding:0 32px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:14px;"><tr><td><div style="font-size:11px;font-weight:700;color:#fff;background:${B.blue};text-transform:uppercase;letter-spacing:1.5px;padding:5px 12px;display:inline-block;">BCRA Dashboard</div><span style="font-size:10px;color:#999;margin-left:12px;">Source: BCRA API · ${fetchDate}</span></td></tr></table><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #dde3ea;margin-bottom:16px;">${hdr}${bodyRows}</table></td></tr>`;
   })();
 
+  // Events & Webinars
+  const eventsHtml = (() => {
+    if (!s.sections.find(x=>x.key==="events")?.on) return "";
+    const evts = (s.events||[]).filter(e => e.title);
+    if (!evts.length) return "";
+    const typeIcon = t => ({ Webinar:"🎙", Conference:"🏛", "Earnings Call":"📊", "Roadshow":"✈", Other:"📅" }[t]||"📅");
+    const typeColor = t => ({ Webinar:"#1e5ab0", Conference:"#23a29e", "Earnings Call":"#7b5ea7", Roadshow:"#e6a817", Other:"#888" }[t]||"#888");
+    const rows = evts.map(e => `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:10px;border-bottom:1px solid #eef0f3;padding-bottom:10px;"><tr><td width="8" style="background:${typeColor(e.type)};border-radius:3px;"> </td><td style="padding-left:12px;"><div style="display:flex;align-items:center;gap:8px;margin-bottom:2px;"><span style="display:inline-block;background:${typeColor(e.type)};color:#fff;font-size:9px;font-weight:700;padding:2px 7px;border-radius:3px;text-transform:uppercase;letter-spacing:0.5px;">${e.type||"Event"}</span>${e.date ? `<span style="font-size:11px;color:#888;">${e.date}${e.time ? " · "+e.time : ""}</span>` : ""}</div><div style="font-size:13px;font-weight:700;color:#000039;margin-bottom:3px;">${e.title}</div>${e.description ? `<div style="font-size:12px;color:#555;line-height:1.5;margin-bottom:4px;">${e.description}</div>` : ""}${e.link ? `<a href="${e.link}" style="font-size:11px;color:#1e5ab0;font-weight:600;">Join / Register →</a>` : ""}</td></tr></table>`).join("");
+    return `<tr><td style="padding:0 32px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:14px;"><tr><td><div style="font-size:11px;font-weight:700;color:#fff;background:#23a29e;text-transform:uppercase;letter-spacing:1.5px;padding:5px 12px;display:inline-block;">Events & Webinars</div></td></tr></table>${rows}</td></tr>`;
+  })();
+
+  // Key Events to Watch
+  const keyEventsHtml = (() => {
+    if (!s.sections.find(x=>x.key==="keyEvents")?.on) return "";
+    const ke = (s.keyEvents||[]).filter(e => e.event);
+    if (!ke.length) return "";
+    const rows = ke.map((e,i) => `<tr style="background:${i%2===0?"#f8fafc":"#fff"};"><td style="padding:6px 10px;font-size:12px;font-weight:700;color:#1e5ab0;white-space:nowrap;border-bottom:1px solid #eef0f3;">${e.date||""}</td><td style="padding:6px 10px;font-size:12px;color:#333;border-bottom:1px solid #eef0f3;">${e.event}</td></tr>`).join("");
+    return `<tr><td style="padding:0 32px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:14px;"><tr><td><div style="font-size:11px;font-weight:700;color:#fff;background:#000039;text-transform:uppercase;letter-spacing:1.5px;padding:5px 12px;display:inline-block;">Key Events to Watch</div></td></tr></table><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #dde3ea;"><tr style="background:#000039;"><th style="padding:6px 10px;font-size:11px;font-weight:700;color:#fff;text-align:left;width:90px;">Date</th><th style="padding:6px 10px;font-size:11px;font-weight:700;color:#fff;text-align:left;">Event</th></tr>${rows}</table><div style="padding:16px 0 0;"></div></td></tr>`;
+  })();
+
+  // Chart / Image
+  const chartHtml = (() => {
+    if (!s.sections.find(x=>x.key==="chart")?.on) return "";
+    const ci = s.chartImage;
+    if (!ci?.base64) return "";
+    return `<tr><td style="padding:0 32px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:14px;"><tr><td><div style="font-size:11px;font-weight:700;color:#fff;background:#7b5ea7;text-transform:uppercase;letter-spacing:1.5px;padding:5px 12px;display:inline-block;">Chart</div></td></tr></table>${ci.title ? `<div style="font-size:13px;font-weight:700;color:#000039;margin-bottom:8px;">${ci.title}</div>` : ""}<img src="${ci.base64}" alt="${ci.caption||"Chart"}" style="max-width:100%;height:auto;display:block;border:1px solid #e4e8ed;border-radius:4px;" />${ci.caption ? `<div style="font-size:11px;color:#888;margin-top:6px;font-style:italic;">${ci.caption}</div>` : ""}<div style="padding:8px 0;"></div></td></tr>`;
+  })();
+
   const sig = s.signatures.map(x => `<div style="margin-bottom:8px;"><div style="font-size:13px;font-weight:700;color:${B.navy};">${x.name}</div><div style="font-size:12px;color:#666;">${x.role}</div><div style="font-size:12px;color:${B.blue};">${x.email}</div></div>`).join("");
-  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Argentina Daily</title></head><body style="margin:0;padding:0;background:#f0f2f5;font-family:'Segoe UI',Calibri,Arial,sans-serif;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f0f2f5;"><tr><td align="center" style="padding:20px 10px;"><table role="presentation" width="680" cellpadding="0" cellspacing="0" border="0" style="max-width:680px;width:100%;background:#fff;"><tr><td style="background:${B.navy};padding:24px 32px 20px;border-bottom:3px solid ${B.sky};"><img src="${LOGO_WHITE_B64}" alt="Latin Securities" style="height:36px;display:block;" /><div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:${B.sky};margin-top:4px;">Sales &amp; Trading</div><div style="font-size:20px;font-weight:600;color:#fff;margin-top:14px;">Argentina Daily</div><div style="font-size:12px;color:#8aa8d4;margin-top:2px;">${formatDate(s.date)}</div></td></tr>${s.summaryBar ? `<tr><td style="background:${B.lightBg};border-left:4px solid ${B.blue};padding:14px 24px;font-size:13.5px;line-height:1.55;color:${B.navy};"><strong>Today:</strong> ${s.summaryBar}</td></tr>` : ""}<tr><td style="padding:22px 0 0;"></td></tr>${s.sections.filter(x=>x.on).map(x => ({macro,tradeIdeas:trade,flows:flow,macroEstimates:mEst,corporate:corp,research,bcra:bcraHtml})[x.key]||"").join("")}<tr><td style="padding:12px 32px 0;border-top:1px solid #e4e8ed;"><img src="${LOGO_ORIG_B64}" alt="Latin Securities" style="height:30px;display:block;margin-bottom:10px;" />${sig}</td></tr><tr><td style="padding:16px 0 0;"></td></tr><tr><td style="background:${B.navy};padding:14px 24px;border-top:2px solid ${B.sky};"><div style="font-size:10px;font-weight:700;color:${B.sky};margin-bottom:4px;">LATIN SECURITIES S.A.</div><div style="font-size:9px;color:#8aa8d4;line-height:1.5;">Arenales 707, 6th Floor \u00B7 Buenos Aires, Argentina \u00B7 www.latinsecurities.com.ar<br><br>This material is for informational purposes only and does not constitute an offer to buy or sell any financial instrument. \u00A9 2026 Latin Securities S.A.</div></td></tr></table></td></tr></table></body></html>`;
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Argentina Daily</title></head><body style="margin:0;padding:0;background:#f0f2f5;font-family:'Segoe UI',Calibri,Arial,sans-serif;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f0f2f5;"><tr><td align="center" style="padding:20px 10px;"><table role="presentation" width="680" cellpadding="0" cellspacing="0" border="0" style="max-width:680px;width:100%;background:#fff;"><tr><td style="background:${B.navy};padding:24px 32px 20px;border-bottom:3px solid ${B.sky};"><img src="${LOGO_WHITE_B64}" alt="Latin Securities" style="height:36px;display:block;" /><div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:${B.sky};margin-top:4px;">Sales &amp; Trading</div><div style="font-size:20px;font-weight:600;color:#fff;margin-top:14px;">Argentina Daily</div><div style="font-size:12px;color:#8aa8d4;margin-top:2px;">${formatDate(s.date)}</div></td></tr>${s.summaryBar ? `<tr><td style="background:${B.lightBg};border-left:4px solid ${B.blue};padding:14px 24px;font-size:13.5px;line-height:1.55;color:${B.navy};"><strong>Today:</strong> ${s.summaryBar}</td></tr>` : ""}<tr><td style="padding:22px 0 0;"></td></tr>${s.sections.filter(x=>x.on).map(x => ({macro,tradeIdeas:trade,flows:flow,macroEstimates:mEst,corporate:corp,research,bcra:bcraHtml,events:eventsHtml,keyEvents:keyEventsHtml,chart:chartHtml})[x.key]||"").join("")}<tr><td style="padding:12px 32px 0;border-top:1px solid #e4e8ed;"><img src="${LOGO_ORIG_B64}" alt="Latin Securities" style="height:30px;display:block;margin-bottom:10px;" />${sig}</td></tr><tr><td style="padding:16px 0 0;"></td></tr><tr><td style="background:${B.navy};padding:14px 24px;border-top:2px solid ${B.sky};"><div style="font-size:10px;font-weight:700;color:${B.sky};margin-bottom:4px;">LATIN SECURITIES S.A.</div><div style="font-size:9px;color:#8aa8d4;line-height:1.5;">Arenales 707, 6th Floor \u00B7 Buenos Aires, Argentina \u00B7 www.latinsecurities.com.ar<br><br>This material is for informational purposes only and does not constitute an offer to buy or sell any financial instrument. \u00A9 2026 Latin Securities S.A.</div></td></tr></table></td></tr></table></body></html>`;
 }
 
 function generateBBG(s) {
@@ -156,6 +190,9 @@ function generateBBG(s) {
     corporate: () => { L.push("", "CORPORATE", ""); s.corpBlocks.forEach(c => { const r = res(c, s.analysts); L.push(`${r.tickers.join(" / ")} \u2013 ${r.headline}`); r.covs.filter(cv=>cv.ticker).forEach(cv => { const ups = fmtUpside(cv.tp, cv.last); L.push(`  ${cv.ticker} | ${cv.rating} | TP ${cv.tp}${cv.last ? ` | Last ${cv.last}` : ""}${ups ? ` | ${ups}` : ""}`); }); L.push(`  ${r.analyst}`); if (r.body) L.push(r.body); if (r.link) L.push(`Link: ${r.link}`); L.push(""); }); L.push("---"); },
     research: () => { if (!s.researchReports?.length) return; L.push("", "RESEARCH REPORTS", ""); s.researchReports.filter(r=>r.title).forEach(r => { L.push(`[${r.type}] ${r.title}`); if (r.author) L.push(`  ${r.author}`); if (r.body) L.push(r.body); if (r.link) L.push(`Link: ${r.link}`); L.push(""); }); L.push("---"); },
     bcra: () => { const bd = s.bcraData; const d = bd?.data; if (!d) return; const hidden = s.bcraHiddenRows||{}; L.push("", "BCRA DASHBOARD", `Source: BCRA API · ${bd.fetchedAt ? new Date(bd.fetchedAt).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}) : ""}`, ""); const fN=(v)=>v==null?"N/D":Number(v).toLocaleString("en-US",{minimumFractionDigits:0,maximumFractionDigits:0}); const fV=(v)=>v==null?"N/D":(v>=0?"+":"")+fN(v); const fP=(v)=>v==null?"":` (${v>=0?"+":""}${Number(v).toFixed(1)}%)`; const line=(key,label,unit)=>{ if(hidden[key]) return; const r=d[key]; if(!r||r.value==null) return; L.push(`${label} [as of ${r.date}]: ${fN(r.value)} ${unit} | D/D: ${fV(r.d1)}${fP(r.d1pct)} | MTD: ${fV(r.mtd)}${fP(r.mtdpct)} | YTD: ${fV(r.ytd)}${fP(r.ytdpct)}`); }; L.push("Reserves & FX:"); line("reservas","  International Reserves","USD M"); line("comprasBCRA","  BCRA Net FX Purchases","USD M"); L.push("","Private Deposits:"); line("depTotalARS","  Total ARS Deposits","ARS$ bn"); line("depCC","    ↳ Demand (ARS$)","ARS$ bn"); line("depCA","    ↳ Savings (ARS$)","ARS$ bn"); line("depPF","    ↳ Time (ARS$)","ARS$ bn"); line("depUSD","  USD Deposits","US$ mn"); L.push("","Private Loans:"); line("prestARS","  Loans (ARS)","ARS M"); line("prestUSD","  Loans (USD)","USD M"); L.push("","---"); },
+    events: () => { const evts = (s.events||[]).filter(e=>e.title); if (!evts.length) return; L.push("","EVENTS & WEBINARS",""); evts.forEach(e => { L.push(`[${e.type||"Event"}] ${e.title}`); if (e.date) L.push(`  ${e.date}${e.time?" · "+e.time:""}`); if (e.description) L.push(`  ${e.description}`); if (e.link) L.push(`  ${e.link}`); L.push(""); }); L.push("---"); },
+    keyEvents: () => { const ke = (s.keyEvents||[]).filter(e=>e.event); if (!ke.length) return; L.push("","KEY EVENTS TO WATCH",""); ke.forEach(e => L.push(`  ${e.date||""}: ${e.event}`)); L.push("","---"); },
+    chart: () => { if (s.chartImage?.caption || s.chartImage?.title) { L.push("","CHART",""); if (s.chartImage.title) L.push(s.chartImage.title); if (s.chartImage.caption) L.push(s.chartImage.caption); L.push("[Image attached]","","---"); } },
   };
   s.sections.filter(x => x.on).forEach(x => bbgSec[x.key]?.());
   L.push(""); s.signatures.forEach(x => { L.push(x.name, x.role, x.email, ""); }); return L.join("\n");
@@ -605,7 +642,67 @@ export default function App() {
             }
           }} />}
 
-          <Card title="Signatures" color={BRAND.navy}>
+          {s.sections.find(x=>x.key==="events")?.on && <Card title="Events & Webinars" color="#23a29e">
+            {(s.events||[]).map((e, i) => {
+              const ue = (k, v) => setS(p => ({ ...p, events: p.events.map((x, j) => j === i ? { ...x, [k]: v } : x) }));
+              return (<div key={i} style={{ padding: 12, background: "#fafbfc", borderRadius: 8, marginBottom: 10, border: "1px solid #e0f2f1" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "130px 1fr 120px", gap: 8, marginBottom: 8 }}>
+                  <div>
+                    <label style={{ fontSize: 10, fontWeight: 700, color: "#555", textTransform: "uppercase", display: "block", marginBottom: 3 }}>Type</label>
+                    <select value={e.type||"Webinar"} onChange={ev => ue("type", ev.target.value)} style={{ ...ss, width: "100%", fontWeight: 600 }}>
+                      <option>Webinar</option><option>Conference</option><option>Earnings Call</option><option>Roadshow</option><option>Other</option>
+                    </select>
+                  </div>
+                  <Inp label="Title / Description" value={e.title||""} onChange={v => ue("title", v)} placeholder="e.g. LS Macro Webinar — Argentina 2026 Outlook" />
+                  <Inp label="Date" value={e.date||""} onChange={v => ue("date", v)} placeholder="e.g. Mar 12, 2026" />
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 120px", gap: 8, marginBottom: 8 }}>
+                  <Inp label="Body (optional)" value={e.description||""} onChange={v => ue("description", v)} placeholder="Brief description or agenda..." />
+                  <Inp label="Time" value={e.time||""} onChange={v => ue("time", v)} placeholder="e.g. 11:00 AM ART" />
+                </div>
+                <div style={{ display: "flex", alignItems: "flex-end", gap: 8 }}>
+                  <div style={{ flex: 1 }}><Inp label="Register / Zoom Link" value={e.link||""} onChange={v => ue("link", v)} placeholder="https://..." /></div>
+                  <div style={{ paddingBottom: 10 }}><X onClick={() => setS(p => ({ ...p, events: p.events.filter((_, j) => j !== i) }))} /></div>
+                </div>
+              </div>);
+            })}
+            <DashBtn onClick={() => setS(p => ({ ...p, events: [...(p.events||[]), { title: "", type: "Webinar", date: "", time: "", description: "", link: "" }] }))} color="#23a29e">+ Add Event</DashBtn>
+          </Card>}
+
+          {s.sections.find(x=>x.key==="keyEvents")?.on && <Card title="Key Events to Watch" color={BRAND.navy}>
+            <p style={{ fontSize: 12, color: "#666", margin: "0 0 10px", lineHeight: 1.5 }}>Add the key macro/political events clients should watch this week.</p>
+            {(s.keyEvents||[]).map((e, i) => {
+              const uke = (k, v) => setS(p => ({ ...p, keyEvents: p.keyEvents.map((x, j) => j === i ? { ...x, [k]: v } : x) }));
+              return (<div key={i} style={{ display: "flex", gap: 8, marginBottom: 8, alignItems: "flex-end" }}>
+                <div style={{ width: 120 }}><Inp label={i === 0 ? "Date" : undefined} value={e.date||""} onChange={v => uke("date", v)} placeholder="Mar 12" /></div>
+                <div style={{ flex: 1 }}><Inp label={i === 0 ? "Event" : undefined} value={e.event||""} onChange={v => uke("event", v)} placeholder="BCRA rate decision / CPI release / FOMC..." /></div>
+                <div style={{ paddingBottom: 10 }}><X onClick={() => setS(p => ({ ...p, keyEvents: p.keyEvents.filter((_, j) => j !== i) }))} /></div>
+              </div>);
+            })}
+            <DashBtn onClick={() => setS(p => ({ ...p, keyEvents: [...(p.keyEvents||[]), { date: "", event: "" }] }))}>+ Add Event</DashBtn>
+          </Card>}
+
+          {s.sections.find(x=>x.key==="chart")?.on && <Card title="Chart / Image" color="#7b5ea7">
+            <p style={{ fontSize: 12, color: "#666", margin: "0 0 10px", lineHeight: 1.5 }}>Upload a chart or image to embed in the email.</p>
+            <Inp label="Chart Title (optional)" value={s.chartImage?.title||""} onChange={v => setS(p => ({ ...p, chartImage: { ...(p.chartImage||{}), title: v } }))} placeholder="e.g. MERVAL YTD vs EM Peers" />
+            <Inp label="Caption (optional)" value={s.chartImage?.caption||""} onChange={v => setS(p => ({ ...p, chartImage: { ...(p.chartImage||{}), caption: v } }))} placeholder="e.g. Source: Bloomberg, LS Research" />
+            <div style={{ marginBottom: 10 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: "#555", textTransform: "uppercase", letterSpacing: 0.5, display: "block", marginBottom: 6 }}>Image File</label>
+              <input type="file" accept="image/*" onChange={e => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = ev => setS(p => ({ ...p, chartImage: { ...(p.chartImage||{}), base64: ev.target.result } }));
+                reader.readAsDataURL(file);
+              }} style={{ fontSize: 13 }} />
+            </div>
+            {s.chartImage?.base64 && (
+              <div style={{ marginTop: 8, border: "1px solid #e4e8ed", borderRadius: 6, overflow: "hidden", position: "relative" }}>
+                <img src={s.chartImage.base64} alt="chart preview" style={{ maxWidth: "100%", height: "auto", display: "block" }} />
+                <button onClick={() => setS(p => ({ ...p, chartImage: { ...p.chartImage, base64: null } }))} style={{ position: "absolute", top: 6, right: 6, background: "rgba(0,0,0,0.6)", border: "none", color: "#fff", borderRadius: 4, cursor: "pointer", fontSize: 11, padding: "3px 8px", fontWeight: 700 }}>✕ Remove</button>
+              </div>
+            )}
+          </Card>}
             {s.signatures.map(sig => (<div key={sig.id} style={{ display: "flex", gap: 8, marginBottom: 8, alignItems: "flex-end" }}><div style={{ flex: 1 }}><Inp label="Name" value={sig.name} onChange={v => ul("signatures", sig.id, "name", v)} /></div><div style={{ flex: 1 }}><Inp label="Role" value={sig.role} onChange={v => ul("signatures", sig.id, "role", v)} /></div><div style={{ flex: 1 }}><Inp label="Email" value={sig.email} onChange={v => ul("signatures", sig.id, "email", v)} /></div>{s.signatures.length > 1 && <div style={{ paddingBottom: 10 }}><X onClick={() => rl("signatures", sig.id)} /></div>}</div>))}
             <DashBtn onClick={() => al("signatures", { id: `s${Date.now()}`, name: "", role: "", email: "" })}>+ Add Signature</DashBtn>
           </Card>
