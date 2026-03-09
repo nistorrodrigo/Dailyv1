@@ -747,6 +747,8 @@ export default function App() {
               </div>
             )}
           </Card>}
+
+          <Card title="Signatures" color={BRAND.navy}>
             {s.signatures.map(sig => (<div key={sig.id} style={{ display: "flex", gap: 8, marginBottom: 8, alignItems: "flex-end" }}><div style={{ flex: 1 }}><Inp label="Name" value={sig.name} onChange={v => ul("signatures", sig.id, "name", v)} /></div><div style={{ flex: 1 }}><Inp label="Role" value={sig.role} onChange={v => ul("signatures", sig.id, "role", v)} /></div><div style={{ flex: 1 }}><Inp label="Email" value={sig.email} onChange={v => ul("signatures", sig.id, "email", v)} /></div>{s.signatures.length > 1 && <div style={{ paddingBottom: 10 }}><X onClick={() => rl("signatures", sig.id)} /></div>}</div>))}
             <DashBtn onClick={() => al("signatures", { id: `s${Date.now()}`, name: "", role: "", email: "" })}>+ Add Signature</DashBtn>
           </Card>
