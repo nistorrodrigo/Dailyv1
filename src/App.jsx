@@ -152,22 +152,59 @@ export default function App() {
             <p style={{ fontSize: 12, color: "#666", margin: "0 0 8px", lineHeight: 1.5 }}>Manage analysts and their coverage. Rating and TP auto-populate in the Corporate section.</p>
             <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
               <label style={{ padding: "7px 14px", borderRadius: 6, border: `1px solid ${BRAND.teal}`, background: "transparent", color: BRAND.teal, fontSize: 11, fontWeight: 700, cursor: "pointer", textTransform: "uppercase" }}>
-                Upload CSV
-                <input type="file" accept=".csv,.txt" style={{ display: "none" }} onChange={e => {
+                Upload File
+                <input type="file" accept=".xlsx,.xls,.csv,.txt" style={{ display: "none" }} onChange={async e => {
                   const file = e.target.files[0]; if (!file) return;
-                  const reader = new FileReader();
-                  reader.onload = ev => {
-                    const lines = ev.target.result.split("\n").map(l => l.trim()).filter(Boolean);
-                    const header = lines[0].toLowerCase();
-                    if (!header.includes("analyst") || !header.includes("ticker")) { alert("CSV must have columns: analyst, title, ticker, rating, tp"); return; }
-                    const rows = lines.slice(1).map(l => { const cols = l.split(",").map(c => c.trim()); return { analyst: cols[0], title: cols[1]||"", ticker: cols[2]||"", rating: cols[3]||"Neutral", tp: cols[4]||"" }; });
+                  const processRows = (rows) => {
                     const grouped = {};
-                    rows.forEach(r => { if (!grouped[r.analyst]) grouped[r.analyst] = { name: r.analyst, title: r.title, coverage: [] }; grouped[r.analyst].coverage.push({ ticker: r.ticker.toUpperCase(), rating: r.rating, tp: r.tp.startsWith("US$") ? r.tp : r.tp.startsWith("$") ? "US" + r.tp : "US$" + r.tp.replace(/[^0-9.]/g, "") }); });
-                    const newAnalysts = Object.values(grouped).map((a, i) => ({ id: `csv${Date.now()}${i}`, ...a }));
-                    setS(p => ({ ...p, analysts: [...p.analysts, ...newAnalysts] }));
-                    alert(`Imported ${newAnalysts.length} analyst(s) with ${rows.length} coverage entries`);
+                    rows.forEach(r => {
+                      if (!r.analyst || !r.ticker) return;
+                      if (!grouped[r.analyst]) grouped[r.analyst] = { name: r.analyst, title: "", coverage: [] };
+                      const tpVal = (!r.tp || r.tp === "-" || r.tp === "0") ? "" : (String(r.tp).startsWith("US$") ? r.tp : `US$${parseFloat(String(r.tp).replace(/[^0-9.]/g,"")).toFixed(2)}`);
+                      const rating = (r.rating && ["Overweight","Neutral","Underweight","NR","UR"].includes(r.rating)) ? r.rating : "NR";
+                      grouped[r.analyst].coverage.push({ ticker: r.ticker.toUpperCase().trim(), rating, tp: tpVal === "US$NaN" ? "" : tpVal });
+                    });
+                    const newAnalysts = Object.values(grouped).map((a, i) => ({ id: `imp${Date.now()}${i}`, ...a }));
+                    if (newAnalysts.length === 0) { alert("No valid data found. Check file format."); return; }
+                    if (window.confirm(`Found ${newAnalysts.length} analyst(s) with ${rows.length} tickers. Replace current database?`)) {
+                      setS(p => ({ ...p, analysts: newAnalysts }));
+                    } else {
+                      setS(p => ({ ...p, analysts: [...p.analysts, ...newAnalysts] }));
+                    }
+                    alert(`Imported ${newAnalysts.length} analyst(s)`);
                   };
-                  reader.readAsText(file);
+                  if (file.name.match(/\.xlsx?$/i)) {
+                    const XLSX = await import("https://cdn.sheetjs.com/xlsx-0.20.3/package/xlsx.mjs");
+                    const buf = await file.arrayBuffer();
+                    const wb = XLSX.read(buf);
+                    const ws = wb.Sheets[wb.SheetNames[0]];
+                    const json = XLSX.utils.sheet_to_json(ws, { header: 1 });
+                    // Find header row (contains "Analyst" and "Ticker")
+                    let hIdx = json.findIndex(r => r.some(c => String(c||"").toLowerCase().includes("analyst")) && r.some(c => String(c||"").toLowerCase().includes("ticker")));
+                    if (hIdx === -1) { alert("Could not find header row with 'Analyst Name' and 'Ticker'"); return; }
+                    const hdr = json[hIdx].map(c => String(c||"").toLowerCase().trim());
+                    const aCol = hdr.findIndex(h => h.includes("analyst"));
+                    const tCol = hdr.findIndex(h => h.includes("ticker"));
+                    const rCol = hdr.findIndex(h => h.includes("rating"));
+                    const pCol = hdr.findIndex(h => h.includes("target") || h.includes("tp") || h.includes("price"));
+                    const rows = json.slice(hIdx + 1).filter(r => r[aCol] && r[tCol]).map(r => ({
+                      analyst: String(r[aCol]||"").trim(),
+                      ticker: String(r[tCol]||"").trim(),
+                      rating: String(r[rCol !== -1 ? rCol : 99]||"NR").trim(),
+                      tp: String(r[pCol !== -1 ? pCol : 99]||"").trim(),
+                    }));
+                    processRows(rows);
+                  } else {
+                    const reader = new FileReader();
+                    reader.onload = ev => {
+                      const lines = ev.target.result.split("\n").map(l => l.trim()).filter(Boolean);
+                      const hdr = lines[0].toLowerCase();
+                      if (!hdr.includes("analyst") || !hdr.includes("ticker")) { alert("CSV must have columns: Analyst Name, Ticker, Rating, Target Price"); return; }
+                      const rows = lines.slice(1).map(l => { const c = l.split(",").map(x => x.trim()); return { analyst: c[0], ticker: c[1]||"", rating: c[2]||"NR", tp: c[3]||"" }; });
+                      processRows(rows);
+                    };
+                    reader.readAsText(file);
+                  }
                   e.target.value = "";
                 }} />
               </label>
@@ -184,7 +221,7 @@ export default function App() {
                   alert(`Updated prices for ${Object.keys(priceMap).length}/${unique.length} tickers`);
                 } catch(err) { alert("Price fetch failed: " + err.message + "\nEnter prices manually in the Last column."); }
               }} style={{ padding: "7px 14px", borderRadius: 6, border: `1px solid ${BRAND.sky}`, background: "transparent", color: BRAND.sky, fontSize: 11, fontWeight: 700, cursor: "pointer", textTransform: "uppercase" }}>Fetch Closing Prices</button>
-              <span style={{ fontSize: 10, color: "#999", alignSelf: "center" }}>CSV format: analyst, title, ticker, rating, tp</span>
+              <span style={{ fontSize: 10, color: "#999", alignSelf: "center" }}>Excel (.xlsx) or CSV with: Analyst Name, Ticker, Rating, Target Price</span>
             </div>
             {s.analysts.map(a => (
               <div key={a.id} style={{ padding: 14, background: "#fafbfc", borderRadius: 8, marginBottom: 14, border: "1px solid #eee" }}>
