@@ -229,7 +229,7 @@ function BcraCard({ bcraData, onFetch }) {
 }
 
 const STORAGE_KEY = "ls-daily-builder-state";
-const loadState = () => { try { const raw = localStorage.getItem(STORAGE_KEY); if (raw) { const saved = JSON.parse(raw); return { ...DEFAULT_STATE, ...saved }; } } catch(e) {} return DEFAULT_STATE; };
+const loadState = () => { try { const raw = localStorage.getItem(STORAGE_KEY); if (raw) { const saved = JSON.parse(raw); const mergedSections = DEFAULT_STATE.sections.map(def => { const existing = (saved.sections||[]).find(x => x.key === def.key); return existing || def; }); return { ...DEFAULT_STATE, ...saved, sections: mergedSections }; } } catch(e) {} return DEFAULT_STATE; };
 const saveState = (state) => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch(e) {} };
 
 export default function App() {
