@@ -1,10 +1,11 @@
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
 
-  const BASE = "https://api.bcra.gob.ar/estadisticas/v3.0/monetarias";
+  // v3 was deprecated 2026-02-28 — now using v4.0
+  const BASE = "https://api.bcra.gob.ar/estadisticas/v4.0/monetarias";
   const HDR  = { "Accept-Language": "es-AR", "User-Agent": "Mozilla/5.0", "Accept": "application/json" };
 
-  // Confirmed BCRA variable IDs (v3 API)
+  // Confirmed variable IDs (v4 list endpoint verified 2026-03-09)
   const KNOWN = {
     reservas:  1,
     depCC:    22,
@@ -28,16 +29,20 @@ export default async function handler(req, res) {
     return d.toISOString().slice(0, 10);
   }
 
+  // v4 returns: { results: [{ idVariable, detalle: [{fecha, valor}] }] }
   async function fetchSeries(id) {
-    // Fetch last 400 days to ensure we have YTD baseline
-    const hasta  = dateStr(new Date());
-    const desde  = dateStr(new Date(Date.now() - 400 * 86400000));
-    const url    = `${BASE}/${id}?desde=${desde}&hasta=${hasta}`;
+    const hasta = dateStr(new Date());
+    const desde = dateStr(new Date(Date.now() - 400 * 86400000));
+    const url   = `${BASE}/${id}?desde=${desde}&hasta=${hasta}`;
     try {
       const r = await fetch(url, { headers: HDR, signal: AbortSignal.timeout(12000) });
       if (!r.ok) return null;
       const j = await r.json();
-      const rows = (j.results || []).sort((a, b) => a.fecha.localeCompare(b.fecha));
+      // v4 nests data under results[0].detalle
+      const detalle = j.results?.[0]?.detalle || [];
+      const rows = detalle
+        .map(x => ({ fecha: x.fecha, valor: x.valor }))
+        .sort((a, b) => a.fecha.localeCompare(b.fecha));
       return rows.length ? rows : null;
     } catch (e) {
       return null;
@@ -46,7 +51,7 @@ export default async function handler(req, res) {
 
   async function fetchVarList() {
     try {
-      const r = await fetch(BASE, { headers: HDR, signal: AbortSignal.timeout(12000) });
+      const r = await fetch(`${BASE}?limit=2000`, { headers: HDR, signal: AbortSignal.timeout(12000) });
       if (!r.ok) return [];
       const j = await r.json();
       return j.results || [];
@@ -67,17 +72,13 @@ export default async function handler(req, res) {
   function calcStats(series) {
     if (!series || !series.length) return null;
     const last      = series[series.length - 1];
-    const lastDate  = last.fecha;              // "YYYY-MM-DD"
+    const lastDate  = last.fecha;
     const lastYear  = lastDate.slice(0, 4);
-    const lastMonth = lastDate.slice(0, 7);    // "YYYY-MM"
+    const lastMonth = lastDate.slice(0, 7);
 
     const prev = series.length >= 2 ? series[series.length - 2] : null;
-
-    // Last entry strictly before start of current month
-    const eom = [...series].reverse().find(s => s.fecha < `${lastMonth}-01`) || null;
-
-    // Last entry strictly before start of current year
-    const eoy = [...series].reverse().find(s => s.fecha < `${lastYear}-01-01`) || null;
+    const eom  = [...series].reverse().find(s => s.fecha < `${lastMonth}-01`) || null;
+    const eoy  = [...series].reverse().find(s => s.fecha < `${lastYear}-01-01`) || null;
 
     const diff = (a, b) => a != null && b != null ? +(a - b).toFixed(4) : null;
     const pct  = (a, b) => a != null && b != null && b !== 0 ? +((a - b) / Math.abs(b) * 100).toFixed(2) : null;
@@ -106,12 +107,12 @@ export default async function handler(req, res) {
       fetchSeries(KNOWN.prestARS),
     ]);
 
-    // 2. Search variable list for unknown-ID variables
+    // 2. Find unknown-ID variables by keyword from the list
     const varList = await fetchVarList();
 
     const comprasVar  = findVar(varList, ["compras netas"], []);
-    const depUSDVar   = findVar(varList, ["depósitos", "dólar", "sector privado"], ["tasa", "plazo fijo"]);
-    const prestUSDVar = findVar(varList, ["préstamos", "dólar", "sector privado"], ["tasa"]);
+    const depUSDVar   = findVar(varList, ["depósitos", "dólar"], ["tasa", "plazo fijo", "cuenta corriente", "ahorro"]);
+    const prestUSDVar = findVar(varList, ["préstamos", "dólar"], ["tasa"]);
 
     const [comprasSeries, depUSDSeries, prestUSDSeries] = await Promise.all([
       comprasVar  ? fetchSeries(comprasVar.idVariable)  : Promise.resolve(null),
@@ -140,6 +141,7 @@ export default async function handler(req, res) {
       fetchedAt: new Date().toISOString(),
       data,
       debug: {
+        apiVersion: "v4.0",
         varListCount: varList.length,
         comprasVarFound:  comprasVar  ? `${comprasVar.idVariable}: ${comprasVar.descripcion}`  : "NOT FOUND",
         depUSDVarFound:   depUSDVar   ? `${depUSDVar.idVariable}: ${depUSDVar.descripcion}`    : "NOT FOUND",
@@ -157,6 +159,6 @@ export default async function handler(req, res) {
       }
     });
   } catch (err) {
-    res.status(500).json({ error: err.message, stack: err.stack });
+    res.status(500).json({ error: err.message });
   }
 }
