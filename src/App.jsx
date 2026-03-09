@@ -96,7 +96,7 @@ function generateHTML(s) {
     const hidden = s.bcraHiddenRows || {};
     const fetchDate = bd.fetchedAt ? new Date(bd.fetchedAt).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}) : "";
 
-    const fN = (v, unit) => v == null ? "—" : Number(v).toLocaleString("en-US", { minimumFractionDigits: (unit||"").includes("tn")?2:0, maximumFractionDigits: (unit||"").includes("tn")?2:0 });
+    const fN = (v, unit) => v == null ? "—" : Number(v).toLocaleString("en-US", { minimumFractionDigits: (unit||"").includes("mn")?1:2, maximumFractionDigits: (unit||"").includes("mn")?1:2 });
     const fV = (v, unit) => v == null ? "—" : (v >= 0 ? "+" : "") + fN(v, unit);
     const fP = (v) => v == null ? "" : ` (${v >= 0 ? "+" : ""}${Number(v).toFixed(1)}%)`;
     const vc = (v) => v == null ? "#888" : v >= 0 ? "#27864a" : "#c0392b";
@@ -167,8 +167,8 @@ function BcraCard({ bcraData, onFetch, hiddenRows = {}, onToggleRow }) {
   const fetchedAt = bcraData?.fetchedAt ? new Date(bcraData.fetchedAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : null;
 
   const vc = (v) => v == null ? "#888" : v >= 0 ? "#27864a" : "#c0392b";
-  // decimals: tn needs 2, mn needs 0
-  const dec = (unit) => unit?.includes("tn") ? 2 : 0;
+  // bn values get 2 decimals, mn gets 1
+  const dec = (unit) => (unit||"").includes("mn") ? 1 : 2;
   const fN = (v, unit) => v == null ? "—" : Number(v).toLocaleString("en-US", { minimumFractionDigits: dec(unit), maximumFractionDigits: dec(unit) });
   const fV = (v, unit) => { if (v == null) return "—"; return (v >= 0 ? "+" : "") + fN(v, unit); };
   const fP = (v) => v == null ? "" : ` (${v >= 0 ? "+" : ""}${Number(v).toFixed(1)}%)`;
