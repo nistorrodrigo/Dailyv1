@@ -7,15 +7,15 @@ const LOGO_ORIG_B64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAZAAAABsCAY
 
 const DEFAULT_ANALYSTS = [
   { id: "a1", name: "George Gasztowtt", title: "O&G Analyst", coverage: [
-    { ticker: "VIST", rating: "Overweight", tp: "$68.00" },
-    { ticker: "YPF", rating: "Overweight", tp: "$45.00" },
-    { ticker: "PAM", rating: "Neutral", tp: "$85.00" },
+    { ticker: "VIST", rating: "Overweight", tp: "US$68.00" },
+    { ticker: "YPF", rating: "Overweight", tp: "US$45.00" },
+    { ticker: "PAM", rating: "Neutral", tp: "US$85.00" },
   ]},
   { id: "a2", name: "Pedro Offenhenden", title: "Financials Analyst", coverage: [
-    { ticker: "BMA", rating: "Neutral", tp: "$100.00" },
-    { ticker: "BBAR", rating: "Overweight", tp: "$18.00" },
-    { ticker: "GGAL", rating: "Overweight", tp: "$95.00" },
-    { ticker: "SUPV", rating: "Overweight", tp: "$30.00" },
+    { ticker: "BMA", rating: "Neutral", tp: "US$100.00" },
+    { ticker: "BBAR", rating: "Overweight", tp: "US$18.00" },
+    { ticker: "GGAL", rating: "Overweight", tp: "US$95.00" },
+    { ticker: "SUPV", rating: "Overweight", tp: "US$30.00" },
   ]},
 ];
 
@@ -55,7 +55,7 @@ const rb = (r) => { const l = (r||"").toLowerCase(); return l === "overweight" ?
 function res(c, analysts) {
   const a = analysts.find(x => x.id === c.analystId);
   const cv = a ? a.coverage.find(x => x.ticker === c.ticker) : null;
-  return { ticker: c.ticker, headline: c.headline, rating: cv ? cv.rating : "Neutral", tp: cv ? cv.tp : "", analyst: a ? `${a.name}, ${a.title}` : "", body: c.body, link: c.link };
+  return { ticker: c.ticker, headline: c.headline, rating: cv ? cv.rating : "Neutral", tp: cv ? cv.tp : "", last: cv ? (cv.last||"") : "", analyst: a ? `${a.name}, ${a.title}` : "", body: c.body, link: c.link };
 }
 
 function generateHTML(s) {
@@ -65,7 +65,7 @@ function generateHTML(s) {
   const trade = s.sections.find(x=>x.key==="tradeIdeas")?.on ? `<tr><td style="padding:0 32px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:14px;"><tr><td><div style="font-size:11px;font-weight:700;color:#fff;background:${B.blue};text-transform:uppercase;letter-spacing:1.5px;padding:5px 12px;display:inline-block;">Trade Ideas</div></td></tr></table><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:14px;"><tr><td><div style="font-size:12.5px;font-weight:700;color:${B.navy};margin-bottom:6px;">Equity \u2014 Research Top Picks</div>${s.equityPicks.filter(p=>p.ticker).map(p => { const info = allTickers.find(x => x.ticker === p.ticker); return `<div style="margin-bottom:6px;"><span style="display:inline-block;background:${info ? rc(info.rating) : B.navy};color:#fff;font-size:11px;font-weight:700;padding:4px 10px;border-radius:3px;">${p.ticker}</span>${info ? `<span style="font-size:11px;color:#666;margin-left:6px;">${info.rating} | TP ${info.tp}</span>` : ""}${p.reason ? `<div style="font-size:12px;color:#555;margin-top:2px;margin-left:4px;font-style:italic;">${p.reason}</div>` : ""}</div>`; }).join("")}</td></tr></table><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:16px;border-bottom:1px solid #e4e8ed;padding-bottom:12px;"><tr><td><div style="font-size:12.5px;font-weight:700;color:${B.navy};margin-bottom:6px;">Fixed Income</div>${s.fiIdeas.filter(f=>f.idea).map(f => `<div style="margin-bottom:6px;"><div style="font-size:13px;line-height:1.5;color:#333;">&#9654; <strong>${f.idea}</strong></div>${f.reason ? `<div style="font-size:12px;color:#555;margin-left:18px;font-style:italic;">${f.reason}</div>` : ""}</div>`).join("")}</td></tr></table></td></tr>` : "";
   const flow = s.sections.find(x=>x.key==="flows")?.on ? `<tr><td style="padding:0 32px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:14px;"><tr><td><div style="font-size:11px;font-weight:700;color:#fff;background:${B.blue};text-transform:uppercase;letter-spacing:1.5px;padding:5px 12px;display:inline-block;">LS Trading Desk Flows</div></td></tr></table><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:16px;border-bottom:1px solid #e4e8ed;padding-bottom:12px;"><tr><td width="50%" valign="top" style="padding-right:12px;"><div style="font-size:11px;font-weight:700;color:${B.navy};text-transform:uppercase;margin-bottom:4px;">Equities</div><div style="font-size:13px;line-height:1.55;color:#333;"><span style="color:#27864a;font-weight:600;">\u25B2 Buyer</span> ${s.eqBuyer}<br><span style="color:#c0392b;font-weight:600;">\u25BC Seller</span> ${s.eqSeller}</div></td><td width="50%" valign="top" style="padding-left:12px;border-left:1px solid #e4e8ed;"><div style="font-size:11px;font-weight:700;color:${B.navy};text-transform:uppercase;margin-bottom:4px;">Fixed Income</div><div style="font-size:13px;line-height:1.55;color:#333;"><span style="color:#27864a;font-weight:600;">\u25B2 Net buyer</span> ${s.fiBuyer}<br><span style="color:#c0392b;font-weight:600;">\u25BC Net seller</span> ${s.fiSeller}</div></td></tr></table></td></tr>` : "";
   const mEst = s.sections.find(x=>x.key==="macroEstimates")?.on ? `<tr><td style="padding:0 32px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:14px;"><tr><td><div style="font-size:11px;font-weight:700;color:#fff;background:${B.blue};text-transform:uppercase;letter-spacing:1.5px;padding:5px 12px;display:inline-block;">Macro Estimates</div></td></tr></table><div style="font-size:10px;color:#666;margin-bottom:6px;">Source: ${s.macroSource}</div><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #dde3ea;margin-bottom:16px;"><tr style="background:${B.navy};"><td style="padding:6px 10px;font-size:11px;font-weight:700;color:#fff;width:40%;"></td>${s.macroCols.map(c => `<td style="padding:6px 10px;font-size:11px;font-weight:700;color:#fff;text-align:center;">${c}</td>`).join("")}</tr>${s.macroRows.map((r,i) => `<tr style="background:${i%2===0?"#f8fafc":"#fff"};"><td style="padding:6px 10px;font-size:12px;font-weight:600;color:#333;border-right:1px solid #e4e8ed;border-bottom:1px solid #e4e8ed;">${r.label}</td>${s.macroCols.map(c => `<td style="padding:6px 10px;font-size:12px;color:#333;text-align:center;border-right:1px solid #e4e8ed;border-bottom:1px solid #e4e8ed;">${r.vals[c]||""}</td>`).join("")}</tr>`).join("")}</table></td></tr>` : "";
-  const corp = s.sections.find(x=>x.key==="corporate")?.on ? `<tr><td style="padding:0 32px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:14px;"><tr><td><div style="font-size:11px;font-weight:700;color:#fff;background:${B.blue};text-transform:uppercase;letter-spacing:1.5px;padding:5px 12px;display:inline-block;">Corporate</div></td></tr></table>${s.corpBlocks.map(c => { const r = res(c, s.analysts); return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:16px;border-bottom:1px solid #e4e8ed;padding-bottom:12px;"><tr><td><div style="font-size:12.5px;font-weight:700;color:${B.navy};text-transform:uppercase;letter-spacing:0.8px;margin-bottom:4px;">${r.ticker} \u2014 ${r.headline}</div><div style="margin-bottom:6px;"><span style="display:inline-block;background:${rb(r.rating)};color:${rc(r.rating)};font-size:11px;font-weight:700;padding:3px 8px;border-radius:3px;">${r.rating}</span><span style="font-size:12px;color:#333;margin-left:6px;">TP ${r.tp} | <em>${r.analyst}</em></span></div><div style="font-size:13px;line-height:1.55;color:#333;">${r.body}</div>${r.link ? `<div style="margin-top:6px;"><a href="${r.link}" style="font-size:12px;color:${B.blue};">Full LS report \u2192</a></div>` : ""}</td></tr></table>`; }).join("")}</td></tr>` : "";
+  const corp = s.sections.find(x=>x.key==="corporate")?.on ? `<tr><td style="padding:0 32px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:14px;"><tr><td><div style="font-size:11px;font-weight:700;color:#fff;background:${B.blue};text-transform:uppercase;letter-spacing:1.5px;padding:5px 12px;display:inline-block;">Corporate</div></td></tr></table>${s.corpBlocks.map(c => { const r = res(c, s.analysts); return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:16px;border-bottom:1px solid #e4e8ed;padding-bottom:12px;"><tr><td><div style="font-size:12.5px;font-weight:700;color:${B.navy};text-transform:uppercase;letter-spacing:0.8px;margin-bottom:4px;">${r.ticker} \u2014 ${r.headline}</div><div style="margin-bottom:6px;"><span style="display:inline-block;background:${rb(r.rating)};color:${rc(r.rating)};font-size:11px;font-weight:700;padding:3px 8px;border-radius:3px;">${r.rating}</span><span style="font-size:12px;color:#333;margin-left:6px;">TP ${r.tp}${r.last ? ` | Last ${r.last}` : ""} | <em>${r.analyst}</em></span></div><div style="font-size:13px;line-height:1.55;color:#333;">${r.body}</div>${r.link ? `<div style="margin-top:6px;"><a href="${r.link}" style="font-size:12px;color:${B.blue};">Full LS report \u2192</a></div>` : ""}</td></tr></table>`; }).join("")}</td></tr>` : "";
   const sig = s.signatures.map(x => `<div style="margin-bottom:8px;"><div style="font-size:13px;font-weight:700;color:${B.navy};">${x.name}</div><div style="font-size:12px;color:#666;">${x.role}</div><div style="font-size:12px;color:${B.blue};">${x.email}</div></div>`).join("");
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Argentina Daily</title></head><body style="margin:0;padding:0;background:#f0f2f5;font-family:'Segoe UI',Calibri,Arial,sans-serif;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f0f2f5;"><tr><td align="center" style="padding:20px 10px;"><table role="presentation" width="680" cellpadding="0" cellspacing="0" border="0" style="max-width:680px;width:100%;background:#fff;"><tr><td style="background:${B.navy};padding:24px 32px 20px;border-bottom:3px solid ${B.sky};"><img src="${LOGO_WHITE_B64}" alt="Latin Securities" style="height:36px;display:block;" /><div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:${B.sky};margin-top:4px;">Sales &amp; Trading</div><div style="font-size:20px;font-weight:600;color:#fff;margin-top:14px;">Argentina Daily</div><div style="font-size:12px;color:#8aa8d4;margin-top:2px;">${formatDate(s.date)}</div></td></tr>${s.summaryBar ? `<tr><td style="background:${B.lightBg};border-left:4px solid ${B.blue};padding:14px 24px;font-size:13.5px;line-height:1.55;color:${B.navy};"><strong>Today:</strong> ${s.summaryBar}</td></tr>` : ""}<tr><td style="padding:22px 0 0;"></td></tr>${s.sections.filter(x=>x.on).map(x => ({macro,tradeIdeas:trade,flows:flow,macroEstimates:mEst,corporate:corp})[x.key]||"").join("")}<tr><td style="padding:12px 32px 0;border-top:1px solid #e4e8ed;"><img src="${LOGO_ORIG_B64}" alt="Latin Securities" style="height:30px;display:block;margin-bottom:10px;" />${sig}</td></tr><tr><td style="padding:16px 0 0;"></td></tr><tr><td style="background:${B.navy};padding:14px 24px;border-top:2px solid ${B.sky};"><div style="font-size:10px;font-weight:700;color:${B.sky};margin-bottom:4px;">LATIN SECURITIES S.A.</div><div style="font-size:9px;color:#8aa8d4;line-height:1.5;">Arenales 707, 6th Floor \u00B7 Buenos Aires, Argentina \u00B7 www.latinsecurities.com.ar<br><br>This material is for informational purposes only and does not constitute an offer to buy or sell any financial instrument. \u00A9 2026 Latin Securities S.A.</div></td></tr></table></td></tr></table></body></html>`;
 }
@@ -78,7 +78,7 @@ function generateBBG(s) {
     tradeIdeas: () => { L.push("", "TRADE IDEAS", "", "EQUITY \u2014 Research Top Picks:"); s.equityPicks.filter(p=>p.ticker).forEach(p => { L.push(`  ${p.ticker}${p.reason ? ` \u2014 ${p.reason}` : ""}`); }); L.push("", "FIXED INCOME:"); s.fiIdeas.filter(f=>f.idea).forEach(f => L.push(`- ${f.idea}${f.reason ? ` \u2014 ${f.reason}` : ""}`)); L.push("", "---"); },
     flows: () => { L.push("", "LS TRADING DESK FLOWS", "", `EQUITIES: Buyer ${s.eqBuyer} \u00B7 Seller ${s.eqSeller}`, `FIXED INCOME: Net buyer ${s.fiBuyer} \u00B7 Net seller ${s.fiSeller}`, "", "---"); },
     macroEstimates: () => { L.push("", `MACRO ESTIMATES (source: ${s.macroSource})`, ""); s.macroRows.forEach(r => L.push(`${r.label}: ${s.macroCols.map(c => `${c} ${r.vals[c]||""}`).join(" | ")}`)); L.push("", "---"); },
-    corporate: () => { L.push("", "CORPORATE", ""); s.corpBlocks.forEach(c => { const r = res(c, s.analysts); L.push(`${r.ticker} \u2013 ${r.headline} | ${r.rating} | TP ${r.tp} | ${r.analyst}`); if (r.body) L.push(r.body); if (r.link) L.push(`Link: ${r.link}`); L.push(""); }); L.push("---"); },
+    corporate: () => { L.push("", "CORPORATE", ""); s.corpBlocks.forEach(c => { const r = res(c, s.analysts); L.push(`${r.ticker} \u2013 ${r.headline} | ${r.rating} | TP ${r.tp}${r.last ? ` | Last ${r.last}` : ""} | ${r.analyst}`); if (r.body) L.push(r.body); if (r.link) L.push(`Link: ${r.link}`); L.push(""); }); L.push("---"); },
   };
   s.sections.filter(x => x.on).forEach(x => bbgSec[x.key]?.());
   L.push(""); s.signatures.forEach(x => { L.push(x.name, x.role, x.email, ""); }); return L.join("\n");
@@ -145,7 +145,54 @@ export default function App() {
       {tab === "analysts" && (
         <div style={{ maxWidth: 800, margin: "0 auto", padding: 20 }}>
           <Card title="Research Analyst Database" color={BRAND.navy}>
-            <p style={{ fontSize: 12, color: "#666", margin: "0 0 12px", lineHeight: 1.5 }}>Manage analysts and their coverage. Rating and TP auto-populate in the Corporate section.</p>
+            <p style={{ fontSize: 12, color: "#666", margin: "0 0 8px", lineHeight: 1.5 }}>Manage analysts and their coverage. Rating and TP auto-populate in the Corporate section.</p>
+            <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+              <label style={{ padding: "7px 14px", borderRadius: 6, border: `1px solid ${BRAND.teal}`, background: "transparent", color: BRAND.teal, fontSize: 11, fontWeight: 700, cursor: "pointer", textTransform: "uppercase" }}>
+                Upload CSV
+                <input type="file" accept=".csv,.txt" style={{ display: "none" }} onChange={e => {
+                  const file = e.target.files[0]; if (!file) return;
+                  const reader = new FileReader();
+                  reader.onload = ev => {
+                    const lines = ev.target.result.split("\n").map(l => l.trim()).filter(Boolean);
+                    const header = lines[0].toLowerCase();
+                    if (!header.includes("analyst") || !header.includes("ticker")) { alert("CSV must have columns: analyst, title, ticker, rating, tp"); return; }
+                    const rows = lines.slice(1).map(l => { const cols = l.split(",").map(c => c.trim()); return { analyst: cols[0], title: cols[1]||"", ticker: cols[2]||"", rating: cols[3]||"Neutral", tp: cols[4]||"" }; });
+                    const grouped = {};
+                    rows.forEach(r => { if (!grouped[r.analyst]) grouped[r.analyst] = { name: r.analyst, title: r.title, coverage: [] }; grouped[r.analyst].coverage.push({ ticker: r.ticker.toUpperCase(), rating: r.rating, tp: r.tp.startsWith("US$") ? r.tp : r.tp.startsWith("$") ? "US" + r.tp : "US$" + r.tp.replace(/[^0-9.]/g, "") }); });
+                    const newAnalysts = Object.values(grouped).map((a, i) => ({ id: `csv${Date.now()}${i}`, ...a }));
+                    setS(p => ({ ...p, analysts: [...p.analysts, ...newAnalysts] }));
+                    alert(`Imported ${newAnalysts.length} analyst(s) with ${rows.length} coverage entries`);
+                  };
+                  reader.readAsText(file);
+                  e.target.value = "";
+                }} />
+              </label>
+              <button onClick={async () => {
+                const tickers = s.analysts.flatMap(a => a.coverage.map(c => c.ticker)).filter(Boolean);
+                if (!tickers.length) return;
+                const unique = [...new Set(tickers)];
+                const priceMap = {};
+                try {
+                  // Try Yahoo Finance v8 chart endpoint (more reliable)
+                  for (const tk of unique) {
+                    try {
+                      const url = `https://query1.finance.yahoo.com/v8/finance/chart/${tk}?range=2d&interval=1d`;
+                      const resp = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`);
+                      const data = await resp.json();
+                      const closes = data?.chart?.result?.[0]?.indicators?.quote?.[0]?.close;
+                      if (closes && closes.length > 0) {
+                        const lastClose = closes[closes.length - 1] || closes[closes.length - 2];
+                        if (lastClose) priceMap[tk] = lastClose;
+                      }
+                    } catch(e) { /* skip ticker */ }
+                  }
+                  if (Object.keys(priceMap).length === 0) throw new Error("No prices returned");
+                  setS(p => ({ ...p, analysts: p.analysts.map(a => ({ ...a, coverage: a.coverage.map(c => priceMap[c.ticker] ? { ...c, last: `US$${priceMap[c.ticker].toFixed(2)}` } : c) })) }));
+                  alert(`Updated prices for ${Object.keys(priceMap).length}/${unique.length} tickers`);
+                } catch(err) { alert("Price fetch failed: " + err.message + "\nEnter prices manually in the Last column."); }
+              }} style={{ padding: "7px 14px", borderRadius: 6, border: `1px solid ${BRAND.sky}`, background: "transparent", color: BRAND.sky, fontSize: 11, fontWeight: 700, cursor: "pointer", textTransform: "uppercase" }}>Fetch Closing Prices</button>
+              <span style={{ fontSize: 10, color: "#999", alignSelf: "center" }}>CSV format: analyst, title, ticker, rating, tp</span>
+            </div>
             {s.analysts.map(a => (
               <div key={a.id} style={{ padding: 14, background: "#fafbfc", borderRadius: 8, marginBottom: 14, border: "1px solid #eee" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
@@ -158,16 +205,18 @@ export default function App() {
                 <div style={{ fontSize: 11, fontWeight: 700, color: BRAND.navy, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 }}>Coverage Universe</div>
                 <table style={{ width: "100%", borderCollapse: "collapse" }}>
                   <thead><tr style={{ background: BRAND.blue }}>
-                    <th style={{ padding: "5px 8px", fontSize: 10, color: "#fff", textAlign: "left", width: "25%" }}>Ticker</th>
-                    <th style={{ padding: "5px 8px", fontSize: 10, color: "#fff", textAlign: "left", width: "30%" }}>Rating</th>
-                    <th style={{ padding: "5px 8px", fontSize: 10, color: "#fff", textAlign: "left", width: "25%" }}>TP</th>
-                    <th style={{ padding: "5px 8px", fontSize: 10, color: "#fff", width: "20%" }}></th>
+                    <th style={{ padding: "5px 8px", fontSize: 10, color: "#fff", textAlign: "left", width: "20%" }}>Ticker</th>
+                    <th style={{ padding: "5px 8px", fontSize: 10, color: "#fff", textAlign: "left", width: "22%" }}>Rating</th>
+                    <th style={{ padding: "5px 8px", fontSize: 10, color: "#fff", textAlign: "left", width: "18%" }}>TP</th>
+                    <th style={{ padding: "5px 8px", fontSize: 10, color: "#fff", textAlign: "left", width: "18%" }}>Last</th>
+                    <th style={{ padding: "5px 8px", fontSize: 10, color: "#fff", width: "10%" }}></th>
                   </tr></thead>
                   <tbody>{a.coverage.map((cv, ci) => (
                     <tr key={ci} style={{ background: ci % 2 === 0 ? "#fff" : "#f8fafc" }}>
                       <td style={{ padding: 3 }}><input value={cv.ticker} onChange={e => uc(a.id, ci, "ticker", e.target.value.toUpperCase())} style={{ ...is, width: "100%", fontWeight: 700 }} /></td>
                       <td style={{ padding: 3 }}><select value={cv.rating} onChange={e => uc(a.id, ci, "rating", e.target.value)} style={{ ...ss, width: "100%", color: rc(cv.rating), fontWeight: 600 }}><option value="Overweight">Overweight</option><option value="Neutral">Neutral</option><option value="Underweight">Underweight</option><option value="NR">NR (Not Rated)</option><option value="UR">UR (Under Review)</option></select></td>
-                      <td style={{ padding: 3 }}><input value={cv.tp} onChange={e => uc(a.id, ci, "tp", e.target.value)} placeholder="$0.00" style={{ ...is, width: "100%" }} /></td>
+                      <td style={{ padding: 3 }}><input value={cv.tp} onChange={e => uc(a.id, ci, "tp", e.target.value)} onBlur={e => { const v = e.target.value.replace(/[^0-9.]/g, ""); if (v) uc(a.id, ci, "tp", `US$${parseFloat(v).toFixed(2)}`); }} placeholder="US$0.00" style={{ ...is, width: "100%" }} /></td>
+                      <td style={{ padding: 3 }}><input value={cv.last||""} onChange={e => uc(a.id, ci, "last", e.target.value)} onBlur={e => { const v = e.target.value.replace(/[^0-9.]/g, ""); if (v) uc(a.id, ci, "last", `US$${parseFloat(v).toFixed(2)}`); }} placeholder="US$0.00" style={{ ...is, width: "100%", color: "#666" }} /></td>
                       <td style={{ padding: 3, textAlign: "center" }}><X onClick={() => dc(a.id, ci)} /></td>
                     </tr>
                   ))}</tbody>
@@ -237,7 +286,7 @@ export default function App() {
             <button onClick={() => setS(p => ({ ...p, fiIdeas: [...p.fiIdeas, {idea:"",reason:""}] }))} style={{ padding: "6px 14px", border: "1px dashed #d0d5dd", borderRadius: 6, background: "transparent", color: BRAND.teal, fontWeight: 600, fontSize: 12, cursor: "pointer" }}>+ Add FI Idea</button>
           </Card>}
           {s.sections.find(x=>x.key==="flows")?.on && <Card title="LS Trading Desk Flows" color="#27864a"><div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}><Inp label="EQ Buyer" value={s.eqBuyer} onChange={u("eqBuyer")} /><Inp label="EQ Seller" value={s.eqSeller} onChange={u("eqSeller")} /><Inp label="FI Net Buyer" value={s.fiBuyer} onChange={u("fiBuyer")} /><Inp label="FI Net Seller" value={s.fiSeller} onChange={u("fiSeller")} /></div></Card>}
-          {s.sections.find(x=>x.key==="macroEstimates")?.on && <Card title="Macro Estimates" color={BRAND.navy}><Inp label="Source" value={s.macroSource} onChange={u("macroSource")} /><table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8 }}><thead><tr style={{ background: BRAND.navy }}><th style={{ padding: "6px 8px", fontSize: 11, color: "#fff", textAlign: "left" }}>Metric</th>{s.macroCols.map(c => <th key={c} style={{ padding: "6px 8px", fontSize: 11, color: "#fff", textAlign: "center", position: "relative" }}>{c} <button onClick={() => removeMacroCol(c)} style={{ background: "none", border: "none", color: "#ff9999", cursor: "pointer", fontSize: 13, marginLeft: 2, padding: 0 }}>{"\u00D7"}</button></th>)}<th style={{ padding: "4px" }}><button onClick={addMacroCol} style={{ background: BRAND.sky, border: "none", color: "#fff", borderRadius: 3, cursor: "pointer", fontSize: 11, padding: "3px 8px", fontWeight: 700 }}>+</button></th></tr></thead><tbody>{s.macroRows.map((r, i) => (<tr key={i} style={{ background: i % 2 === 0 ? "#f8fafc" : "#fff" }}><td style={{ padding: 4 }}><input value={r.label} onChange={e => umr(i, "label", e.target.value)} style={{ ...is, width: "100%", fontWeight: 600 }} /></td>{s.macroCols.map(c => <td key={c} style={{ padding: 4 }}><input value={r.vals[c]||""} onChange={e => umrv(i, c, e.target.value)} style={{ ...is, width: "100%", textAlign: "center" }} /></td>)}<td></td></tr>))}</tbody></table></Card>}
+          {s.sections.find(x=>x.key==="macroEstimates")?.on && <Card title="Macro Estimates" color={BRAND.navy}><Inp label="Source" value={s.macroSource} onChange={u("macroSource")} /><table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8 }}><thead><tr style={{ background: BRAND.navy }}><th style={{ padding: "6px 8px", fontSize: 11, color: "#fff", textAlign: "left" }}>Metric</th>{s.macroCols.map(c => <th key={c} style={{ padding: "6px 8px", fontSize: 11, color: "#fff", textAlign: "center", position: "relative" }}>{c} <button onClick={() => removeMacroCol(c)} style={{ background: "none", border: "none", color: "#ff9999", cursor: "pointer", fontSize: 13, marginLeft: 2, padding: 0 }}>{"\u00D7"}</button></th>)}<th style={{ padding: "4px" }}><button onClick={addMacroCol} style={{ background: BRAND.sky, border: "none", color: "#fff", borderRadius: 3, cursor: "pointer", fontSize: 11, padding: "3px 8px", fontWeight: 700 }}>+ Col</button></th></tr></thead><tbody>{s.macroRows.map((r, i) => (<tr key={i} style={{ background: i % 2 === 0 ? "#f8fafc" : "#fff" }}><td style={{ padding: 4 }}><input value={r.label} onChange={e => umr(i, "label", e.target.value)} style={{ ...is, width: "100%", fontWeight: 600 }} /></td>{s.macroCols.map(c => <td key={c} style={{ padding: 4 }}><input value={r.vals[c]||""} onChange={e => umrv(i, c, e.target.value)} style={{ ...is, width: "100%", textAlign: "center" }} /></td>)}<td style={{ padding: 2 }}><X onClick={() => setS(p => ({ ...p, macroRows: p.macroRows.filter((_, j) => j !== i) }))} /></td></tr>))}</tbody></table><button onClick={() => setS(p => ({ ...p, macroRows: [...p.macroRows, { label: "", vals: {} }] }))} style={{ marginTop: 6, padding: "5px 14px", border: "1px dashed #d0d5dd", borderRadius: 4, background: "transparent", color: BRAND.navy, fontWeight: 600, fontSize: 11, cursor: "pointer" }}>+ Add Metric</button></Card>}
 
           {s.sections.find(x=>x.key==="corporate")?.on && <Card title="Corporate">{s.corpBlocks.map(c => {
             const sa = s.analysts.find(a => a.id === c.analystId);
@@ -248,7 +297,7 @@ export default function App() {
                 <div><label style={{ fontSize: 10, fontWeight: 700, color: "#555", textTransform: "uppercase", display: "block", marginBottom: 3 }}>Analyst</label><select value={c.analystId || ""} onChange={e => { ul("corpBlocks", c.id, "analystId", e.target.value); ul("corpBlocks", c.id, "ticker", ""); }} style={{ ...ss, width: "100%", fontWeight: 600 }}><option value="">— Select —</option>{s.analysts.map(a => <option key={a.id} value={a.id}>{a.name} ({a.title})</option>)}</select></div>
                 <div><label style={{ fontSize: 10, fontWeight: 700, color: "#555", textTransform: "uppercase", display: "block", marginBottom: 3 }}>Ticker</label><select value={c.ticker || ""} onChange={e => ul("corpBlocks", c.id, "ticker", e.target.value)} style={{ ...ss, width: "100%", fontWeight: 700 }} disabled={!c.analystId}><option value="">— Select —</option>{tks.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
               </div>
-              {cv && <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 8, padding: "6px 10px", background: rb(cv.rating), borderRadius: 4, border: `1px solid ${rc(cv.rating)}30` }}><span style={{ fontSize: 12, fontWeight: 700, color: rc(cv.rating) }}>{cv.rating}</span><span style={{ fontSize: 12, color: "#333" }}>TP {cv.tp}</span><span style={{ fontSize: 12, color: "#666", fontStyle: "italic" }}>{sa.name}, {sa.title}</span></div>}
+              {cv && <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 8, padding: "6px 10px", background: rb(cv.rating), borderRadius: 4, border: `1px solid ${rc(cv.rating)}30` }}><span style={{ fontSize: 12, fontWeight: 700, color: rc(cv.rating) }}>{cv.rating}</span><span style={{ fontSize: 12, color: "#333" }}>TP {cv.tp}{cv.last ? ` | Last ${cv.last}` : ""}</span><span style={{ fontSize: 12, color: "#666", fontStyle: "italic" }}>{sa.name}, {sa.title}</span></div>}
               <Inp label="Headline" value={c.headline} onChange={v => ul("corpBlocks", c.id, "headline", v)} placeholder="e.g. 4Q25 SNAPSHOT" />
               <Inp label="Body" value={c.body} onChange={v => ul("corpBlocks", c.id, "body", v)} multi rows={3} />
               <div style={{ display: "flex", alignItems: "flex-end", gap: 8 }}><div style={{ flex: 1 }}><Inp label="Report Link" value={c.link} onChange={v => ul("corpBlocks", c.id, "link", v)} placeholder="https://..." /></div><X onClick={() => rl("corpBlocks", c.id)} /></div>
