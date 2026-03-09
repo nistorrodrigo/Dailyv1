@@ -96,7 +96,7 @@ function generateHTML(s) {
     const hidden = s.bcraHiddenRows || {};
     const fetchDate = bd.fetchedAt ? new Date(bd.fetchedAt).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}) : "";
 
-    const fN = (v, unit) => v == null ? "—" : Number(v).toLocaleString("en-US", { minimumFractionDigits: (unit||"").includes("mn")?1:2, maximumFractionDigits: (unit||"").includes("mn")?1:2 });
+    const fN = (v, unit) => v == null ? "—" : Number(v).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
     const fV = (v, unit) => v == null ? "—" : (v >= 0 ? "+" : "") + fN(v, unit);
     const fP = (v) => v == null ? "" : ` (${v >= 0 ? "+" : ""}${Number(v).toFixed(1)}%)`;
     const vc = (v) => v == null ? "#888" : v >= 0 ? "#27864a" : "#c0392b";
@@ -167,8 +167,8 @@ function BcraCard({ bcraData, onFetch, hiddenRows = {}, onToggleRow }) {
   const fetchedAt = bcraData?.fetchedAt ? new Date(bcraData.fetchedAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : null;
 
   const vc = (v) => v == null ? "#888" : v >= 0 ? "#27864a" : "#c0392b";
-  // bn values get 2 decimals, mn gets 1
-  const dec = (unit) => (unit||"").includes("mn") ? 1 : 2;
+  // ARS$ bn → 0 decimals, US$ mn → 0 decimals, flow US$ mn → 1 decimal
+  const dec = (unit) => 0;
   const fN = (v, unit) => v == null ? "—" : Number(v).toLocaleString("en-US", { minimumFractionDigits: dec(unit), maximumFractionDigits: dec(unit) });
   const fV = (v, unit) => { if (v == null) return "—"; return (v >= 0 ? "+" : "") + fN(v, unit); };
   const fP = (v) => v == null ? "" : ` (${v >= 0 ? "+" : ""}${Number(v).toFixed(1)}%)`;
