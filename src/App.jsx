@@ -45,7 +45,7 @@ const DEFAULT_STATE = {
     { label: "FX EoP ($/USD)", vals: {"2026": "1,750", "2027": "~2,100"} },
     { label: "FX avg ($/USD)", vals: {"2026": "~1,600", "2027": "~1,900"} },
   ],
-  corpBlocks: [{ id: "c1", tickers: ["VIST"], headline: "4Q25 SNAPSHOT: IN THE GROOVE", analystId: "a1", body: "", link: "" }],
+  corpBlocks: [{ id: "c1", tickers: ["VIST"], headline: "4Q25 SNAPSHOT: IN THE GROOVE", analystIds: ["a1"], body: "", link: "" }],
   researchReports: [{ id: "rr1", type: "Macro", title: "", author: "", body: "", link: "" }],
   signatures: [{ id: "s1", name: "Rodrigo Nistor", role: "Institutional Sales", email: "rodrigo.nistor@latinsecurities.ar" }],
   analysts: DEFAULT_ANALYSTS,
@@ -69,10 +69,17 @@ const varColor = (v) => v == null ? "#666" : v >= 0 ? "#27864a" : "#c0392b";
 
 
 function res(c, analysts) {
-  const a = analysts.find(x => x.id === c.analystId);
+  // Support both old analystId (single) and new analystIds (array)
+  const ids = c.analystIds?.length ? c.analystIds : (c.analystId ? [c.analystId] : []);
+  const as = ids.map(id => analysts.find(x => x.id === id)).filter(Boolean);
   const tickers = c.tickers || (c.ticker ? [c.ticker] : []);
-  const covs = tickers.map(t => { const cv = a ? a.coverage.find(x => x.ticker === t) : null; return { ticker: t, rating: cv ? cv.rating : "", tp: cv ? cv.tp : "", last: cv ? (cv.last||"") : "" }; });
-  return { tickers, covs, headline: c.headline, analyst: a ? `${a.name}, ${a.title}` : "", body: c.body, link: c.link };
+  // Build covs: for each ticker, find coverage from any of the selected analysts
+  const covs = tickers.map(t => {
+    for (const a of as) { const cv = a.coverage.find(x => x.ticker === t); if (cv) return { ticker: t, rating: cv.rating, tp: cv.tp, last: cv.last || "" }; }
+    return { ticker: t, rating: "", tp: "", last: "" };
+  });
+  const analystStr = as.map(a => `${a.name}, ${a.title}`).join(" · ");
+  return { tickers, covs, headline: c.headline, analyst: analystStr, body: c.body, link: c.link };
 }
 
 function nl2br(t) { return (t || "").replace(/\n/g, "<br>"); }
@@ -119,9 +126,10 @@ function generateHTML(s) {
       row("reservas",    "International Reserves"),
       row("comprasBCRA", "BCRA FX Purchases (Daily)"),
       sectionHdr("Private Sector Deposits"),
-      row("depCC",   "Demand Deposits (ARS$)"),
-      row("depCA",   "Savings Deposits (ARS$)"),
-      row("depPF",   "Time Deposits (ARS$)"),
+      row("depTotalARS","Total ARS Deposits"),
+      row("depCC",   "  ↳ Demand (ARS$)"),
+      row("depCA",   "  ↳ Savings (ARS$)"),
+      row("depPF",   "  ↳ Time (ARS$)"),
       row("depUSD",  "USD Deposits – Private Sector"),
       sectionHdr("Private Sector Loans"),
       row("prestARS","Loans (ARS$)"),
@@ -147,7 +155,7 @@ function generateBBG(s) {
     macroEstimates: () => { L.push("", `MACRO ESTIMATES (source: ${s.macroSource})`, ""); s.macroRows.forEach(r => L.push(`${r.label}: ${s.macroCols.map(c => `${c} ${r.vals[c]||""}`).join(" | ")}`)); L.push("", "---"); },
     corporate: () => { L.push("", "CORPORATE", ""); s.corpBlocks.forEach(c => { const r = res(c, s.analysts); L.push(`${r.tickers.join(" / ")} \u2013 ${r.headline}`); r.covs.filter(cv=>cv.ticker).forEach(cv => { const ups = fmtUpside(cv.tp, cv.last); L.push(`  ${cv.ticker} | ${cv.rating} | TP ${cv.tp}${cv.last ? ` | Last ${cv.last}` : ""}${ups ? ` | ${ups}` : ""}`); }); L.push(`  ${r.analyst}`); if (r.body) L.push(r.body); if (r.link) L.push(`Link: ${r.link}`); L.push(""); }); L.push("---"); },
     research: () => { if (!s.researchReports?.length) return; L.push("", "RESEARCH REPORTS", ""); s.researchReports.filter(r=>r.title).forEach(r => { L.push(`[${r.type}] ${r.title}`); if (r.author) L.push(`  ${r.author}`); if (r.body) L.push(r.body); if (r.link) L.push(`Link: ${r.link}`); L.push(""); }); L.push("---"); },
-    bcra: () => { const bd = s.bcraData; const d = bd?.data; if (!d) return; const hidden = s.bcraHiddenRows||{}; L.push("", "BCRA DASHBOARD", `Source: BCRA API · ${bd.fetchedAt ? new Date(bd.fetchedAt).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}) : ""}`, ""); const fN=(v)=>v==null?"N/D":Number(v).toLocaleString("en-US",{minimumFractionDigits:0,maximumFractionDigits:0}); const fV=(v)=>v==null?"N/D":(v>=0?"+":"")+fN(v); const fP=(v)=>v==null?"":` (${v>=0?"+":""}${Number(v).toFixed(1)}%)`; const line=(key,label,unit)=>{ if(hidden[key]) return; const r=d[key]; if(!r||r.value==null) return; L.push(`${label} [as of ${r.date}]: ${fN(r.value)} ${unit} | D/D: ${fV(r.d1)}${fP(r.d1pct)} | MTD: ${fV(r.mtd)}${fP(r.mtdpct)} | YTD: ${fV(r.ytd)}${fP(r.ytdpct)}`); }; L.push("Reserves & FX:"); line("reservas","  International Reserves","USD M"); line("comprasBCRA","  BCRA Net FX Purchases","USD M"); L.push("","Private Deposits:"); line("depCC","  Demand Deposits (ARS)","ARS M"); line("depCA","  Savings Deposits (ARS)","ARS M"); line("depPF","  Time Deposits (ARS)","ARS M"); line("depUSD","  USD Deposits","USD M"); L.push("","Private Loans:"); line("prestARS","  Loans (ARS)","ARS M"); line("prestUSD","  Loans (USD)","USD M"); L.push("","---"); },
+    bcra: () => { const bd = s.bcraData; const d = bd?.data; if (!d) return; const hidden = s.bcraHiddenRows||{}; L.push("", "BCRA DASHBOARD", `Source: BCRA API · ${bd.fetchedAt ? new Date(bd.fetchedAt).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}) : ""}`, ""); const fN=(v)=>v==null?"N/D":Number(v).toLocaleString("en-US",{minimumFractionDigits:0,maximumFractionDigits:0}); const fV=(v)=>v==null?"N/D":(v>=0?"+":"")+fN(v); const fP=(v)=>v==null?"":` (${v>=0?"+":""}${Number(v).toFixed(1)}%)`; const line=(key,label,unit)=>{ if(hidden[key]) return; const r=d[key]; if(!r||r.value==null) return; L.push(`${label} [as of ${r.date}]: ${fN(r.value)} ${unit} | D/D: ${fV(r.d1)}${fP(r.d1pct)} | MTD: ${fV(r.mtd)}${fP(r.mtdpct)} | YTD: ${fV(r.ytd)}${fP(r.ytdpct)}`); }; L.push("Reserves & FX:"); line("reservas","  International Reserves","USD M"); line("comprasBCRA","  BCRA Net FX Purchases","USD M"); L.push("","Private Deposits:"); line("depTotalARS","  Total ARS Deposits","ARS$ bn"); line("depCC","    ↳ Demand (ARS$)","ARS$ bn"); line("depCA","    ↳ Savings (ARS$)","ARS$ bn"); line("depPF","    ↳ Time (ARS$)","ARS$ bn"); line("depUSD","  USD Deposits","US$ mn"); L.push("","Private Loans:"); line("prestARS","  Loans (ARS)","ARS M"); line("prestUSD","  Loans (USD)","USD M"); L.push("","---"); },
   };
   s.sections.filter(x => x.on).forEach(x => bbgSec[x.key]?.());
   L.push(""); s.signatures.forEach(x => { L.push(x.name, x.role, x.email, ""); }); return L.join("\n");
@@ -280,10 +288,11 @@ function BcraCard({ bcraData, onFetch, hiddenRows = {}, onToggleRow }) {
                     { rowKey: "comprasBCRA", label: "BCRA FX Purchases (Daily)",     data: d.comprasBCRA, unit: d.comprasBCRA?.unit  || "US$ mn" },
                   ]} />
                   <Section title="Private Sector Deposits" rows={[
-                    { rowKey: "depCC",    label: "Demand Deposits (ARS$)",       data: d.depCC,    unit: d.depCC?.unit    || "ARS$ tn" },
-                    { rowKey: "depCA",    label: "Savings Deposits (ARS$)",      data: d.depCA,    unit: d.depCA?.unit    || "ARS$ tn" },
-                    { rowKey: "depPF",    label: "Time Deposits (ARS$)",         data: d.depPF,    unit: d.depPF?.unit    || "ARS$ tn" },
-                    { rowKey: "depUSD",   label: "USD Deposits – Private Sector",data: d.depUSD,   unit: d.depUSD?.unit   || "US$ mn"  },
+                    { rowKey: "depTotalARS", label: "Total ARS Deposits",            data: d.depTotalARS, unit: d.depTotalARS?.unit || "ARS$ bn" },
+                    { rowKey: "depCC",    label: "  ↳ Demand (ARS$)",               data: d.depCC,    unit: d.depCC?.unit    || "ARS$ bn" },
+                    { rowKey: "depCA",    label: "  ↳ Savings (ARS$)",              data: d.depCA,    unit: d.depCA?.unit    || "ARS$ bn" },
+                    { rowKey: "depPF",    label: "  ↳ Time (ARS$)",                 data: d.depPF,    unit: d.depPF?.unit    || "ARS$ bn" },
+                    { rowKey: "depUSD",   label: "USD Deposits – Private Sector",   data: d.depUSD,   unit: d.depUSD?.unit   || "US$ mn"  },
                   ]} />
                   <Section title="Private Sector Loans" rows={[
                     { rowKey: "prestARS", label: "Loans (ARS$)", data: d.prestARS, unit: d.prestARS?.unit || "ARS$ mn" },
@@ -525,19 +534,32 @@ export default function App() {
           {s.sections.find(x=>x.key==="macroEstimates")?.on && <Card title="Macro Estimates" color={BRAND.navy}><Inp label="Source" value={s.macroSource} onChange={u("macroSource")} /><table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8 }}><thead><tr style={{ background: BRAND.navy }}><th style={{ padding: "6px 8px", fontSize: 11, color: "#fff", textAlign: "left" }}>Metric</th>{s.macroCols.map(c => <th key={c} style={{ padding: "6px 8px", fontSize: 11, color: "#fff", textAlign: "center", position: "relative" }}>{c} <button onClick={() => removeMacroCol(c)} style={{ background: "none", border: "none", color: "#ff9999", cursor: "pointer", fontSize: 13, marginLeft: 2, padding: 0 }}>{"\u00D7"}</button></th>)}<th style={{ padding: "4px" }}><button onClick={addMacroCol} style={{ background: BRAND.sky, border: "none", color: "#fff", borderRadius: 3, cursor: "pointer", fontSize: 11, padding: "3px 8px", fontWeight: 700 }}>+ Col</button></th></tr></thead><tbody>{s.macroRows.map((r, i) => (<tr key={i} style={{ background: i % 2 === 0 ? "#f8fafc" : "#fff" }}><td style={{ padding: 4 }}><input value={r.label} onChange={e => umr(i, "label", e.target.value)} style={{ ...is, width: "100%", fontWeight: 600 }} /></td>{s.macroCols.map(c => <td key={c} style={{ padding: 4 }}><input value={r.vals[c]||""} onChange={e => umrv(i, c, e.target.value)} style={{ ...is, width: "100%", textAlign: "center" }} /></td>)}<td style={{ padding: 2 }}><X onClick={() => setS(p => ({ ...p, macroRows: p.macroRows.filter((_, j) => j !== i) }))} /></td></tr>))}</tbody></table><button onClick={() => setS(p => ({ ...p, macroRows: [...p.macroRows, { label: "", vals: {} }] }))} style={{ marginTop: 6, padding: "5px 14px", border: "1px dashed #d0d5dd", borderRadius: 4, background: "transparent", color: BRAND.navy, fontWeight: 600, fontSize: 11, cursor: "pointer" }}>+ Add Metric</button></Card>}
 
           {s.sections.find(x=>x.key==="corporate")?.on && <Card title="Corporate">{s.corpBlocks.map(c => {
-            const sa = s.analysts.find(a => a.id === c.analystId);
-            const tks = sa ? sa.coverage.map(x => x.ticker).filter(Boolean) : [];
+            const ids = c.analystIds?.length ? c.analystIds : (c.analystId ? [c.analystId] : []);
+            const selAnalysts = s.analysts.filter(a => ids.includes(a.id));
+            // All tickers from all selected analysts
+            const allTks = [...new Set(selAnalysts.flatMap(a => a.coverage.map(x => x.ticker).filter(Boolean)))];
             const selectedTickers = c.tickers || [];
-            const covs = selectedTickers.map(t => sa ? sa.coverage.find(x => x.ticker === t) : null).filter(Boolean);
+            // For display: find coverage from any selected analyst
+            const findCov = (t) => { for (const a of selAnalysts) { const cv = a.coverage.find(x => x.ticker === t); if (cv) return { ...cv, analystName: a.name }; } return null; };
+            const covs = selectedTickers.map(t => findCov(t)).filter(Boolean);
+            const toggleAnalyst = (aid) => {
+              const next = ids.includes(aid) ? ids.filter(x => x !== aid) : [...ids, aid];
+              setS(p => ({ ...p, corpBlocks: p.corpBlocks.map(b => b.id === c.id ? { ...b, analystIds: next, tickers: [] } : b) }));
+            };
             return (<div key={c.id} style={{ padding: 14, background: "#fafbfc", borderRadius: 8, marginBottom: 12, border: "1px solid #eee" }}>
               <div style={{ marginBottom: 8 }}>
-                <label style={{ fontSize: 10, fontWeight: 700, color: "#555", textTransform: "uppercase", display: "block", marginBottom: 3 }}>Analyst</label>
-                <select value={c.analystId || ""} onChange={e => { ul("corpBlocks", c.id, "analystId", e.target.value); ul("corpBlocks", c.id, "tickers", []); }} style={{ ...ss, width: "100%", fontWeight: 600 }}><option value="">— Select —</option>{s.analysts.map(a => <option key={a.id} value={a.id}>{a.name} ({a.title})</option>)}</select>
+                <label style={{ fontSize: 10, fontWeight: 700, color: "#555", textTransform: "uppercase", display: "block", marginBottom: 4 }}>Analyst(s)</label>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {s.analysts.map(a => {
+                    const sel = ids.includes(a.id);
+                    return <button key={a.id} onClick={() => toggleAnalyst(a.id)} style={{ padding: "4px 10px", borderRadius: 4, border: `1px solid ${sel ? BRAND.navy : "#d0d5dd"}`, background: sel ? BRAND.navy : "#fff", color: sel ? "#fff" : "#666", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>{a.name}</button>;
+                  })}
+                </div>
               </div>
-              {c.analystId && <div style={{ marginBottom: 8 }}>
-                <label style={{ fontSize: 10, fontWeight: 700, color: "#555", textTransform: "uppercase", display: "block", marginBottom: 3 }}>Tickers (select multiple)</label>
+              {ids.length > 0 && allTks.length > 0 && <div style={{ marginBottom: 8 }}>
+                <label style={{ fontSize: 10, fontWeight: 700, color: "#555", textTransform: "uppercase", display: "block", marginBottom: 3 }}>Tickers</label>
                 <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 4 }}>
-                  {tks.map(t => { const sel = selectedTickers.includes(t); return <button key={t} onClick={() => ul("corpBlocks", c.id, "tickers", sel ? selectedTickers.filter(x=>x!==t) : [...selectedTickers, t])} style={{ padding: "4px 10px", borderRadius: 4, border: `1px solid ${sel ? rc(sa.coverage.find(x=>x.ticker===t)?.rating) : "#d0d5dd"}`, background: sel ? rb(sa.coverage.find(x=>x.ticker===t)?.rating) : "#fff", color: sel ? rc(sa.coverage.find(x=>x.ticker===t)?.rating) : "#999", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>{t}</button>; })}
+                  {allTks.map(t => { const cv = findCov(t); const sel = selectedTickers.includes(t); return <button key={t} onClick={() => ul("corpBlocks", c.id, "tickers", sel ? selectedTickers.filter(x=>x!==t) : [...selectedTickers, t])} style={{ padding: "4px 10px", borderRadius: 4, border: `1px solid ${sel ? rc(cv?.rating) : "#d0d5dd"}`, background: sel ? rb(cv?.rating) : "#fff", color: sel ? rc(cv?.rating) : "#999", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>{t}</button>; })}
                 </div>
               </div>}
               {covs.map(cv => (
@@ -545,13 +567,14 @@ export default function App() {
                   <span style={{ fontWeight: 700, color: rc(cv.rating) }}>{cv.ticker} {cv.rating}</span>
                   <span style={{ color: "#333" }}>TP {cv.tp}{cv.last ? ` | Last ${cv.last}` : ""}</span>
                   {cv.tp && cv.last && <span style={{ fontWeight: 700, color: upsideColor(cv.tp, cv.last) }}>{fmtUpside(cv.tp, cv.last)}</span>}
+                  <span style={{ color: "#aaa", marginLeft: "auto", fontStyle: "italic" }}>{cv.analystName}</span>
                 </div>
               ))}
               <Inp label="Headline" value={c.headline} onChange={v => ul("corpBlocks", c.id, "headline", v)} placeholder="e.g. 4Q25 SNAPSHOT or Banks 4Q25 Preview" />
               <Inp label="Body" value={c.body} onChange={v => ul("corpBlocks", c.id, "body", v)} multi rows={3} />
               <div style={{ display: "flex", alignItems: "flex-end", gap: 8 }}><div style={{ flex: 1 }}><Inp label="Report Link" value={c.link} onChange={v => ul("corpBlocks", c.id, "link", v)} placeholder="https://..." /></div><X onClick={() => rl("corpBlocks", c.id)} /></div>
             </div>);
-          })}<DashBtn onClick={() => al("corpBlocks", { id: `c${Date.now()}`, tickers: [], headline: "", analystId: "", body: "", link: "" })}>+ Add Report</DashBtn></Card>}
+          })}<DashBtn onClick={() => al("corpBlocks", { id: `c${Date.now()}`, tickers: [], headline: "", analystIds: [], body: "", link: "" })}>+ Add Report</DashBtn></Card>}
 
           {s.sections.find(x=>x.key==="research")?.on && <Card title="Research Reports" color="#6a1b9a">{(s.researchReports||[]).map(r => (
             <div key={r.id} style={{ padding: 14, background: "#fafbfc", borderRadius: 8, marginBottom: 12, border: "1px solid #eee" }}>

@@ -87,6 +87,24 @@ export default async function handler(req, res) {
       data[k] = { ...meta, ...(stats || {}) };
     });
 
+    // Compute total ARS deposits from the three components
+    const cc = data.depCC, ca = data.depCA, pf = data.depPF;
+    const sumV = (a, b, c) => (a != null && b != null && c != null) ? a + b + c : null;
+    data.depTotalARS = {
+      label: "Total ARS Deposits",
+      unit:  "ARS$ bn",
+      type:  "stock",
+      value: sumV(cc?.value, ca?.value, pf?.value),
+      date:  cc?.date,
+      d1:    sumV(cc?.d1,  ca?.d1,  pf?.d1),
+      d1pct: (cc?.value && ca?.value && pf?.value && cc?.d1 != null)
+               ? +((cc.d1 + ca.d1 + pf.d1) / Math.abs(cc.value + ca.value + pf.value - cc.d1 - ca.d1 - pf.d1) * 100).toFixed(2) : null,
+      mtd:   sumV(cc?.mtd, ca?.mtd, pf?.mtd),
+      mtdpct:(cc?.mtd != null) ? +((cc.mtd+ca.mtd+pf.mtd)/Math.abs(cc.value-cc.mtd+ca.value-ca.mtd+pf.value-pf.mtd)*100).toFixed(2) : null,
+      ytd:   sumV(cc?.ytd, ca?.ytd, pf?.ytd),
+      ytdpct:(cc?.ytd != null) ? +((cc.ytd+ca.ytd+pf.ytd)/Math.abs(cc.value-cc.ytd+ca.value-ca.ytd+pf.value-pf.ytd)*100).toFixed(2) : null,
+    };
+
     res.status(200).json({ fetchedAt: new Date().toISOString(), data });
   } catch (err) {
     res.status(500).json({ error: err.message });
