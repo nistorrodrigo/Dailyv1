@@ -171,21 +171,10 @@ export default function App() {
                 const tickers = s.analysts.flatMap(a => a.coverage.map(c => c.ticker)).filter(Boolean);
                 if (!tickers.length) return;
                 const unique = [...new Set(tickers)];
-                const priceMap = {};
                 try {
-                  // Try Yahoo Finance v8 chart endpoint (more reliable)
-                  for (const tk of unique) {
-                    try {
-                      const url = `https://query1.finance.yahoo.com/v8/finance/chart/${tk}?range=2d&interval=1d`;
-                      const resp = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`);
-                      const data = await resp.json();
-                      const closes = data?.chart?.result?.[0]?.indicators?.quote?.[0]?.close;
-                      if (closes && closes.length > 0) {
-                        const lastClose = closes[closes.length - 1] || closes[closes.length - 2];
-                        if (lastClose) priceMap[tk] = lastClose;
-                      }
-                    } catch(e) { /* skip ticker */ }
-                  }
+                  const resp = await fetch(`/api/prices?tickers=${unique.join(",")}`);
+                  const data = await resp.json();
+                  const priceMap = data.prices || {};
                   if (Object.keys(priceMap).length === 0) throw new Error("No prices returned");
                   setS(p => ({ ...p, analysts: p.analysts.map(a => ({ ...a, coverage: a.coverage.map(c => priceMap[c.ticker] ? { ...c, last: `US$${priceMap[c.ticker].toFixed(2)}` } : c) })) }));
                   alert(`Updated prices for ${Object.keys(priceMap).length}/${unique.length} tickers`);
