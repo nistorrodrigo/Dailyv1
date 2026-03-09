@@ -96,36 +96,36 @@ function generateHTML(s) {
     const hidden = s.bcraHiddenRows || {};
     const fetchDate = bd.fetchedAt ? new Date(bd.fetchedAt).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}) : "";
 
-    const fN = (v) => v == null ? "—" : Number(v).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-    const fV = (v) => v == null ? "—" : (v >= 0 ? "+" : "") + fN(v);
+    const fN = (v, unit) => v == null ? "—" : Number(v).toLocaleString("en-US", { minimumFractionDigits: (unit||"").includes("tn")?2:0, maximumFractionDigits: (unit||"").includes("tn")?2:0 });
+    const fV = (v, unit) => v == null ? "—" : (v >= 0 ? "+" : "") + fN(v, unit);
     const fP = (v) => v == null ? "" : ` (${v >= 0 ? "+" : ""}${Number(v).toFixed(1)}%)`;
     const vc = (v) => v == null ? "#888" : v >= 0 ? "#27864a" : "#c0392b";
 
-    const row = (rowKey, label, unit) => {
+    const row = (rowKey, label) => {
       if (hidden[rowKey]) return "";
       const r = d[rowKey];
+      const unit = r?.unit || "";
       if (!r || r.value == null) return "";
       if (r.isFlow) {
-        const vc2 = (v) => v == null ? "#888" : v >= 0 ? "#27864a" : "#c0392b";
-        return `<tr style="border-bottom:1px solid #eee;"><td style="padding:5px 8px;font-size:12px;font-weight:600;color:#333;">${label}<div style="font-size:10px;color:#aaa;font-weight:400;">daily flow · as of ${r.date||""}</div></td><td style="padding:5px 8px;font-size:12px;text-align:right;color:${vc2(r.value)};"><strong>${fV(r.value)}</strong> <span style="font-size:10px;color:#999;">${unit}</span></td><td style="padding:5px 8px;font-size:11px;text-align:center;color:#aaa;">N/A</td><td style="padding:5px 8px;font-size:12px;text-align:right;color:${vc2(r.mtdSum)};"><strong>${fV(r.mtdSum)}</strong><div style="font-size:10px;color:#aaa;">MTD cum. (${r.mtdDays}d)</div></td><td style="padding:5px 8px;font-size:12px;text-align:right;color:${vc2(r.ytdSum)};"><strong>${fV(r.ytdSum)}</strong><div style="font-size:10px;color:#aaa;">YTD cum. (${r.ytdDays}d)</div></td></tr>`;
+        return `<tr style="border-bottom:1px solid #eee;"><td style="padding:5px 8px;font-size:12px;font-weight:600;color:#333;">${label}<div style="font-size:10px;color:#aaa;font-weight:400;">daily flow · as of ${r.date||""}</div></td><td style="padding:5px 8px;font-size:12px;text-align:right;color:${vc(r.value)};"><strong>${fV(r.value, unit)}</strong> <span style="font-size:10px;color:#999;">${unit}</span></td><td style="padding:5px 8px;font-size:12px;text-align:center;color:#ccc;">—</td><td style="padding:5px 8px;font-size:12px;text-align:right;color:${vc(r.mtdSum)};"><strong>${fV(r.mtdSum, unit)}</strong> <span style="font-size:10px;color:#999;">${unit}</span><div style="font-size:10px;color:#aaa;">MTD cum. (${r.mtdDays}d)</div></td><td style="padding:5px 8px;font-size:12px;text-align:right;color:${vc(r.ytdSum)};"><strong>${fV(r.ytdSum, unit)}</strong> <span style="font-size:10px;color:#999;">${unit}</span><div style="font-size:10px;color:#aaa;">YTD cum. (${r.ytdDays}d)</div></td></tr>`;
       }
-      return `<tr style="border-bottom:1px solid #eee;"><td style="padding:5px 8px;font-size:12px;font-weight:600;color:#333;">${label}<div style="font-size:10px;color:#aaa;font-weight:400;">as of ${r.date||""}</div></td><td style="padding:5px 8px;font-size:12px;text-align:right;"><strong>${fN(r.value)}</strong> <span style="font-size:10px;color:#999;">${unit}</span></td><td style="padding:5px 8px;font-size:12px;text-align:right;color:${vc(r.d1)};">${fV(r.d1)}<div style="font-size:10px;">${fP(r.d1pct)}</div></td><td style="padding:5px 8px;font-size:12px;text-align:right;color:${vc(r.mtd)};">${fV(r.mtd)}<div style="font-size:10px;">${fP(r.mtdpct)}</div></td><td style="padding:5px 8px;font-size:12px;text-align:right;color:${vc(r.ytd)};">${fV(r.ytd)}<div style="font-size:10px;">${fP(r.ytdpct)}</div></td></tr>`;
+      return `<tr style="border-bottom:1px solid #eee;"><td style="padding:5px 8px;font-size:12px;font-weight:600;color:#333;">${label}<div style="font-size:10px;color:#aaa;font-weight:400;">as of ${r.date||""}</div></td><td style="padding:5px 8px;font-size:12px;text-align:right;"><strong>${fN(r.value, unit)}</strong> <span style="font-size:10px;color:#999;">${unit}</span></td><td style="padding:5px 8px;font-size:12px;text-align:right;color:${vc(r.d1)};">${fV(r.d1, unit)}<div style="font-size:10px;">${fP(r.d1pct)}</div></td><td style="padding:5px 8px;font-size:12px;text-align:right;color:${vc(r.mtd)};">${fV(r.mtd, unit)}<div style="font-size:10px;">${fP(r.mtdpct)}</div></td><td style="padding:5px 8px;font-size:12px;text-align:right;color:${vc(r.ytd)};">${fV(r.ytd, unit)}<div style="font-size:10px;">${fP(r.ytdpct)}</div></td></tr>`;
     };
     const sectionHdr = (title) => `<tr style="background:#edf2f7;"><td colspan="5" style="padding:5px 8px;font-size:10px;font-weight:700;color:${B.navy};text-transform:uppercase;letter-spacing:1px;">${title}</td></tr>`;
     const hdr = `<tr style="background:${B.navy};"><td style="padding:6px 8px;font-size:11px;font-weight:700;color:#fff;">Variable</td><td style="padding:6px 8px;font-size:11px;font-weight:700;color:#fff;text-align:right;">Latest</td><td style="padding:6px 8px;font-size:11px;font-weight:700;color:#fff;text-align:right;">D/D</td><td style="padding:6px 8px;font-size:11px;font-weight:700;color:#fff;text-align:right;">MTD</td><td style="padding:6px 8px;font-size:11px;font-weight:700;color:#fff;text-align:right;">YTD</td></tr>`;
 
     const bodyRows = [
       sectionHdr("Reserves & FX Intervention"),
-      row("reservas",    "International Reserves",       "USD M"),
-      row("comprasBCRA", "BCRA Net FX Purchases (MLC)",  "USD M"),
+      row("reservas",    "International Reserves"),
+      row("comprasBCRA", "BCRA FX Purchases (Daily)"),
       sectionHdr("Private Sector Deposits"),
-      row("depCC",   "Demand Deposits (ARS)",  "ARS M"),
-      row("depCA",   "Savings Deposits (ARS)", "ARS M"),
-      row("depPF",   "Time Deposits (ARS)",    "ARS M"),
-      row("depUSD",  "USD Deposits",           "USD M"),
+      row("depCC",   "Demand Deposits (ARS$)"),
+      row("depCA",   "Savings Deposits (ARS$)"),
+      row("depPF",   "Time Deposits (ARS$)"),
+      row("depUSD",  "USD Deposits – Private Sector"),
       sectionHdr("Private Sector Loans"),
-      row("prestARS","Loans (ARS)",            "ARS M"),
-      row("prestUSD","Loans (USD)",            "USD M"),
+      row("prestARS","Loans (ARS$)"),
+      row("prestUSD","Loans (USD)"),
     ].join("");
 
     if (!bodyRows.replace(/<tr[^>]*><td[^>]*>[^<]*<\/td><\/tr>/g,"").trim()) return "";
@@ -167,8 +167,10 @@ function BcraCard({ bcraData, onFetch, hiddenRows = {}, onToggleRow }) {
   const fetchedAt = bcraData?.fetchedAt ? new Date(bcraData.fetchedAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : null;
 
   const vc = (v) => v == null ? "#888" : v >= 0 ? "#27864a" : "#c0392b";
-  const fN = (v, dec = 0) => v == null ? "—" : Number(v).toLocaleString("en-US", { minimumFractionDigits: dec, maximumFractionDigits: dec });
-  const fV = (v, dec = 0) => { if (v == null) return "—"; return (v >= 0 ? "+" : "") + fN(v, dec); };
+  // decimals: tn needs 2, mn needs 0
+  const dec = (unit) => unit?.includes("tn") ? 2 : 0;
+  const fN = (v, unit) => v == null ? "—" : Number(v).toLocaleString("en-US", { minimumFractionDigits: dec(unit), maximumFractionDigits: dec(unit) });
+  const fV = (v, unit) => { if (v == null) return "—"; return (v >= 0 ? "+" : "") + fN(v, unit); };
   const fP = (v) => v == null ? "" : ` (${v >= 0 ? "+" : ""}${Number(v).toFixed(1)}%)`;
 
   const Hdr = () => (
@@ -188,7 +190,6 @@ function BcraCard({ bcraData, onFetch, hiddenRows = {}, onToggleRow }) {
     );
     const hidden = hiddenRows[rowKey];
     if (data.isFlow) {
-      // Daily flow variable: show today's value, MTD cumulative, YTD cumulative
       return (
         <tr style={{ borderBottom: "1px solid #f0f2f5", background: hidden ? "#fafafa" : "#fff", opacity: hidden ? 0.45 : 1 }}>
           <td style={{ padding: "4px 6px", textAlign: "center" }}>
@@ -199,16 +200,16 @@ function BcraCard({ bcraData, onFetch, hiddenRows = {}, onToggleRow }) {
             <div style={{ fontSize: 10, color: "#aaa", fontWeight: 400 }}>daily flow · as of {data.date}</div>
           </td>
           <td style={{ padding: "6px 10px", fontSize: 12, textAlign: "right", whiteSpace: "nowrap", color: vc(data.value) }}>
-            <strong>{fV(data.value)}</strong> <span style={{ fontSize: 10, color: "#999" }}>{unit}</span>
+            <strong>{fV(data.value, unit)}</strong> <span style={{ fontSize: 10, color: "#999" }}>{unit}</span>
           </td>
-          <td style={{ padding: "6px 10px", fontSize: 12, textAlign: "right", color: "#888" }} colSpan={1}>
-            <span style={{ fontSize: 10 }}>N/A (flow)</span>
-          </td>
+          <td style={{ padding: "6px 10px", fontSize: 12, textAlign: "right", color: "#ccc" }}>—</td>
           <td style={{ padding: "6px 10px", fontSize: 12, textAlign: "right", whiteSpace: "nowrap", color: vc(data.mtdSum) }}>
-            <strong>{fV(data.mtdSum)}</strong><br /><span style={{ fontSize: 10, color: "#888" }}>MTD cum. ({data.mtdDays}d)</span>
+            <strong>{fV(data.mtdSum, unit)}</strong> <span style={{ fontSize: 10, color: "#999" }}>{unit}</span><br />
+            <span style={{ fontSize: 10, color: "#888" }}>MTD cum. ({data.mtdDays}d)</span>
           </td>
           <td style={{ padding: "6px 10px", fontSize: 12, textAlign: "right", whiteSpace: "nowrap", color: vc(data.ytdSum) }}>
-            <strong>{fV(data.ytdSum)}</strong><br /><span style={{ fontSize: 10, color: "#888" }}>YTD cum. ({data.ytdDays}d)</span>
+            <strong>{fV(data.ytdSum, unit)}</strong> <span style={{ fontSize: 10, color: "#999" }}>{unit}</span><br />
+            <span style={{ fontSize: 10, color: "#888" }}>YTD cum. ({data.ytdDays}d)</span>
           </td>
         </tr>
       );
@@ -223,16 +224,16 @@ function BcraCard({ bcraData, onFetch, hiddenRows = {}, onToggleRow }) {
           <div style={{ fontSize: 10, color: "#aaa", fontWeight: 400 }}>as of {data.date}</div>
         </td>
         <td style={{ padding: "6px 10px", fontSize: 12, textAlign: "right", whiteSpace: "nowrap" }}>
-          <strong>{fN(data.value)}</strong> <span style={{ fontSize: 10, color: "#999" }}>{unit}</span>
+          <strong>{fN(data.value, unit)}</strong> <span style={{ fontSize: 10, color: "#999" }}>{unit}</span>
         </td>
         <td style={{ padding: "6px 10px", fontSize: 12, textAlign: "right", whiteSpace: "nowrap", color: vc(data.d1) }}>
-          {fV(data.d1)}<br /><span style={{ fontSize: 10 }}>{fP(data.d1pct)}</span>
+          {fV(data.d1, unit)}<br /><span style={{ fontSize: 10 }}>{fP(data.d1pct)}</span>
         </td>
         <td style={{ padding: "6px 10px", fontSize: 12, textAlign: "right", whiteSpace: "nowrap", color: vc(data.mtd) }}>
-          {fV(data.mtd)}<br /><span style={{ fontSize: 10 }}>{fP(data.mtdpct)}</span>
+          {fV(data.mtd, unit)}<br /><span style={{ fontSize: 10 }}>{fP(data.mtdpct)}</span>
         </td>
         <td style={{ padding: "6px 10px", fontSize: 12, textAlign: "right", whiteSpace: "nowrap", color: vc(data.ytd) }}>
-          {fV(data.ytd)}<br /><span style={{ fontSize: 10 }}>{fP(data.ytdpct)}</span>
+          {fV(data.ytd, unit)}<br /><span style={{ fontSize: 10 }}>{fP(data.ytdpct)}</span>
         </td>
       </tr>
     );
@@ -275,18 +276,18 @@ function BcraCard({ bcraData, onFetch, hiddenRows = {}, onToggleRow }) {
                 <thead><Hdr /></thead>
                 <tbody>
                   <Section title="Reserves & FX Intervention" rows={[
-                    { rowKey: "reservas",    label: "International Reserves",        data: d.reservas,    unit: "USD M" },
-                    { rowKey: "comprasBCRA", label: "BCRA Net FX Purchases (MLC)",   data: d.comprasBCRA, unit: "USD M" },
+                    { rowKey: "reservas",    label: "International Reserves",        data: d.reservas,    unit: d.reservas?.unit    || "US$ mn" },
+                    { rowKey: "comprasBCRA", label: "BCRA FX Purchases (Daily)",     data: d.comprasBCRA, unit: d.comprasBCRA?.unit  || "US$ mn" },
                   ]} />
                   <Section title="Private Sector Deposits" rows={[
-                    { rowKey: "depCC",    label: "Demand Deposits (ARS)",       data: d.depCC,    unit: "ARS M" },
-                    { rowKey: "depCA",    label: "Savings Deposits (ARS)",      data: d.depCA,    unit: "ARS M" },
-                    { rowKey: "depPF",    label: "Time Deposits (ARS)",         data: d.depPF,    unit: "ARS M" },
-                    { rowKey: "depUSD",   label: "USD Deposits",                data: d.depUSD,   unit: "USD M" },
+                    { rowKey: "depCC",    label: "Demand Deposits (ARS$)",       data: d.depCC,    unit: d.depCC?.unit    || "ARS$ tn" },
+                    { rowKey: "depCA",    label: "Savings Deposits (ARS$)",      data: d.depCA,    unit: d.depCA?.unit    || "ARS$ tn" },
+                    { rowKey: "depPF",    label: "Time Deposits (ARS$)",         data: d.depPF,    unit: d.depPF?.unit    || "ARS$ tn" },
+                    { rowKey: "depUSD",   label: "USD Deposits – Private Sector",data: d.depUSD,   unit: d.depUSD?.unit   || "US$ mn"  },
                   ]} />
                   <Section title="Private Sector Loans" rows={[
-                    { rowKey: "prestARS", label: "Loans (ARS)",  data: d.prestARS, unit: "ARS M" },
-                    { rowKey: "prestUSD", label: "Loans (USD)",  data: d.prestUSD, unit: "USD M" },
+                    { rowKey: "prestARS", label: "Loans (ARS$)", data: d.prestARS, unit: d.prestARS?.unit || "ARS$ mn" },
+                    { rowKey: "prestUSD", label: "Loans (USD)",  data: d.prestUSD, unit: d.prestUSD?.unit || "US$ mn"  },
                   ]} />
                 </tbody>
               </table>

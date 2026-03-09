@@ -5,17 +5,16 @@ export default async function handler(req, res) {
   const HDR  = { "User-Agent": "Mozilla/5.0", "Accept": "application/json" };
 
   // All IDs verified from v4.0 variable list on 2026-03-09
+  // div: divisor applied before returning (1=mn, 1000=bn, 1000000=tn)
   const VARS = {
-    // STOCKS — compare to prior day / month-start / year-start
-    reservas:  { id: 1,   label: "International Reserves",       unit: "USD M",  type: "stock" },
-    depCC:     { id: 22,  label: "Demand Deposits (ARS)",        unit: "ARS M",  type: "stock" },
-    depCA:     { id: 23,  label: "Savings Deposits (ARS)",       unit: "ARS M",  type: "stock" },
-    depPF:     { id: 24,  label: "Time Deposits (ARS)",          unit: "ARS M",  type: "stock" },
-    depUSD:    { id: 108, label: "USD Deposits – Private Sector",unit: "USD M",  type: "stock" },
-    prestARS:  { id: 26,  label: "Private Sector Loans (ARS)",   unit: "ARS M",  type: "stock" },
-    prestUSD:  { id: 125, label: "Private Sector Loans (USD)",   unit: "USD M",  type: "stock" },
-    // FLOW — show today's value + MTD sum + YTD sum
-    comprasBCRA: { id: 78, label: "BCRA FX Purchases (Daily)",   unit: "USD M",  type: "flow"  },
+    reservas:    { id: 1,   label: "International Reserves",        unit: "US$ mn",  type: "stock", div: 1        },
+    depCC:       { id: 22,  label: "Demand Deposits (ARS$)",        unit: "ARS$ tn", type: "stock", div: 1000000  },
+    depCA:       { id: 23,  label: "Savings Deposits (ARS$)",       unit: "ARS$ tn", type: "stock", div: 1000000  },
+    depPF:       { id: 24,  label: "Time Deposits (ARS$)",          unit: "ARS$ tn", type: "stock", div: 1000000  },
+    depUSD:      { id: 108, label: "USD Deposits – Private Sector", unit: "US$ mn",  type: "stock", div: 1        },
+    prestARS:    { id: 26,  label: "Private Sector Loans (ARS$)",   unit: "ARS$ mn", type: "stock", div: 1        },
+    prestUSD:    { id: 125, label: "Private Sector Loans (USD)",    unit: "US$ mn",  type: "stock", div: 1        },
+    comprasBCRA: { id: 78,  label: "BCRA FX Purchases (Daily)",     unit: "US$ mn",  type: "flow",  div: 1        },
   };
 
   function dateStr(d) { return d.toISOString().slice(0, 10); }
@@ -35,7 +34,7 @@ export default async function handler(req, res) {
     } catch { return null; }
   }
 
-  function calcStock(series) {
+  function calcStock(series, div = 1) {
     if (!series?.length) return null;
     const last     = series[series.length - 1];
     const prev     = series.length >= 2 ? series[series.length - 2] : null;
@@ -43,17 +42,18 @@ export default async function handler(req, res) {
     const lastYear  = last.fecha.slice(0, 4);
     const eom = [...series].reverse().find(s => s.fecha < `${lastMonth}-01`) || null;
     const eoy = [...series].reverse().find(s => s.fecha < `${lastYear}-01-01`) || null;
-    const diff = (a, b) => a != null && b != null ? +(a - b).toFixed(4) : null;
+    const d = (v) => v != null ? v / div : null;
+    const diff = (a, b) => a != null && b != null ? +((a - b) / div).toFixed(div >= 1000 ? 4 : 2) : null;
     const pct  = (a, b) => a != null && b != null && b !== 0 ? +((a - b) / Math.abs(b) * 100).toFixed(2) : null;
     return {
-      value:  last.valor, date: last.fecha,
+      value:  d(last.valor), date: last.fecha,
       d1:     diff(last.valor, prev?.valor),  d1pct:  pct(last.valor, prev?.valor),
       mtd:    diff(last.valor, eom?.valor),   mtdpct: pct(last.valor, eom?.valor),
       ytd:    diff(last.valor, eoy?.valor),   ytdpct: pct(last.valor, eoy?.valor),
     };
   }
 
-  function calcFlow(series) {
+  function calcFlow(series, div = 1) {
     // For daily flows: show today's value, cumulative MTD sum, cumulative YTD sum
     if (!series?.length) return null;
     const last      = series[series.length - 1];
@@ -63,11 +63,11 @@ export default async function handler(req, res) {
     const ytdRows = series.filter(s => s.fecha.startsWith(lastYear));
     const sum = rows => rows.reduce((a, r) => a + (r.valor || 0), 0);
     return {
-      value:   last.valor,
+      value:   +(last.valor / div).toFixed(2),
       date:    last.fecha,
       isFlow:  true,
-      mtdSum:  +sum(mtdRows).toFixed(2),
-      ytdSum:  +sum(ytdRows).toFixed(2),
+      mtdSum:  +(sum(mtdRows) / div).toFixed(2),
+      ytdSum:  +(sum(ytdRows) / div).toFixed(2),
       mtdDays: mtdRows.length,
       ytdDays: ytdRows.length,
     };
@@ -81,7 +81,8 @@ export default async function handler(req, res) {
     keys.forEach((k, i) => {
       const meta = VARS[k];
       const s    = series[i];
-      const stats = meta.type === "flow" ? calcFlow(s) : calcStock(s);
+      const div  = meta.div || 1;
+      const stats = meta.type === "flow" ? calcFlow(s, div) : calcStock(s, div);
       data[k] = { ...meta, ...(stats || {}) };
     });
 
