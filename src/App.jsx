@@ -28,6 +28,7 @@ const DEFAULT_STATE = {
     { key: "macroEstimates", label: "Macro Estimates", on: true },
     { key: "corporate", label: "Corporate", on: true },
     { key: "research", label: "Research Reports", on: true },
+    { key: "bcra", label: "BCRA Dashboard", on: false },
   ],
   summaryBar: "",
   macroBlocks: [{ id: "1", title: "TREASURY AUCTION RESULTS", body: "", lsPick: "" }, { id: "2", title: "FX / BCRA", body: "", lsPick: "" }],
@@ -48,6 +49,7 @@ const DEFAULT_STATE = {
   researchReports: [{ id: "rr1", type: "Macro", title: "", author: "", body: "", link: "" }],
   signatures: [{ id: "s1", name: "Rodrigo Nistor", role: "Institutional Sales", email: "rodrigo.nistor@latinsecurities.ar" }],
   analysts: DEFAULT_ANALYSTS,
+  bcraData: null,
 };
 
 const formatDate = (iso) => { const d = new Date(iso + "T12:00:00"); return d.toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" }); };
@@ -57,6 +59,13 @@ const parsePrice = (s) => { if (!s) return null; const n = parseFloat(String(s).
 const calcUpside = (tp, last) => { const t = parsePrice(tp), l = parsePrice(last); if (!t || !l || l === 0) return null; return ((t / l - 1) * 100); };
 const fmtUpside = (tp, last) => { const u = calcUpside(tp, last); if (u === null) return ""; return u >= 0 ? `Upside +${u.toFixed(1)}%` : `Downside ${u.toFixed(1)}%`; };
 const upsideColor = (tp, last) => { const u = calcUpside(tp, last); if (u === null) return "#666"; return u >= 0 ? "#27864a" : "#c0392b"; };
+
+// BCRA formatting helpers
+const fmtN = (v, dec = 0) => v == null ? "N/D" : Number(v).toLocaleString("es-AR", { minimumFractionDigits: dec, maximumFractionDigits: dec });
+const fmtVar = (v, dec = 0) => { if (v == null) return "N/D"; const sign = v >= 0 ? "+" : ""; return sign + fmtN(v, dec); };
+const fmtPct = (v) => { if (v == null) return ""; const sign = v >= 0 ? "+" : ""; return ` (${sign}${Number(v).toFixed(1)}%)`; };
+const varColor = (v) => v == null ? "#666" : v >= 0 ? "#27864a" : "#c0392b";
+
 
 function res(c, analysts) {
   const a = analysts.find(x => x.id === c.analystId);
@@ -76,8 +85,32 @@ function generateHTML(s) {
   const mEst = s.sections.find(x=>x.key==="macroEstimates")?.on ? `<tr><td style="padding:0 32px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:14px;"><tr><td><div style="font-size:11px;font-weight:700;color:#fff;background:${B.blue};text-transform:uppercase;letter-spacing:1.5px;padding:5px 12px;display:inline-block;">Macro Estimates</div></td></tr></table><div style="font-size:10px;color:#666;margin-bottom:6px;">Source: ${s.macroSource}</div><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #dde3ea;margin-bottom:16px;"><tr style="background:${B.navy};"><td style="padding:6px 10px;font-size:11px;font-weight:700;color:#fff;width:40%;"></td>${s.macroCols.map(c => `<td style="padding:6px 10px;font-size:11px;font-weight:700;color:#fff;text-align:center;">${c}</td>`).join("")}</tr>${s.macroRows.map((r,i) => `<tr style="background:${i%2===0?"#f8fafc":"#fff"};"><td style="padding:6px 10px;font-size:12px;font-weight:600;color:#333;border-right:1px solid #e4e8ed;border-bottom:1px solid #e4e8ed;">${r.label}</td>${s.macroCols.map(c => `<td style="padding:6px 10px;font-size:12px;color:#333;text-align:center;border-right:1px solid #e4e8ed;border-bottom:1px solid #e4e8ed;">${r.vals[c]||""}</td>`).join("")}</tr>`).join("")}</table></td></tr>` : "";
   const corp = s.sections.find(x=>x.key==="corporate")?.on ? `<tr><td style="padding:0 32px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:14px;"><tr><td><div style="font-size:11px;font-weight:700;color:#fff;background:${B.blue};text-transform:uppercase;letter-spacing:1.5px;padding:5px 12px;display:inline-block;">Corporate</div></td></tr></table>${s.corpBlocks.map(c => { const r = res(c, s.analysts); return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:16px;border-bottom:1px solid #e4e8ed;padding-bottom:12px;"><tr><td><div style="font-size:12.5px;font-weight:700;color:${B.navy};text-transform:uppercase;letter-spacing:0.8px;margin-bottom:4px;">${r.tickers.join(" / ")} \u2014 ${r.headline}</div>${r.covs.filter(cv=>cv.ticker).map(cv => `<div style="margin-bottom:3px;"><span style="display:inline-block;background:${rb(cv.rating)};color:${rc(cv.rating)};font-size:10px;font-weight:700;padding:2px 6px;border-radius:3px;">${cv.ticker} ${cv.rating}</span><span style="font-size:11px;color:#333;margin-left:4px;">TP ${cv.tp}${cv.last ? ` | Last ${cv.last}` : ""}${cv.tp && cv.last ? ` | <span style="color:${upsideColor(cv.tp,cv.last)};font-weight:700;">${fmtUpside(cv.tp,cv.last)}</span>` : ""}</span></div>`).join("")}<div style="font-size:11px;color:#666;margin-bottom:6px;font-style:italic;">${r.analyst}</div><div style="font-size:13px;line-height:1.55;color:#333;">${nl2br(r.body)}</div>${r.link ? `<div style="margin-top:6px;"><a href="${r.link}" style="font-size:12px;color:${B.blue};">Full LS report \u2192</a></div>` : ""}</td></tr></table>`; }).join("")}</td></tr>` : "";
   const research = s.sections.find(x=>x.key==="research")?.on && s.researchReports?.length ? `<tr><td style="padding:0 32px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:14px;"><tr><td><div style="font-size:11px;font-weight:700;color:#fff;background:${B.blue};text-transform:uppercase;letter-spacing:1.5px;padding:5px 12px;display:inline-block;">Research Reports</div></td></tr></table>${(s.researchReports||[]).filter(r=>r.title).map(r => `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:14px;border-bottom:1px solid #e4e8ed;padding-bottom:10px;"><tr><td><div style="margin-bottom:4px;"><span style="display:inline-block;background:${r.type==="Macro"?"#e3f2fd":r.type==="Weekly"?"#fce4ec":r.type==="Strategy"?"#f3e5f5":"#e8eaf6"};color:${r.type==="Macro"?"#1565c0":r.type==="Weekly"?"#c62828":r.type==="Strategy"?"#6a1b9a":"#283593"};font-size:10px;font-weight:700;padding:2px 8px;border-radius:3px;text-transform:uppercase;">${r.type}</span></div><div style="font-size:12.5px;font-weight:700;color:${B.navy};margin-bottom:3px;">${r.title}</div>${r.author ? `<div style="font-size:11px;color:#666;font-style:italic;margin-bottom:4px;">${r.author}</div>` : ""}${r.body ? `<div style="font-size:13px;line-height:1.5;color:#333;margin-bottom:4px;">${nl2br(r.body)}</div>` : ""}${r.link ? `<a href="${r.link}" style="font-size:12px;color:${B.blue};">Read report \u2192</a>` : ""}</td></tr></table>`).join("")}</td></tr>` : "";
+
+  // BCRA section
+  const bcraHtml = (() => {
+    if (!s.sections.find(x=>x.key==="bcra")?.on) return "";
+    const d = s.bcraData;
+    if (!d) return `<tr><td style="padding:0 32px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:14px;"><tr><td><div style="font-size:11px;font-weight:700;color:#fff;background:${B.blue};text-transform:uppercase;letter-spacing:1.5px;padding:5px 12px;display:inline-block;">BCRA Dashboard</div></td></tr></table><div style="font-size:12px;color:#999;font-style:italic;">No BCRA data fetched yet.</div></td></tr>`;
+    const row = (data, unit, label, decimals=0) => {
+      if (!data) return `<tr><td style="padding:5px 8px;font-size:12px;color:#333;border-bottom:1px solid #eee;">${label}</td><td colspan="4" style="padding:5px 8px;font-size:12px;color:#999;border-bottom:1px solid #eee;">N/D</td></tr>`;
+      const vc = (v) => v==null?"#666":v>=0?"#27864a":"#c0392b";
+      const fs = (v,dec=0) => v==null?"N/D":Number(v).toLocaleString("es-AR",{minimumFractionDigits:dec,maximumFractionDigits:dec});
+      const fp = (v) => v==null?"":` (${v>=0?"+":""}${Number(v).toFixed(1)}%)`;
+      return `<tr style="background:#fafbfc;"><td style="padding:5px 8px;font-size:12px;font-weight:600;color:#333;border-bottom:1px solid #eee;white-space:nowrap;">${label}</td><td style="padding:5px 8px;font-size:12px;color:#333;text-align:right;border-bottom:1px solid #eee;white-space:nowrap;"><strong>${fs(data.ultimo,decimals)}</strong> <span style="font-size:10px;color:#999;">${unit}</span><br><span style="font-size:10px;color:#888;">${data.fecha||""}</span></td><td style="padding:5px 8px;font-size:12px;text-align:right;border-bottom:1px solid #eee;white-space:nowrap;color:${vc(data.varDiaria)};"><strong>${data.varDiaria!=null?(data.varDiaria>=0?"+":"")+fs(data.varDiaria,decimals):"N/D"}</strong><br><span style="font-size:10px;">${fp(data.varDiariaPC)}</span></td><td style="padding:5px 8px;font-size:12px;text-align:right;border-bottom:1px solid #eee;white-space:nowrap;color:${vc(data.varMTD)};"><strong>${data.varMTD!=null?(data.varMTD>=0?"+":"")+fs(data.varMTD,decimals):"N/D"}</strong><br><span style="font-size:10px;">${fp(data.varMTDPC)}</span></td><td style="padding:5px 8px;font-size:12px;text-align:right;border-bottom:1px solid #eee;white-space:nowrap;color:${vc(data.varYTD)};"><strong>${data.varYTD!=null?(data.varYTD>=0?"+":"")+fs(data.varYTD,decimals):"N/D"}</strong><br><span style="font-size:10px;">${fp(data.varYTDPC)}</span></td></tr>`;
+    };
+    const simpleRow = (val, unit, label, decimals=0) => {
+      if (val==null) return `<tr><td style="padding:5px 8px;font-size:12px;color:#333;border-bottom:1px solid #eee;">${label}</td><td style="padding:5px 8px;font-size:12px;color:#999;border-bottom:1px solid #eee;">N/D</td></tr>`;
+      return `<tr><td style="padding:5px 8px;font-size:12px;font-weight:600;color:#333;border-bottom:1px solid #eee;">${label}</td><td style="padding:5px 8px;font-size:12px;color:#333;text-align:right;border-bottom:1px solid #eee;"><strong>${Number(val).toLocaleString("es-AR",{minimumFractionDigits:decimals,maximumFractionDigits:decimals})}</strong> <span style="font-size:10px;color:#999;">${unit}</span></td></tr>`;
+    };
+    const hdr = `<tr style="background:${B.navy};"><td style="padding:6px 8px;font-size:11px;font-weight:700;color:#fff;">Variable</td><td style="padding:6px 8px;font-size:11px;font-weight:700;color:#fff;text-align:right;">Último</td><td style="padding:6px 8px;font-size:11px;font-weight:700;color:#fff;text-align:right;">Diario</td><td style="padding:6px 8px;font-size:11px;font-weight:700;color:#fff;text-align:right;">MTD</td><td style="padding:6px 8px;font-size:11px;font-weight:700;color:#fff;text-align:right;">YTD</td></tr>`;
+    const dd = d.data || {};
+    const depPesoTotal = (dd.depCCPesos?.ultimo||0)+(dd.depCAPesos?.ultimo||0)+(dd.depPFPesos?.ultimo||0);
+    return `<tr><td style="padding:0 32px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:14px;"><tr><td><div style="font-size:11px;font-weight:700;color:#fff;background:${B.blue};text-transform:uppercase;letter-spacing:1.5px;padding:5px 12px;display:inline-block;">BCRA Dashboard</div><span style="font-size:10px;color:#999;margin-left:12px;">Fuente: BCRA API · ${d.fecha||""}</span></td></tr></table><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #dde3ea;margin-bottom:10px;">${hdr}${row(dd.reservas,"USD M","Reservas Internacionales")}${row(dd.comprasBCRA,"USD M","Compras netas BCRA (MLC)")}</table><div style="font-size:11px;font-weight:700;color:${B.navy};text-transform:uppercase;margin:10px 0 4px;">Depósitos Sector Privado (M$)</div><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #dde3ea;margin-bottom:10px;">${hdr}${row(dd.depCCPesos,"M$","Cuentas Corrientes (ARS)")}${row(dd.depCAPesos,"M$","Caja de Ahorro (ARS)")}${row(dd.depPFPesos,"M$","Plazo Fijo (ARS)")}${row(dd.depUSD,"USD M","Depósitos (USD)")}</table><div style="font-size:11px;font-weight:700;color:${B.navy};text-transform:uppercase;margin:10px 0 4px;">Préstamos Sector Privado</div><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #dde3ea;margin-bottom:16px;">${hdr}${row(dd.prestPesos,"M$","Préstamos (ARS)")}${row(dd.prestUSD,"USD M","Préstamos (USD)")}</table></td></tr>`;
+  })();
+
   const sig = s.signatures.map(x => `<div style="margin-bottom:8px;"><div style="font-size:13px;font-weight:700;color:${B.navy};">${x.name}</div><div style="font-size:12px;color:#666;">${x.role}</div><div style="font-size:12px;color:${B.blue};">${x.email}</div></div>`).join("");
-  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Argentina Daily</title></head><body style="margin:0;padding:0;background:#f0f2f5;font-family:'Segoe UI',Calibri,Arial,sans-serif;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f0f2f5;"><tr><td align="center" style="padding:20px 10px;"><table role="presentation" width="680" cellpadding="0" cellspacing="0" border="0" style="max-width:680px;width:100%;background:#fff;"><tr><td style="background:${B.navy};padding:24px 32px 20px;border-bottom:3px solid ${B.sky};"><img src="${LOGO_WHITE_B64}" alt="Latin Securities" style="height:36px;display:block;" /><div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:${B.sky};margin-top:4px;">Sales &amp; Trading</div><div style="font-size:20px;font-weight:600;color:#fff;margin-top:14px;">Argentina Daily</div><div style="font-size:12px;color:#8aa8d4;margin-top:2px;">${formatDate(s.date)}</div></td></tr>${s.summaryBar ? `<tr><td style="background:${B.lightBg};border-left:4px solid ${B.blue};padding:14px 24px;font-size:13.5px;line-height:1.55;color:${B.navy};"><strong>Today:</strong> ${s.summaryBar}</td></tr>` : ""}<tr><td style="padding:22px 0 0;"></td></tr>${s.sections.filter(x=>x.on).map(x => ({macro,tradeIdeas:trade,flows:flow,macroEstimates:mEst,corporate:corp,research})[x.key]||"").join("")}<tr><td style="padding:12px 32px 0;border-top:1px solid #e4e8ed;"><img src="${LOGO_ORIG_B64}" alt="Latin Securities" style="height:30px;display:block;margin-bottom:10px;" />${sig}</td></tr><tr><td style="padding:16px 0 0;"></td></tr><tr><td style="background:${B.navy};padding:14px 24px;border-top:2px solid ${B.sky};"><div style="font-size:10px;font-weight:700;color:${B.sky};margin-bottom:4px;">LATIN SECURITIES S.A.</div><div style="font-size:9px;color:#8aa8d4;line-height:1.5;">Arenales 707, 6th Floor \u00B7 Buenos Aires, Argentina \u00B7 www.latinsecurities.com.ar<br><br>This material is for informational purposes only and does not constitute an offer to buy or sell any financial instrument. \u00A9 2026 Latin Securities S.A.</div></td></tr></table></td></tr></table></body></html>`;
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Argentina Daily</title></head><body style="margin:0;padding:0;background:#f0f2f5;font-family:'Segoe UI',Calibri,Arial,sans-serif;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f0f2f5;"><tr><td align="center" style="padding:20px 10px;"><table role="presentation" width="680" cellpadding="0" cellspacing="0" border="0" style="max-width:680px;width:100%;background:#fff;"><tr><td style="background:${B.navy};padding:24px 32px 20px;border-bottom:3px solid ${B.sky};"><img src="${LOGO_WHITE_B64}" alt="Latin Securities" style="height:36px;display:block;" /><div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:${B.sky};margin-top:4px;">Sales &amp; Trading</div><div style="font-size:20px;font-weight:600;color:#fff;margin-top:14px;">Argentina Daily</div><div style="font-size:12px;color:#8aa8d4;margin-top:2px;">${formatDate(s.date)}</div></td></tr>${s.summaryBar ? `<tr><td style="background:${B.lightBg};border-left:4px solid ${B.blue};padding:14px 24px;font-size:13.5px;line-height:1.55;color:${B.navy};"><strong>Today:</strong> ${s.summaryBar}</td></tr>` : ""}<tr><td style="padding:22px 0 0;"></td></tr>${s.sections.filter(x=>x.on).map(x => ({macro,tradeIdeas:trade,flows:flow,macroEstimates:mEst,corporate:corp,research,bcra:bcraHtml})[x.key]||"").join("")}<tr><td style="padding:12px 32px 0;border-top:1px solid #e4e8ed;"><img src="${LOGO_ORIG_B64}" alt="Latin Securities" style="height:30px;display:block;margin-bottom:10px;" />${sig}</td></tr><tr><td style="padding:16px 0 0;"></td></tr><tr><td style="background:${B.navy};padding:14px 24px;border-top:2px solid ${B.sky};"><div style="font-size:10px;font-weight:700;color:${B.sky};margin-bottom:4px;">LATIN SECURITIES S.A.</div><div style="font-size:9px;color:#8aa8d4;line-height:1.5;">Arenales 707, 6th Floor \u00B7 Buenos Aires, Argentina \u00B7 www.latinsecurities.com.ar<br><br>This material is for informational purposes only and does not constitute an offer to buy or sell any financial instrument. \u00A9 2026 Latin Securities S.A.</div></td></tr></table></td></tr></table></body></html>`;
+}
 }
 
 function generateBBG(s) {
@@ -90,6 +123,7 @@ function generateBBG(s) {
     macroEstimates: () => { L.push("", `MACRO ESTIMATES (source: ${s.macroSource})`, ""); s.macroRows.forEach(r => L.push(`${r.label}: ${s.macroCols.map(c => `${c} ${r.vals[c]||""}`).join(" | ")}`)); L.push("", "---"); },
     corporate: () => { L.push("", "CORPORATE", ""); s.corpBlocks.forEach(c => { const r = res(c, s.analysts); L.push(`${r.tickers.join(" / ")} \u2013 ${r.headline}`); r.covs.filter(cv=>cv.ticker).forEach(cv => { const ups = fmtUpside(cv.tp, cv.last); L.push(`  ${cv.ticker} | ${cv.rating} | TP ${cv.tp}${cv.last ? ` | Last ${cv.last}` : ""}${ups ? ` | ${ups}` : ""}`); }); L.push(`  ${r.analyst}`); if (r.body) L.push(r.body); if (r.link) L.push(`Link: ${r.link}`); L.push(""); }); L.push("---"); },
     research: () => { if (!s.researchReports?.length) return; L.push("", "RESEARCH REPORTS", ""); s.researchReports.filter(r=>r.title).forEach(r => { L.push(`[${r.type}] ${r.title}`); if (r.author) L.push(`  ${r.author}`); if (r.body) L.push(r.body); if (r.link) L.push(`Link: ${r.link}`); L.push(""); }); L.push("---"); },
+    bcra: () => { const d = s.bcraData?.data; if (!d) return; L.push("", "BCRA DASHBOARD", ""); const f=(v,dec=0)=>v==null?"N/D":Number(v).toLocaleString("es-AR",{minimumFractionDigits:dec,maximumFractionDigits:dec}); const fp=(v)=>v==null?"":`(${v>=0?"+":""}${Number(v).toFixed(1)}%)`; const line=(label,data,unit)=>{ if(!data)return; L.push(`${label}: ${f(data.ultimo)} ${unit} | Diario: ${data.varDiaria!=null?(data.varDiaria>=0?"+":"")+f(data.varDiaria):"N/D"} ${fp(data.varDiariaPC)} | MTD: ${data.varMTD!=null?(data.varMTD>=0?"+":"")+f(data.varMTD):"N/D"} ${fp(data.varMTDPC)} | YTD: ${data.varYTD!=null?(data.varYTD>=0?"+":"")+f(data.varYTD):"N/D"} ${fp(data.varYTDPC)}`); }; line("Reservas",d.reservas,"USD M"); line("Compras netas BCRA",d.comprasBCRA,"USD M"); L.push(""); L.push("Depositos Sector Privado:"); line("  CC (ARS)",d.depCCPesos,"M$"); line("  CA (ARS)",d.depCAPesos,"M$"); line("  PF (ARS)",d.depPFPesos,"M$"); line("  Depositos (USD)",d.depUSD,"USD M"); L.push(""); L.push("Prestamos Sector Privado:"); line("  Prestamos (ARS)",d.prestPesos,"M$"); line("  Prestamos (USD)",d.prestUSD,"USD M"); L.push("", "---"); },
   };
   s.sections.filter(x => x.on).forEach(x => bbgSec[x.key]?.());
   L.push(""); s.signatures.forEach(x => { L.push(x.name, x.role, x.email, ""); }); return L.join("\n");
@@ -100,6 +134,100 @@ const Card = ({ title, children, color = BRAND.blue }) => (<div style={{ backgro
 const Inp = ({ label, value, onChange, multi, rows = 2, placeholder }) => (<div style={{ marginBottom: 10 }}>{label && <label style={{ fontSize: 11, fontWeight: 600, color: "#555", textTransform: "uppercase", letterSpacing: 0.5, display: "block", marginBottom: 4 }}>{label}</label>}{multi ? <textarea value={value} onChange={e => onChange(e.target.value)} rows={rows} placeholder={placeholder} style={{ width: "100%", padding: "8px 10px", borderRadius: 6, border: "1px solid #d0d5dd", fontSize: 13, fontFamily: "'Segoe UI',sans-serif", resize: "vertical", lineHeight: 1.5, boxSizing: "border-box" }} /> : <input value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} style={{ width: "100%", padding: "8px 10px", borderRadius: 6, border: "1px solid #d0d5dd", fontSize: 13, fontFamily: "'Segoe UI',sans-serif", boxSizing: "border-box" }} />}</div>);
 const X = ({ onClick }) => <button onClick={onClick} style={{ background: "none", border: "none", color: "#c0392b", cursor: "pointer", fontSize: 18, padding: "0 4px", lineHeight: 1 }}>{"\u00D7"}</button>;
 const DashBtn = ({ onClick, children, color = BRAND.blue }) => <button onClick={onClick} style={{ width: "100%", padding: 10, border: "2px dashed #d0d5dd", borderRadius: 6, background: "transparent", color, fontWeight: 600, fontSize: 12, cursor: "pointer" }}>{children}</button>;
+
+function BcraCard({ bcraData, onFetch }) {
+  const loading = bcraData?.loading;
+  const error = bcraData?.error;
+  const d = bcraData?.data || {};
+  const fecha = bcraData?.fecha;
+
+  const vc = (v) => v == null ? "#666" : v >= 0 ? "#27864a" : "#c0392b";
+  const fN = (v, dec = 0) => v == null ? "—" : Number(v).toLocaleString("es-AR", { minimumFractionDigits: dec, maximumFractionDigits: dec });
+  const fV = (v, dec = 0) => { if (v == null) return "—"; return (v >= 0 ? "+" : "") + fN(v, dec); };
+  const fP = (v) => v == null ? "" : ` (${v >= 0 ? "+" : ""}${Number(v).toFixed(1)}%)`;
+
+  const Row = ({ label, data, unit, dec = 0 }) => (
+    <tr style={{ borderBottom: "1px solid #f0f2f5" }}>
+      <td style={{ padding: "6px 10px", fontSize: 12, fontWeight: 600, color: "#333", whiteSpace: "nowrap" }}>{label}</td>
+      <td style={{ padding: "6px 10px", fontSize: 12, textAlign: "right", whiteSpace: "nowrap" }}>
+        {data ? <><strong>{fN(data.ultimo, dec)}</strong> <span style={{ fontSize: 10, color: "#999" }}>{unit}</span><br /><span style={{ fontSize: 10, color: "#aaa" }}>{data.fecha || ""}</span></> : <span style={{ color: "#ccc" }}>N/D</span>}
+      </td>
+      <td style={{ padding: "6px 10px", fontSize: 12, textAlign: "right", whiteSpace: "nowrap", color: vc(data?.varDiaria) }}>
+        {data ? <>{fV(data.varDiaria, dec)}<br /><span style={{ fontSize: 10 }}>{fP(data.varDiariaPC)}</span></> : "—"}
+      </td>
+      <td style={{ padding: "6px 10px", fontSize: 12, textAlign: "right", whiteSpace: "nowrap", color: vc(data?.varMTD) }}>
+        {data ? <>{fV(data.varMTD, dec)}<br /><span style={{ fontSize: 10 }}>{fP(data.varMTDPC)}</span></> : "—"}
+      </td>
+      <td style={{ padding: "6px 10px", fontSize: 12, textAlign: "right", whiteSpace: "nowrap", color: vc(data?.varYTD) }}>
+        {data ? <>{fV(data.varYTD, dec)}<br /><span style={{ fontSize: 10 }}>{fP(data.varYTDPC)}</span></> : "—"}
+      </td>
+    </tr>
+  );
+  const Hdr = () => (
+    <tr style={{ background: BRAND.navy }}>
+      {["Variable", "Último", "Diario", "MTD", "YTD"].map(h => (
+        <th key={h} style={{ padding: "6px 10px", fontSize: 11, fontWeight: 700, color: "#fff", textAlign: h === "Variable" ? "left" : "right", whiteSpace: "nowrap" }}>{h}</th>
+      ))}
+    </tr>
+  );
+
+  return (
+    <div style={{ background: "#fff", borderRadius: 8, marginBottom: 12, border: "1px solid #e4e8ed", overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,57,0.06)" }}>
+      <div style={{ background: "#005a9c", padding: "8px 16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <span style={{ fontSize: 11, fontWeight: 700, color: "#fff", letterSpacing: 1.2, textTransform: "uppercase" }}>BCRA Dashboard</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          {fecha && <span style={{ fontSize: 10, color: "#aad4ff" }}>Datos al {fecha}</span>}
+          <button onClick={onFetch} disabled={loading} style={{ padding: "5px 14px", borderRadius: 5, border: "1px solid #aad4ff", background: loading ? "#003d6b" : "transparent", color: loading ? "#aad4ff" : "#fff", fontSize: 11, fontWeight: 700, cursor: loading ? "default" : "pointer", textTransform: "uppercase" }}>
+            {loading ? "⏳ Cargando..." : "↻ Fetch BCRA"}
+          </button>
+        </div>
+      </div>
+      <div style={{ padding: 16 }}>
+        {error && <div style={{ padding: "8px 12px", background: "#fdf0f0", border: "1px solid #f5c6c6", borderRadius: 6, color: "#c0392b", fontSize: 12, marginBottom: 12 }}>Error: {error}</div>}
+        {!bcraData && !loading && (
+          <div style={{ textAlign: "center", padding: "20px 0", color: "#aaa", fontSize: 13 }}>
+            Presioná <strong>↻ Fetch BCRA</strong> para traer los datos del día desde la API del BCRA.
+          </div>
+        )}
+        {(bcraData || loading) && !error && (
+          <>
+            <div style={{ overflowX: "auto", marginBottom: 12 }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead><Hdr /></thead>
+                <tbody>
+                  <Row label="🏦 Reservas Internacionales" data={d.reservas} unit="USD M" />
+                  <Row label="💵 Compras netas BCRA (MLC)" data={d.comprasBCRA} unit="USD M" />
+                </tbody>
+              </table>
+            </div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: BRAND.navy, textTransform: "uppercase", marginBottom: 6 }}>Depósitos Sector Privado</div>
+            <div style={{ overflowX: "auto", marginBottom: 12 }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead><Hdr /></thead>
+                <tbody>
+                  <Row label="CC (ARS)" data={d.depCCPesos} unit="M$" />
+                  <Row label="CA (ARS)" data={d.depCAPesos} unit="M$" />
+                  <Row label="PF (ARS)" data={d.depPFPesos} unit="M$" />
+                  <Row label="Depósitos (USD)" data={d.depUSD} unit="USD M" />
+                </tbody>
+              </table>
+            </div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: BRAND.navy, textTransform: "uppercase", marginBottom: 6 }}>Préstamos Sector Privado</div>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead><Hdr /></thead>
+                <tbody>
+                  <Row label="Préstamos (ARS)" data={d.prestPesos} unit="M$" />
+                  <Row label="Préstamos (USD)" data={d.prestUSD} unit="USD M" />
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
 
 const STORAGE_KEY = "ls-daily-builder-state";
 const loadState = () => { try { const raw = localStorage.getItem(STORAGE_KEY); if (raw) { const saved = JSON.parse(raw); return { ...DEFAULT_STATE, ...saved }; } } catch(e) {} return DEFAULT_STATE; };
@@ -371,6 +499,18 @@ export default function App() {
               <div style={{ display: "flex", alignItems: "flex-end", gap: 8 }}><div style={{ flex: 1 }}><Inp label="Report Link" value={r.link} onChange={v => ul("researchReports", r.id, "link", v)} placeholder="https://..." /></div><X onClick={() => rl("researchReports", r.id)} /></div>
             </div>
           ))}<DashBtn onClick={() => al("researchReports", { id: `rr${Date.now()}`, type: "Macro", title: "", author: "", body: "", link: "" })} color="#6a1b9a">+ Add Report</DashBtn></Card>}
+
+          {s.sections.find(x=>x.key==="bcra")?.on && <BcraCard bcraData={s.bcraData} onFetch={async () => {
+            setS(p => ({ ...p, bcraData: { ...(p.bcraData||{}), loading: true, error: null } }));
+            try {
+              const r = await fetch("/api/bcra");
+              if (!r.ok) throw new Error(`HTTP ${r.status}`);
+              const d = await r.json();
+              setS(p => ({ ...p, bcraData: { ...d, loading: false, error: null } }));
+            } catch(e) {
+              setS(p => ({ ...p, bcraData: { ...(p.bcraData||{}), loading: false, error: e.message } }));
+            }
+          }} />}
 
           <Card title="Signatures" color={BRAND.navy}>
             {s.signatures.map(sig => (<div key={sig.id} style={{ display: "flex", gap: 8, marginBottom: 8, alignItems: "flex-end" }}><div style={{ flex: 1 }}><Inp label="Name" value={sig.name} onChange={v => ul("signatures", sig.id, "name", v)} /></div><div style={{ flex: 1 }}><Inp label="Role" value={sig.role} onChange={v => ul("signatures", sig.id, "role", v)} /></div><div style={{ flex: 1 }}><Inp label="Email" value={sig.email} onChange={v => ul("signatures", sig.id, "email", v)} /></div>{s.signatures.length > 1 && <div style={{ paddingBottom: 10 }}><X onClick={() => rl("signatures", sig.id)} /></div>}</div>))}
