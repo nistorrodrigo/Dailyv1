@@ -223,9 +223,17 @@ function BcraCard({ bcraData, onFetch, hiddenRows = {}, onToggleRow }) {
   const Hdr = () => (
     <tr style={{ background: BRAND.navy }}>
       {["", "Variable", "Latest", "D/D", "MTD", "YTD"].map((h, i) => (
-        <th key={i} style={{ padding: "6px 10px", fontSize: 11, fontWeight: 700, color: "#fff", textAlign: i <= 1 ? "left" : "right", whiteSpace: "nowrap" }}>{h}</th>
+        <th key={i} style={{ padding: "6px 10px", fontSize: 11, fontWeight: 700, color: "#fff", textAlign: i <= 1 ? "left" : "right", whiteSpace: "nowrap", width: i === 0 ? 32 : i === 1 ? "auto" : 90 }}>{h}</th>
       ))}
     </tr>
+  );
+
+  // Consistent two-line cell: main value on top, sub-label below
+  const NumCell = ({ main, sub, color }) => (
+    <td style={{ padding: "5px 10px", fontSize: 12, textAlign: "right", whiteSpace: "nowrap", verticalAlign: "top", color: color || "#333", width: 90 }}>
+      <div style={{ fontWeight: 600, lineHeight: "1.3" }}>{main}</div>
+      <div style={{ fontSize: 10, color: "#aaa", lineHeight: "1.2", marginTop: 1 }}>{sub || "\u00A0"}</div>
+    </td>
   );
 
   const Row = ({ rowKey, label, data, unit }) => {
@@ -239,49 +247,33 @@ function BcraCard({ bcraData, onFetch, hiddenRows = {}, onToggleRow }) {
     if (data.isFlow) {
       return (
         <tr style={{ borderBottom: "1px solid #f0f2f5", background: hidden ? "#fafafa" : "#fff", opacity: hidden ? 0.45 : 1 }}>
-          <td style={{ padding: "4px 6px", textAlign: "center" }}>
+          <td style={{ padding: "4px 6px", textAlign: "center", verticalAlign: "middle" }}>
             <input type="checkbox" checked={!hidden} onChange={() => onToggleRow(rowKey)} title="Show in email" />
           </td>
-          <td style={{ padding: "6px 10px", fontSize: 12, fontWeight: 600, color: "#333" }}>
-            {label}
-            <div style={{ fontSize: 10, color: "#aaa", fontWeight: 400 }}>daily flow · as of {data.date}</div>
+          <td style={{ padding: "5px 10px", fontSize: 12, fontWeight: 600, color: "#333", verticalAlign: "top" }}>
+            <div style={{ lineHeight: "1.3" }}>{label}</div>
+            <div style={{ fontSize: 10, color: "#aaa", fontWeight: 400, marginTop: 1 }}>daily flow · as of {data.date}</div>
           </td>
-          <td style={{ padding: "6px 10px", fontSize: 12, textAlign: "right", whiteSpace: "nowrap", color: vc(data.value) }}>
-            <strong>{fV(data.value, unit)}</strong> <span style={{ fontSize: 10, color: "#999" }}>{unit}</span>
-          </td>
-          <td style={{ padding: "6px 10px", fontSize: 12, textAlign: "right", color: "#ccc" }}>—</td>
-          <td style={{ padding: "6px 10px", fontSize: 12, textAlign: "right", whiteSpace: "nowrap", color: vc(data.mtdSum) }}>
-            <strong>{fV(data.mtdSum, unit)}</strong> <span style={{ fontSize: 10, color: "#999" }}>{unit}</span><br />
-            <span style={{ fontSize: 10, color: "#888" }}>MTD cum. ({data.mtdDays}d)</span>
-          </td>
-          <td style={{ padding: "6px 10px", fontSize: 12, textAlign: "right", whiteSpace: "nowrap", color: vc(data.ytdSum) }}>
-            <strong>{fV(data.ytdSum, unit)}</strong> <span style={{ fontSize: 10, color: "#999" }}>{unit}</span><br />
-            <span style={{ fontSize: 10, color: "#888" }}>YTD cum. ({data.ytdDays}d)</span>
-          </td>
+          <NumCell main={`${fV(data.value, unit)} ${unit}`} sub="today" color={vc(data.value)} />
+          <NumCell main="—" sub="" color="#ccc" />
+          <NumCell main={`${fV(data.mtdSum, unit)} ${unit}`} sub={`MTD cum. (${data.mtdDays}d)`} color={vc(data.mtdSum)} />
+          <NumCell main={`${fV(data.ytdSum, unit)} ${unit}`} sub={`YTD cum. (${data.ytdDays}d)`} color={vc(data.ytdSum)} />
         </tr>
       );
     }
     return (
       <tr style={{ borderBottom: "1px solid #f0f2f5", background: hidden ? "#fafafa" : "#fff", opacity: hidden ? 0.45 : 1 }}>
-        <td style={{ padding: "4px 6px", textAlign: "center" }}>
+        <td style={{ padding: "4px 6px", textAlign: "center", verticalAlign: "middle" }}>
           <input type="checkbox" checked={!hidden} onChange={() => onToggleRow(rowKey)} title="Show in email" />
         </td>
-        <td style={{ padding: "6px 10px", fontSize: 12, fontWeight: 600, color: "#333" }}>
-          {label}
-          <div style={{ fontSize: 10, color: "#aaa", fontWeight: 400 }}>as of {data.date}</div>
+        <td style={{ padding: "5px 10px", fontSize: 12, fontWeight: 600, color: "#333", verticalAlign: "top" }}>
+          <div style={{ lineHeight: "1.3" }}>{label}</div>
+          <div style={{ fontSize: 10, color: "#aaa", fontWeight: 400, marginTop: 1 }}>as of {data.date}</div>
         </td>
-        <td style={{ padding: "6px 10px", fontSize: 12, textAlign: "right", whiteSpace: "nowrap" }}>
-          <strong>{fN(data.value, unit)}</strong> <span style={{ fontSize: 10, color: "#999" }}>{unit}</span>
-        </td>
-        <td style={{ padding: "6px 10px", fontSize: 12, textAlign: "right", whiteSpace: "nowrap", color: vc(data.d1) }}>
-          {fV(data.d1, unit)}<br /><span style={{ fontSize: 10 }}>{fP(data.d1pct)}</span>
-        </td>
-        <td style={{ padding: "6px 10px", fontSize: 12, textAlign: "right", whiteSpace: "nowrap", color: vc(data.mtd) }}>
-          {fV(data.mtd, unit)}<br /><span style={{ fontSize: 10 }}>{fP(data.mtdpct)}</span>
-        </td>
-        <td style={{ padding: "6px 10px", fontSize: 12, textAlign: "right", whiteSpace: "nowrap", color: vc(data.ytd) }}>
-          {fV(data.ytd, unit)}<br /><span style={{ fontSize: 10 }}>{fP(data.ytdpct)}</span>
-        </td>
+        <NumCell main={`${fN(data.value, unit)}`} sub={unit} color="#333" />
+        <NumCell main={fV(data.d1, unit)} sub={fP(data.d1pct)} color={vc(data.d1)} />
+        <NumCell main={fV(data.mtd, unit)} sub={fP(data.mtdpct)} color={vc(data.mtd)} />
+        <NumCell main={fV(data.ytd, unit)} sub={fP(data.ytdpct)} color={vc(data.ytd)} />
       </tr>
     );
   };
