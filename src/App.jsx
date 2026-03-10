@@ -30,6 +30,7 @@ const DEFAULT_STATE = {
     { key: "macroEstimates", label: "Macro Estimates", on: true },
     { key: "corporate", label: "Corporate", on: true },
     { key: "research", label: "Research Reports", on: true },
+    { key: "topMovers", label: "Top Movers", on: false },
     { key: "bcra", label: "BCRA Dashboard", on: false },
     { key: "events", label: "Events & Webinars", on: false },
     { key: "keyEvents", label: "Key Events to Watch", on: false },
@@ -41,6 +42,8 @@ const DEFAULT_STATE = {
   fiIdeas: [{idea:"Long ARGENT 35/38",reason:"Attractive yield on long-duration sovereign",link:""},{idea:"Long end of BONCAP curve (Apr/May/Jun 2027)",reason:"",link:""},{idea:"RV: Sell BONTE 30 / Buy long-end BONCAP curve",reason:"",link:""},{idea:"Long BONCER 2028",reason:"",link:""}],
   showEquity: true,
   showFI: true,
+  topMovers: { gainers: [{ticker:"",name:"",priceARS:"",chgPct:"",comment:""}], losers: [{ticker:"",name:"",priceARS:"",chgPct:"",comment:""}] },
+  cclRate: null,
   eqBuyer: "bank names (BBAR, BMA, GGAL)", eqSeller: "O&G names (VIST, YPF, PAM)",
   fiBuyer: "ST Bonares, ARGENT 35/38, BONTE 30, EDNAR 30", fiSeller: "ARGENT 29/30, YPFDAR 34",
   macroSource: "REM (BCRA) Jan-26",
@@ -115,7 +118,23 @@ function generateHTML(s) {
   const corp = s.sections.find(x=>x.key==="corporate")?.on ? `<tr><td style="padding:0 32px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:14px;"><tr><td><div style="font-size:11px;font-weight:700;color:#fff;background:${B.blue};text-transform:uppercase;letter-spacing:1.5px;padding:5px 12px;display:inline-block;">Corporate</div></td></tr></table>${s.corpBlocks.map(c => { const r = res(c, s.analysts); return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:16px;border-bottom:1px solid #e4e8ed;padding-bottom:12px;"><tr><td><div style="font-size:12.5px;font-weight:700;color:${B.navy};text-transform:uppercase;letter-spacing:0.8px;margin-bottom:4px;">${r.tickers.join(" / ")} \u2014 ${r.headline}</div>${r.covs.filter(cv=>cv.ticker).map(cv => `<div style="margin-bottom:3px;"><span style="display:inline-block;background:${rb(cv.rating)};color:${rc(cv.rating)};font-size:10px;font-weight:700;padding:2px 6px;border-radius:3px;">${cv.ticker} ${cv.rating}</span><span style="font-size:11px;color:#333;margin-left:4px;">TP ${cv.tp}${cv.last ? ` | Last ${cv.last}` : ""}${cv.tp && cv.last ? ` | <span style="color:${upsideColor(cv.tp,cv.last)};font-weight:700;">${fmtUpside(cv.tp,cv.last)}</span>` : ""}</span></div>`).join("")}<div style="font-size:11px;color:#666;margin-bottom:6px;font-style:italic;">${r.analyst}</div><div style="font-size:13px;color:#333;">${richText(r.body)}</div>${r.link ? `<div style="margin-top:6px;"><a href="${r.link}" style="font-size:12px;color:${B.blue};">Full LS report \u2192</a></div>` : ""}${c.sourceLink ? `<div style="margin-top:4px;"><a href="${c.sourceLink}" style="font-size:11px;color:#888;">Source →</a></div>` : ""}</td></tr></table>`; }).join("")}</td></tr>` : "";
   const research = s.sections.find(x=>x.key==="research")?.on && s.researchReports?.length ? `<tr><td style="padding:0 32px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:14px;"><tr><td><div style="font-size:11px;font-weight:700;color:#fff;background:${B.blue};text-transform:uppercase;letter-spacing:1.5px;padding:5px 12px;display:inline-block;">Research Reports</div></td></tr></table>${(s.researchReports||[]).filter(r=>r.title).map(r => `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:14px;border-bottom:1px solid #e4e8ed;padding-bottom:10px;"><tr><td><div style="margin-bottom:4px;"><span style="display:inline-block;background:${r.type==="Macro"?"#e3f2fd":r.type==="Weekly"?"#fce4ec":r.type==="Strategy"?"#f3e5f5":"#e8eaf6"};color:${r.type==="Macro"?"#1565c0":r.type==="Weekly"?"#c62828":r.type==="Strategy"?"#6a1b9a":"#283593"};font-size:10px;font-weight:700;padding:2px 8px;border-radius:3px;text-transform:uppercase;">${r.type}</span></div><div style="font-size:12.5px;font-weight:700;color:${B.navy};margin-bottom:3px;">${r.title}</div>${r.author ? `<div style="font-size:11px;color:#666;font-style:italic;margin-bottom:4px;">${r.author}</div>` : ""}${r.body ? `<div style="font-size:13px;line-height:1.5;color:#333;margin-bottom:4px;">${richText(r.body)}</div>` : ""}${r.link ? `<a href="${r.link}" style="font-size:12px;color:${B.blue};">Read report \u2192</a>` : ""}</td></tr></table>`).join("")}</td></tr>` : "";
 
-  // BCRA section
+  // TOP MOVERS section
+  const topMoversHtml = (() => {
+    if (!s.sections.find(x=>x.key==="topMovers")?.on) return "";
+    const ccl = s.cclRate;
+    const fmtUSD = (ars, chg) => { if (!ccl || !ars) return ""; const usd = parseFloat(ars) / ccl; return `$${usd.toFixed(2)}`; };
+    const fmtChg = (v) => { const n = parseFloat(v); if (isNaN(n)) return ""; return (n >= 0 ? "+" : "") + n.toFixed(2) + "%"; };
+    const moverRow = (m, color) => `<tr><td style="padding:8px 10px;border-bottom:1px solid ${color}22;"><span style="font-weight:800;font-size:13px;color:${color};">${m.ticker}</span>${m.name ? `<span style="font-size:11px;color:#666;margin-left:6px;">${m.name}</span>` : ""}</td><td style="padding:8px 10px;border-bottom:1px solid ${color}22;text-align:right;font-size:12px;color:#333;">${m.priceARS ? `ARS ${parseFloat(m.priceARS).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}` : ""}${fmtUSD(m.priceARS) ? `<br><span style="color:#666;font-size:11px;">${fmtUSD(m.priceARS)}</span>` : ""}</td><td style="padding:8px 10px;border-bottom:1px solid ${color}22;text-align:right;"><span style="font-weight:800;font-size:13px;color:${color};">${fmtChg(m.chgPct)}</span></td><td style="padding:8px 10px;border-bottom:1px solid ${color}22;font-size:11.5px;color:#555;">${m.comment||""}</td></tr>`;
+    const gainers = (s.topMovers?.gainers||[]).filter(m=>m.ticker);
+    const losers = (s.topMovers?.losers||[]).filter(m=>m.ticker);
+    if (!gainers.length && !losers.length) return "";
+    const cclNote = ccl ? `<span style="font-size:10px;color:#888;margin-left:8px;">CCL: ARS ${ccl.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})} · USD prices = ARS ÷ CCL</span>` : "";
+    const half = "width:48%;display:inline-table;vertical-align:top;";
+    const tblHead = `<tr style="background:#f8fafc;"><th style="padding:5px 10px;font-size:10px;font-weight:700;color:#888;text-align:left;text-transform:uppercase;">Ticker</th><th style="padding:5px 10px;font-size:10px;font-weight:700;color:#888;text-align:right;text-transform:uppercase;">Price</th><th style="padding:5px 10px;font-size:10px;font-weight:700;color:#888;text-align:right;text-transform:uppercase;">Chg%</th><th style="padding:5px 10px;font-size:10px;font-weight:700;color:#888;text-align:left;text-transform:uppercase;">Comment</th></tr>`;
+    const gBlock = gainers.length ? `<table role="presentation" style="${half}margin-right:2%;border:1px solid #c8e6c9;border-radius:4px;border-collapse:collapse;"><tr><td colspan="4" style="padding:6px 10px;background:#e8f5e9;font-size:11px;font-weight:800;color:#2e7d32;text-transform:uppercase;letter-spacing:1px;">▲ Best Performers</td></tr>${tblHead}${gainers.map(m=>moverRow(m,"#2e7d32")).join("")}</table>` : "";
+    const lBlock = losers.length ? `<table role="presentation" style="${half}border:1px solid #ffcdd2;border-radius:4px;border-collapse:collapse;"><tr><td colspan="4" style="padding:6px 10px;background:#ffebee;font-size:11px;font-weight:800;color:#c62828;text-transform:uppercase;letter-spacing:1px;">▼ Worst Performers</td></tr>${tblHead}${losers.map(m=>moverRow(m,"#c62828")).join("")}</table>` : "";
+    return `<tr><td style="padding:0 32px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:14px;"><tr><td><div style="font-size:11px;font-weight:700;color:#fff;background:${B.blue};text-transform:uppercase;letter-spacing:1.5px;padding:5px 12px;display:inline-block;">Top Movers</div>${cclNote}</td></tr></table><div style="font-size:0;">${gBlock}${lBlock}</div><div style="height:16px;border-bottom:1px solid #e4e8ed;margin-bottom:0;"></div></td></tr>`;
+  })();
   const bcraHtml = (() => {
     if (!s.sections.find(x=>x.key==="bcra")?.on) return "";
     const bd = s.bcraData;
@@ -196,7 +215,7 @@ function generateHTML(s) {
   })();
 
   const sig = s.signatures.map(x => `<div style="margin-bottom:8px;"><div style="font-size:13px;font-weight:700;color:${B.navy};">${x.name}</div><div style="font-size:12px;color:#666;">${x.role}</div><div style="font-size:12px;color:${B.blue};">${x.email}</div></div>`).join("");
-  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Argentina Daily</title><link href="https://fonts.googleapis.com/css2?family=Titillium+Web:ital,wght@0,300;0,400;0,600;0,700;1,400&display=swap" rel="stylesheet"></head><body style="margin:0;padding:0;background:#f0f2f5;font-family:'Titillium Web','Segoe UI',Calibri,Arial,sans-serif;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f0f2f5;"><tr><td align="center" style="padding:20px 10px;"><table role="presentation" width="680" cellpadding="0" cellspacing="0" border="0" style="max-width:680px;width:100%;background:#fff;"><tr><td style="background:${B.navy};padding:24px 32px 20px;border-bottom:3px solid ${B.sky};"><img src="${LOGO_WHITE_B64}" alt="Latin Securities" style="height:36px;display:block;" /><div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:${B.sky};margin-top:4px;">Sales &amp; Trading</div><div style="font-size:20px;font-weight:600;color:#fff;margin-top:14px;">Argentina Daily</div><div style="font-size:12px;color:#8aa8d4;margin-top:2px;">${formatDate(s.date)}</div></td></tr>${s.summaryBar ? `<tr><td style="background:${B.lightBg};border-left:4px solid ${B.blue};padding:14px 24px;font-size:13.5px;line-height:1.55;color:${B.navy};"><strong>Today:</strong> ${s.summaryBar}</td></tr>` : ""}<tr><td style="padding:22px 0 0;"></td></tr>${s.sections.filter(x=>x.on).map(x => ({macro,tradeIdeas:trade,flows:flow,macroEstimates:mEst,corporate:corp,research,bcra:bcraHtml,events:eventsHtml,keyEvents:keyEventsHtml,chart:chartHtml})[x.key]||"").join("")}<tr><td style="padding:12px 32px 0;border-top:1px solid #e4e8ed;"><img src="${LOGO_ORIG_B64}" alt="Latin Securities" style="height:30px;display:block;margin-bottom:10px;" />${sig}</td></tr><tr><td style="padding:16px 0 0;"></td></tr><tr><td style="background:${B.navy};padding:14px 24px;border-top:2px solid ${B.sky};"><div style="font-size:10px;font-weight:700;color:${B.sky};margin-bottom:4px;">LATIN SECURITIES S.A.</div><div style="font-size:9px;color:#8aa8d4;line-height:1.5;">Arenales 707, 6th Floor \u00B7 Buenos Aires, Argentina \u00B7 www.latinsecurities.com.ar<br><br>This material is for informational purposes only and does not constitute an offer to buy or sell any financial instrument. \u00A9 2026 Latin Securities S.A.</div></td></tr></table></td></tr></table></body></html>`;
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Argentina Daily</title><link href="https://fonts.googleapis.com/css2?family=Titillium+Web:ital,wght@0,300;0,400;0,600;0,700;1,400&display=swap" rel="stylesheet"></head><body style="margin:0;padding:0;background:#f0f2f5;font-family:'Titillium Web','Segoe UI',Calibri,Arial,sans-serif;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f0f2f5;"><tr><td align="center" style="padding:20px 10px;"><table role="presentation" width="680" cellpadding="0" cellspacing="0" border="0" style="max-width:680px;width:100%;background:#fff;"><tr><td style="background:${B.navy};padding:24px 32px 20px;border-bottom:3px solid ${B.sky};"><img src="${LOGO_WHITE_B64}" alt="Latin Securities" style="height:36px;display:block;" /><div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:${B.sky};margin-top:4px;">Sales &amp; Trading</div><div style="font-size:20px;font-weight:600;color:#fff;margin-top:14px;">Argentina Daily</div><div style="font-size:12px;color:#8aa8d4;margin-top:2px;">${formatDate(s.date)}</div></td></tr>${s.summaryBar ? `<tr><td style="background:${B.lightBg};border-left:4px solid ${B.blue};padding:14px 24px;font-size:13.5px;line-height:1.55;color:${B.navy};"><strong>Today:</strong> ${s.summaryBar}</td></tr>` : ""}<tr><td style="padding:22px 0 0;"></td></tr>${s.sections.filter(x=>x.on).map(x => ({macro,tradeIdeas:trade,flows:flow,macroEstimates:mEst,corporate:corp,research,topMovers:topMoversHtml,bcra:bcraHtml,events:eventsHtml,keyEvents:keyEventsHtml,chart:chartHtml})[x.key]||"").join("")}<tr><td style="padding:12px 32px 0;border-top:1px solid #e4e8ed;"><img src="${LOGO_ORIG_B64}" alt="Latin Securities" style="height:30px;display:block;margin-bottom:10px;" />${sig}</td></tr><tr><td style="padding:16px 0 0;"></td></tr><tr><td style="background:${B.navy};padding:14px 24px;border-top:2px solid ${B.sky};"><div style="font-size:10px;font-weight:700;color:${B.sky};margin-bottom:4px;">LATIN SECURITIES S.A.</div><div style="font-size:9px;color:#8aa8d4;line-height:1.5;">Arenales 707, 6th Floor \u00B7 Buenos Aires, Argentina \u00B7 www.latinsecurities.com.ar<br><br>This material is for informational purposes only and does not constitute an offer to buy or sell any financial instrument. \u00A9 2026 Latin Securities S.A.</div></td></tr></table></td></tr></table></body></html>`;
 }
 
 function generateSummaryPrompt(s) {
@@ -269,6 +288,7 @@ function generateBBG(s) {
     macroEstimates: () => { sep(); L.push(`MACRO ESTIMATES — ${s.macroSource}`); s.macroRows.forEach(r => L.push(`${r.label}: ${s.macroCols.map(c => `${c} ${r.vals[c]||""}`).join(" | ")}`)); },
     corporate: () => { sep(); L.push("CORPORATE"); s.corpBlocks.forEach(c => { const r = res(c, s.analysts); L.push("", `${r.tickers.join(" / ")} — ${r.headline}`); r.covs.filter(cv=>cv.ticker).forEach(cv => { const ups = fmtUpside(cv.tp, cv.last); L.push(`  ${cv.ticker} | ${cv.rating} | TP ${cv.tp}${cv.last ? ` | Last ${cv.last}` : ""}${ups ? ` | ${ups}` : ""}`); }); if (r.body) L.push(r.body.replace(/\*\*/g,"")); if (r.link) L.push(r.link); if (c.sourceLink) L.push(c.sourceLink); }); },
     research: () => { if (!s.researchReports?.length) return; sep(); L.push("RESEARCH"); s.researchReports.filter(r=>r.title).forEach(r => { L.push("", `[${r.type}] ${r.title}${r.author ? ` — ${r.author}` : ""}`); if (r.body) L.push(r.body); if (r.link) L.push(r.link); }); },
+    topMovers: () => { const tm = s.topMovers; const ccl = s.cclRate; const gainers = (tm?.gainers||[]).filter(m=>m.ticker); const losers = (tm?.losers||[]).filter(m=>m.ticker); if (!gainers.length && !losers.length) return; sep(); L.push(`TOP MOVERS${ccl ? ` — CCL ARS ${ccl.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}` : ""}`); const fmt = (m,sign) => { const usd = ccl && m.priceARS ? ` | USD ${(parseFloat(m.priceARS)/ccl).toFixed(2)}` : ""; const chg = m.chgPct ? ` (${parseFloat(m.chgPct)>=0?"+":""}${parseFloat(m.chgPct).toFixed(2)}%)` : ""; return `  ${m.ticker}${m.name ? ` – ${m.name}` : ""}  ARS ${m.priceARS}${usd}${chg}${m.comment ? `  // ${m.comment}` : ""}`; }; if (gainers.length) { L.push("", "▲ Best:"); gainers.forEach(m => L.push(fmt(m,"+"))); } if (losers.length) { L.push("", "▼ Worst:"); losers.forEach(m => L.push(fmt(m,"-"))); } },
     bcra: () => { const bd = s.bcraData; const d = bd?.data; if (!d) return; const hidden = s.bcraHiddenRows||{}; sep(); L.push(`BCRA — ${bd.fetchedAt ? new Date(bd.fetchedAt).toLocaleDateString("en-US",{month:"short",day:"numeric"}) : ""}`); const fN=(v)=>v==null?"N/D":Number(v).toLocaleString("en-US",{minimumFractionDigits:0,maximumFractionDigits:0}); const fV=(v)=>v==null?"N/D":(v>=0?"+":"")+fN(v); const line=(key,label,unit)=>{ if(hidden[key]) return; const r=d[key]; if(!r||r.value==null) return; L.push(`${label}: ${fN(r.value)} ${unit} | D/D ${fV(r.d1)} | MTD ${fV(r.mtd)} | YTD ${fV(r.ytd)}`); }; line("reservas","Reserves","USD M"); line("comprasBCRA","BCRA FX Purchases","USD M"); line("depTotalARS","ARS Deposits","ARS$ bn"); line("depUSD","USD Deposits","US$ mn"); line("prestARS","Loans ARS","ARS M"); line("prestUSD","Loans USD","USD M"); },
     events: () => { const evts = (s.events||[]).filter(e=>e.title); if (!evts.length) return; sep(); L.push("EVENTS"); evts.forEach(e => { const tz = [e.timeET&&`ET ${fmtTime(e.timeET)}`,e.timeBUE&&`BUE ${fmtTime(e.timeBUE)}`,e.timeLON&&`LON ${fmtTime(e.timeLON)}`].filter(Boolean).join(" · "); L.push("", `[${e.type||"Event"}] ${e.title}${e.date ? ` — ${fmtEventDate(e.date)}` : ""}${tz ? `  ${tz}` : ""}`); if (e.description) L.push(e.description); if (e.link) L.push(e.link); }); },
     keyEvents: () => { const ke = (s.keyEvents||[]).filter(e=>e.event); if (!ke.length) return; sep(); L.push("KEY EVENTS"); ke.forEach(e => L.push(`  ${fmtEventDate(e.date)}  ${e.event}`)); },
@@ -785,6 +805,67 @@ export default function App() {
               <div style={{ display: "flex", alignItems: "flex-end", gap: 8 }}><div style={{ flex: 1 }}><Inp label="Report Link" value={r.link} onChange={v => ul("researchReports", r.id, "link", v)} placeholder="https://..." /></div><X onClick={() => rl("researchReports", r.id)} /></div>
             </div>
           ))}<DashBtn onClick={() => al("researchReports", { id: `rr${Date.now()}`, type: "Macro", title: "", author: "", body: "", link: "" })} color="#6a1b9a">+ Add Report</DashBtn></Card>}
+
+          {s.sections.find(x=>x.key==="topMovers")?.on && <Card title="Top Movers" color="#e65100">
+            {/* CCL Fetch Bar */}
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: "#fff8f0", borderRadius: 6, marginBottom: 14, border: "1px solid #ffcc80" }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: "#e65100" }}>CCL (Contado con Liqui)</span>
+              {s.cclRate ? (
+                <span style={{ fontSize: 13, fontWeight: 800, color: "#1a237e" }}>ARS {s.cclRate.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              ) : (
+                <span style={{ fontSize: 11, color: "#999", fontStyle: "italic" }}>not fetched</span>
+              )}
+              <button onClick={async () => {
+                setS(p => ({ ...p, cclLoading: true }));
+                try {
+                  const r = await fetch("/api/ccl");
+                  const d = await r.json();
+                  if (d.ok) setS(p => ({ ...p, cclRate: d.venta, cclLoading: false }));
+                  else setS(p => ({ ...p, cclLoading: false }));
+                } catch { setS(p => ({ ...p, cclLoading: false })); }
+              }} style={{ marginLeft: "auto", padding: "5px 14px", borderRadius: 6, border: "none", background: "#e65100", color: "#fff", fontWeight: 700, fontSize: 11, cursor: "pointer" }}>
+                {s.cclLoading ? "..." : "⟳ Fetch CCL"}
+              </button>
+              {s.cclRate && <span style={{ fontSize: 10, color: "#888" }}>USD price = ARS ÷ CCL</span>}
+            </div>
+
+            {/* Gainers */}
+            {["gainers","losers"].map(type => {
+              const isGainer = type === "gainers";
+              const color = isGainer ? "#2e7d32" : "#c62828";
+              const bg = isGainer ? "#e8f5e9" : "#ffebee";
+              const border = isGainer ? "#c8e6c9" : "#ffcdd2";
+              const items = s.topMovers?.[type] || [];
+              const upd = (i, k, v) => setS(p => { const arr = [...(p.topMovers?.[type]||[])]; arr[i] = { ...arr[i], [k]: v }; return { ...p, topMovers: { ...(p.topMovers||{}), [type]: arr } }; });
+              const add = () => setS(p => ({ ...p, topMovers: { ...(p.topMovers||{}), [type]: [...(p.topMovers?.[type]||[]), { ticker:"", name:"", priceARS:"", chgPct:"", comment:"" }] } }));
+              const del = (i) => setS(p => ({ ...p, topMovers: { ...(p.topMovers||{}), [type]: (p.topMovers?.[type]||[]).filter((_,j)=>j!==i) } }));
+              return (<div key={type} style={{ marginBottom: 14 }}>
+                <div style={{ background: bg, border: `1px solid ${border}`, borderRadius: 6, padding: "6px 10px", marginBottom: 6, fontSize: 11, fontWeight: 800, color, textTransform: "uppercase", letterSpacing: 0.8 }}>{isGainer ? "▲ Best Performers" : "▼ Worst Performers"}</div>
+                {items.map((m, i) => {
+                  const usdPrice = s.cclRate && m.priceARS ? (parseFloat(m.priceARS) / s.cclRate).toFixed(2) : null;
+                  return (<div key={i} style={{ display: "grid", gridTemplateColumns: "80px 110px 90px 90px 1fr auto", gap: 6, marginBottom: 6, alignItems: "center" }}>
+                    <input value={m.ticker} onChange={e => upd(i,"ticker",e.target.value.toUpperCase())} placeholder="GGAL" style={{ ...is, fontWeight: 800, textAlign:"center", color }} />
+                    <input value={m.name} onChange={e => upd(i,"name",e.target.value)} placeholder="Company" style={{ ...is }} />
+                    <input value={m.priceARS} onChange={e => upd(i,"priceARS",e.target.value)} placeholder="ARS price" style={{ ...is, textAlign:"right" }} />
+                    <div style={{ position:"relative" }}>
+                      <input value={m.chgPct} onChange={e => upd(i,"chgPct",e.target.value)} placeholder="+3.5" style={{ ...is, textAlign:"right", color, fontWeight:700, width:"100%", boxSizing:"border-box" }} />
+                      {usdPrice && <div style={{ position:"absolute", top:"-14px", right:0, fontSize:10, color:"#888", whiteSpace:"nowrap" }}>≈ USD {usdPrice}</div>}
+                    </div>
+                    <input value={m.comment} onChange={e => upd(i,"comment",e.target.value)} placeholder="Comment..." style={{ ...is }} />
+                    <X onClick={() => del(i)} />
+                  </div>);
+                })}
+                <div style={{ display:"grid", gridTemplateColumns:"80px 110px 90px 90px 1fr auto", gap:6, marginBottom:4, paddingLeft:2 }}>
+                  <span style={{fontSize:9,color:"#aaa",textAlign:"center",textTransform:"uppercase"}}>Ticker</span>
+                  <span style={{fontSize:9,color:"#aaa",textTransform:"uppercase"}}>Company</span>
+                  <span style={{fontSize:9,color:"#aaa",textAlign:"right",textTransform:"uppercase"}}>Price ARS</span>
+                  <span style={{fontSize:9,color:"#aaa",textAlign:"right",textTransform:"uppercase"}}>Chg %</span>
+                  <span style={{fontSize:9,color:"#aaa",textTransform:"uppercase"}}>Comment</span>
+                </div>
+                <button onClick={add} style={{ padding:"5px 12px", border:`1px dashed ${border}`, borderRadius:6, background:"transparent", color, fontWeight:700, fontSize:11, cursor:"pointer" }}>+ Add</button>
+              </div>);
+            })}
+          </Card>}
 
           {s.sections.find(x=>x.key==="bcra")?.on && <BcraCard bcraData={s.bcraData} hiddenRows={s.bcraHiddenRows||{}} onToggleRow={(key) => setS(p => ({ ...p, bcraHiddenRows: { ...(p.bcraHiddenRows||{}), [key]: !(p.bcraHiddenRows||{})[key] } }))} onFetch={async () => {
             setS(p => ({ ...p, bcraData: { ...(p.bcraData||{}), loading: true, error: null } }));
