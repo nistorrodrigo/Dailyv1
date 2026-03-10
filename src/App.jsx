@@ -42,7 +42,7 @@ const DEFAULT_STATE = {
   fiIdeas: [{idea:"Long ARGENT 35/38",reason:"Attractive yield on long-duration sovereign",link:""},{idea:"Long end of BONCAP curve (Apr/May/Jun 2027)",reason:"",link:""},{idea:"RV: Sell BONTE 30 / Buy long-end BONCAP curve",reason:"",link:""},{idea:"Long BONCER 2028",reason:"",link:""}],
   showEquity: true,
   showFI: true,
-  topMovers: { gainers: [{ticker:"",name:"",priceARS:"",chgPct:"",comment:""}], losers: [{ticker:"",name:"",priceARS:"",chgPct:"",comment:""}] },
+  topMovers: { gainers: [{ticker:"",price:"",currency:"ARS",chgPct:"",comment:""}], losers: [{ticker:"",price:"",currency:"ARS",chgPct:"",comment:""}] },
   cclRate: null,
   eqBuyer: "bank names (BBAR, BMA, GGAL)", eqSeller: "O&G names (VIST, YPF, PAM)",
   fiBuyer: "ST Bonares, ARGENT 35/38, BONTE 30, EDNAR 30", fiSeller: "ARGENT 29/30, YPFDAR 34",
@@ -122,9 +122,19 @@ function generateHTML(s) {
   const topMoversHtml = (() => {
     if (!s.sections.find(x=>x.key==="topMovers")?.on) return "";
     const ccl = s.cclRate;
-    const fmtUSD = (ars, chg) => { if (!ccl || !ars) return ""; const usd = parseFloat(ars) / ccl; return `$${usd.toFixed(2)}`; };
     const fmtChg = (v) => { const n = parseFloat(v); if (isNaN(n)) return ""; return (n >= 0 ? "+" : "") + n.toFixed(2) + "%"; };
-    const moverRow = (m, color) => `<tr><td style="padding:8px 10px;border-bottom:1px solid ${color}22;"><span style="font-weight:800;font-size:13px;color:${color};">${m.ticker}</span>${m.name ? `<span style="font-size:11px;color:#666;margin-left:6px;">${m.name}</span>` : ""}</td><td style="padding:8px 10px;border-bottom:1px solid ${color}22;text-align:right;font-size:12px;color:#333;">${m.priceARS ? `ARS ${parseFloat(m.priceARS).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}` : ""}${fmtUSD(m.priceARS) ? `<br><span style="color:#666;font-size:11px;">${fmtUSD(m.priceARS)}</span>` : ""}</td><td style="padding:8px 10px;border-bottom:1px solid ${color}22;text-align:right;"><span style="font-weight:800;font-size:13px;color:${color};">${fmtChg(m.chgPct)}</span></td><td style="padding:8px 10px;border-bottom:1px solid ${color}22;font-size:11.5px;color:#555;">${m.comment||""}</td></tr>`;
+    const priceDisplay = (m) => {
+      if (!m.price) return "";
+      const val = parseFloat(m.price);
+      if (m.currency === "USD") {
+        const arsEq = ccl ? `<br><span style="color:#999;font-size:10px;">≈ ARS ${(val * ccl).toLocaleString("en-US",{maximumFractionDigits:0})}</span>` : "";
+        return `<span style="font-size:12px;color:#333;">USD ${val.toFixed(2)}</span>${arsEq}`;
+      } else {
+        const usdEq = ccl ? `<br><span style="color:#999;font-size:10px;">≈ USD ${(val / ccl).toFixed(2)}</span>` : "";
+        return `<span style="font-size:12px;color:#333;">ARS ${val.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}</span>${usdEq}`;
+      }
+    };
+    const moverRow = (m, color) => `<tr><td style="padding:8px 10px;border-bottom:1px solid ${color}22;"><span style="font-weight:800;font-size:13px;color:${color};">${m.ticker}</span></td><td style="padding:8px 10px;border-bottom:1px solid ${color}22;text-align:right;">${priceDisplay(m)}</td><td style="padding:8px 10px;border-bottom:1px solid ${color}22;text-align:right;"><span style="font-weight:800;font-size:13px;color:${color};">${fmtChg(m.chgPct)}</span></td><td style="padding:8px 10px;border-bottom:1px solid ${color}22;font-size:11.5px;color:#555;">${m.comment||""}</td></tr>`;
     const gainers = (s.topMovers?.gainers||[]).filter(m=>m.ticker);
     const losers = (s.topMovers?.losers||[]).filter(m=>m.ticker);
     if (!gainers.length && !losers.length) return "";
@@ -288,7 +298,7 @@ function generateBBG(s) {
     macroEstimates: () => { sep(); L.push(`MACRO ESTIMATES — ${s.macroSource}`); s.macroRows.forEach(r => L.push(`${r.label}: ${s.macroCols.map(c => `${c} ${r.vals[c]||""}`).join(" | ")}`)); },
     corporate: () => { sep(); L.push("CORPORATE"); s.corpBlocks.forEach(c => { const r = res(c, s.analysts); L.push("", `${r.tickers.join(" / ")} — ${r.headline}`); r.covs.filter(cv=>cv.ticker).forEach(cv => { const ups = fmtUpside(cv.tp, cv.last); L.push(`  ${cv.ticker} | ${cv.rating} | TP ${cv.tp}${cv.last ? ` | Last ${cv.last}` : ""}${ups ? ` | ${ups}` : ""}`); }); if (r.body) L.push(r.body.replace(/\*\*/g,"")); if (r.link) L.push(r.link); if (c.sourceLink) L.push(c.sourceLink); }); },
     research: () => { if (!s.researchReports?.length) return; sep(); L.push("RESEARCH"); s.researchReports.filter(r=>r.title).forEach(r => { L.push("", `[${r.type}] ${r.title}${r.author ? ` — ${r.author}` : ""}`); if (r.body) L.push(r.body); if (r.link) L.push(r.link); }); },
-    topMovers: () => { const tm = s.topMovers; const ccl = s.cclRate; const gainers = (tm?.gainers||[]).filter(m=>m.ticker); const losers = (tm?.losers||[]).filter(m=>m.ticker); if (!gainers.length && !losers.length) return; sep(); L.push(`TOP MOVERS${ccl ? ` — CCL ARS ${ccl.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}` : ""}`); const fmt = (m,sign) => { const usd = ccl && m.priceARS ? ` | USD ${(parseFloat(m.priceARS)/ccl).toFixed(2)}` : ""; const chg = m.chgPct ? ` (${parseFloat(m.chgPct)>=0?"+":""}${parseFloat(m.chgPct).toFixed(2)}%)` : ""; return `  ${m.ticker}${m.name ? ` – ${m.name}` : ""}  ARS ${m.priceARS}${usd}${chg}${m.comment ? `  // ${m.comment}` : ""}`; }; if (gainers.length) { L.push("", "▲ Best:"); gainers.forEach(m => L.push(fmt(m,"+"))); } if (losers.length) { L.push("", "▼ Worst:"); losers.forEach(m => L.push(fmt(m,"-"))); } },
+    topMovers: () => { const tm = s.topMovers; const ccl = s.cclRate; const gainers = (tm?.gainers||[]).filter(m=>m.ticker); const losers = (tm?.losers||[]).filter(m=>m.ticker); if (!gainers.length && !losers.length) return; sep(); L.push(`TOP MOVERS${ccl ? ` — CCL ARS ${ccl.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}` : ""}`); const fmt = (m) => { let priceStr = ""; if (m.price) { if (m.currency==="USD") { priceStr = `USD ${parseFloat(m.price).toFixed(2)}`; if (ccl) priceStr += ` (≈ ARS ${(parseFloat(m.price)*ccl).toLocaleString("en-US",{maximumFractionDigits:0})})`;  } else { priceStr = `ARS ${parseFloat(m.price).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}`; if (ccl) priceStr += ` (≈ USD ${(parseFloat(m.price)/ccl).toFixed(2)})`; } } const chg = m.chgPct ? ` ${parseFloat(m.chgPct)>=0?"+":""}${parseFloat(m.chgPct).toFixed(2)}%` : ""; return `  ${m.ticker}  ${priceStr}${chg}${m.comment ? `  // ${m.comment}` : ""}`; }; if (gainers.length) { L.push("", "▲ Best:"); gainers.forEach(m => L.push(fmt(m))); } if (losers.length) { L.push("", "▼ Worst:"); losers.forEach(m => L.push(fmt(m))); } },
     bcra: () => { const bd = s.bcraData; const d = bd?.data; if (!d) return; const hidden = s.bcraHiddenRows||{}; sep(); L.push(`BCRA — ${bd.fetchedAt ? new Date(bd.fetchedAt).toLocaleDateString("en-US",{month:"short",day:"numeric"}) : ""}`); const fN=(v)=>v==null?"N/D":Number(v).toLocaleString("en-US",{minimumFractionDigits:0,maximumFractionDigits:0}); const fV=(v)=>v==null?"N/D":(v>=0?"+":"")+fN(v); const line=(key,label,unit)=>{ if(hidden[key]) return; const r=d[key]; if(!r||r.value==null) return; L.push(`${label}: ${fN(r.value)} ${unit} | D/D ${fV(r.d1)} | MTD ${fV(r.mtd)} | YTD ${fV(r.ytd)}`); }; line("reservas","Reserves","USD M"); line("comprasBCRA","BCRA FX Purchases","USD M"); line("depTotalARS","ARS Deposits","ARS$ bn"); line("depUSD","USD Deposits","US$ mn"); line("prestARS","Loans ARS","ARS M"); line("prestUSD","Loans USD","USD M"); },
     events: () => { const evts = (s.events||[]).filter(e=>e.title); if (!evts.length) return; sep(); L.push("EVENTS"); evts.forEach(e => { const tz = [e.timeET&&`ET ${fmtTime(e.timeET)}`,e.timeBUE&&`BUE ${fmtTime(e.timeBUE)}`,e.timeLON&&`LON ${fmtTime(e.timeLON)}`].filter(Boolean).join(" · "); L.push("", `[${e.type||"Event"}] ${e.title}${e.date ? ` — ${fmtEventDate(e.date)}` : ""}${tz ? `  ${tz}` : ""}`); if (e.description) L.push(e.description); if (e.link) L.push(e.link); }); },
     keyEvents: () => { const ke = (s.keyEvents||[]).filter(e=>e.event); if (!ke.length) return; sep(); L.push("KEY EVENTS"); ke.forEach(e => L.push(`  ${fmtEventDate(e.date)}  ${e.event}`)); },
@@ -829,7 +839,7 @@ export default function App() {
               {s.cclRate && <span style={{ fontSize: 10, color: "#888" }}>USD price = ARS ÷ CCL</span>}
             </div>
 
-            {/* Gainers */}
+            {/* Gainers / Losers */}
             {["gainers","losers"].map(type => {
               const isGainer = type === "gainers";
               const color = isGainer ? "#2e7d32" : "#c62828";
@@ -837,32 +847,48 @@ export default function App() {
               const border = isGainer ? "#c8e6c9" : "#ffcdd2";
               const items = s.topMovers?.[type] || [];
               const upd = (i, k, v) => setS(p => { const arr = [...(p.topMovers?.[type]||[])]; arr[i] = { ...arr[i], [k]: v }; return { ...p, topMovers: { ...(p.topMovers||{}), [type]: arr } }; });
-              const add = () => setS(p => ({ ...p, topMovers: { ...(p.topMovers||{}), [type]: [...(p.topMovers?.[type]||[]), { ticker:"", name:"", priceARS:"", chgPct:"", comment:"" }] } }));
+              const add = () => setS(p => ({ ...p, topMovers: { ...(p.topMovers||{}), [type]: [...(p.topMovers?.[type]||[]), { ticker:"", price:"", currency:"ARS", chgPct:"", comment:"" }] } }));
               const del = (i) => setS(p => ({ ...p, topMovers: { ...(p.topMovers||{}), [type]: (p.topMovers?.[type]||[]).filter((_,j)=>j!==i) } }));
               return (<div key={type} style={{ marginBottom: 14 }}>
-                <div style={{ background: bg, border: `1px solid ${border}`, borderRadius: 6, padding: "6px 10px", marginBottom: 6, fontSize: 11, fontWeight: 800, color, textTransform: "uppercase", letterSpacing: 0.8 }}>{isGainer ? "▲ Best Performers" : "▼ Worst Performers"}</div>
+                <div style={{ background: bg, border: `1px solid ${border}`, borderRadius: 6, padding: "6px 10px", marginBottom: 8, fontSize: 11, fontWeight: 800, color, textTransform: "uppercase", letterSpacing: 0.8 }}>{isGainer ? "▲ Best Performers" : "▼ Worst Performers"}</div>
+                {/* Column headers */}
+                <div style={{ display: "grid", gridTemplateColumns: "80px 80px 50px 80px 1fr 24px", gap: 5, marginBottom: 4, paddingLeft: 2 }}>
+                  <span style={{fontSize:9,color:"#aaa",textTransform:"uppercase",textAlign:"center"}}>Ticker</span>
+                  <span style={{fontSize:9,color:"#aaa",textTransform:"uppercase",textAlign:"right"}}>Price</span>
+                  <span style={{fontSize:9,color:"#aaa",textTransform:"uppercase",textAlign:"center"}}>Ccy</span>
+                  <span style={{fontSize:9,color:"#aaa",textTransform:"uppercase",textAlign:"right"}}>Chg %</span>
+                  <span style={{fontSize:9,color:"#aaa",textTransform:"uppercase"}}>Comment</span>
+                </div>
                 {items.map((m, i) => {
-                  const usdPrice = s.cclRate && m.priceARS ? (parseFloat(m.priceARS) / s.cclRate).toFixed(2) : null;
-                  return (<div key={i} style={{ display: "grid", gridTemplateColumns: "80px 110px 90px 90px 1fr auto", gap: 6, marginBottom: 6, alignItems: "center" }}>
+                  const ccy = m.currency || "ARS";
+                  const eqLabel = m.price && s.cclRate
+                    ? ccy === "ARS"
+                      ? `≈ USD ${(parseFloat(m.price)/s.cclRate).toFixed(2)}`
+                      : `≈ ARS ${(parseFloat(m.price)*s.cclRate).toLocaleString("en-US",{maximumFractionDigits:0})}`
+                    : null;
+                  return (<div key={i} style={{ display: "grid", gridTemplateColumns: "80px 80px 50px 80px 1fr 24px", gap: 5, marginBottom: 6, alignItems: "center" }}>
                     <input value={m.ticker} onChange={e => upd(i,"ticker",e.target.value.toUpperCase())} placeholder="GGAL" style={{ ...is, fontWeight: 800, textAlign:"center", color }} />
-                    <input value={m.name} onChange={e => upd(i,"name",e.target.value)} placeholder="Company" style={{ ...is }} />
-                    <input value={m.priceARS} onChange={e => upd(i,"priceARS",e.target.value)} placeholder="ARS price" style={{ ...is, textAlign:"right" }} />
+                    <div style={{ position:"relative" }}>
+                      <input value={m.price} onChange={e => upd(i,"price",e.target.value)} placeholder="0.00" style={{ ...is, textAlign:"right", width:"100%", boxSizing:"border-box" }} />
+                      {eqLabel && <div style={{ position:"absolute", bottom:"-13px", right:0, fontSize:9, color:"#aaa", whiteSpace:"nowrap" }}>{eqLabel}</div>}
+                    </div>
+                    {/* ARS / USD toggle */}
+                    <div style={{ display:"flex", borderRadius:4, overflow:"hidden", border:"1px solid #d0d5dd", fontSize:10, fontWeight:700, cursor:"pointer" }}>
+                      {["ARS","USD"].map(c => (
+                        <div key={c} onClick={() => upd(i,"currency",c)}
+                          style={{ flex:1, textAlign:"center", padding:"5px 0", background: ccy===c ? (c==="USD" ? "#1a237e" : "#37474f") : "#fff", color: ccy===c ? "#fff" : "#666", transition:"background 0.15s" }}>
+                          {c}
+                        </div>
+                      ))}
+                    </div>
                     <div style={{ position:"relative" }}>
                       <input value={m.chgPct} onChange={e => upd(i,"chgPct",e.target.value)} placeholder="+3.5" style={{ ...is, textAlign:"right", color, fontWeight:700, width:"100%", boxSizing:"border-box" }} />
-                      {usdPrice && <div style={{ position:"absolute", top:"-14px", right:0, fontSize:10, color:"#888", whiteSpace:"nowrap" }}>≈ USD {usdPrice}</div>}
                     </div>
                     <input value={m.comment} onChange={e => upd(i,"comment",e.target.value)} placeholder="Comment..." style={{ ...is }} />
                     <X onClick={() => del(i)} />
                   </div>);
                 })}
-                <div style={{ display:"grid", gridTemplateColumns:"80px 110px 90px 90px 1fr auto", gap:6, marginBottom:4, paddingLeft:2 }}>
-                  <span style={{fontSize:9,color:"#aaa",textAlign:"center",textTransform:"uppercase"}}>Ticker</span>
-                  <span style={{fontSize:9,color:"#aaa",textTransform:"uppercase"}}>Company</span>
-                  <span style={{fontSize:9,color:"#aaa",textAlign:"right",textTransform:"uppercase"}}>Price ARS</span>
-                  <span style={{fontSize:9,color:"#aaa",textAlign:"right",textTransform:"uppercase"}}>Chg %</span>
-                  <span style={{fontSize:9,color:"#aaa",textTransform:"uppercase"}}>Comment</span>
-                </div>
-                <button onClick={add} style={{ padding:"5px 12px", border:`1px dashed ${border}`, borderRadius:6, background:"transparent", color, fontWeight:700, fontSize:11, cursor:"pointer" }}>+ Add</button>
+                <button onClick={add} style={{ marginTop: items.length ? 10 : 0, padding:"5px 12px", border:`1px dashed ${border}`, borderRadius:6, background:"transparent", color, fontWeight:700, fontSize:11, cursor:"pointer" }}>+ Add</button>
               </div>);
             })}
           </Card>}
