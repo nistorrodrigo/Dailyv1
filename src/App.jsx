@@ -155,8 +155,12 @@ function generateHTML(s) {
     const evts = (s.events||[]).filter(e => e.title);
     if (!evts.length) return "";
     const typeIcon = t => ({ Webinar:"🎙", Conference:"🏛", "Earnings Call":"📊", "Roadshow":"✈", Other:"📅" }[t]||"📅");
-    const typeColor = t => ({ Webinar:"#1e5ab0", Conference:"#23a29e", "Earnings Call":"#7b5ea7", Roadshow:"#e6a817", Other:"#888" }[t]||"#888");
-    const rows = evts.map(e => `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:10px;border-bottom:1px solid #eef0f3;padding-bottom:10px;"><tr><td width="8" style="background:${typeColor(e.type)};border-radius:3px;"> </td><td style="padding-left:12px;"><div style="display:flex;align-items:center;gap:8px;margin-bottom:2px;"><span style="display:inline-block;background:${typeColor(e.type)};color:#fff;font-size:9px;font-weight:700;padding:2px 7px;border-radius:3px;text-transform:uppercase;letter-spacing:0.5px;">${e.type||"Event"}</span>${e.date ? `<span style="font-size:11px;color:#888;">${e.date}${e.time ? " · "+e.time : ""}</span>` : ""}</div><div style="font-size:13px;font-weight:700;color:#000039;margin-bottom:3px;">${e.title}</div>${e.description ? `<div style="font-size:12px;color:#555;line-height:1.5;margin-bottom:4px;">${e.description}</div>` : ""}${e.link ? `<a href="${e.link}" style="font-size:11px;color:#1e5ab0;font-weight:600;">Join / Register →</a>` : ""}</td></tr></table>`).join("");
+    const typeColor = t => ({ Webinar:"#1e5ab0", Conference:"#23a29e", "Earnings Call":"#7b5ea7", Roadshow:"#e6a817", Other:"#555" }[t]||"#555");
+    const rows = evts.map(e => {
+      const tc = typeColor(e.type);
+      const dateBlock = (e.date || e.time) ? `<td width="80" valign="top" style="padding-right:14px;text-align:center;"><div style="background:${tc};border-radius:6px;padding:8px 6px;display:inline-block;min-width:70px;">${e.date ? `<div style="font-size:13px;font-weight:700;color:#fff;line-height:1.2;">${e.date}</div>` : ""}${e.time ? `<div style="font-size:10px;color:rgba(255,255,255,0.85);margin-top:3px;font-weight:600;">${e.time}</div>` : ""}</div></td>` : "";
+      return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:12px;border-bottom:1px solid #eef0f3;padding-bottom:12px;"><tr>${dateBlock}<td valign="top"><span style="display:inline-block;background:${tc};color:#fff;font-size:9px;font-weight:700;padding:2px 7px;border-radius:3px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:5px;">${e.type||"Event"}</span><div style="font-size:13px;font-weight:700;color:#000039;margin-bottom:4px;line-height:1.3;">${e.title}</div>${e.description ? `<div style="font-size:12px;color:#555;line-height:1.5;margin-bottom:5px;">${e.description}</div>` : ""}${e.link ? `<a href="${e.link}" style="font-size:11px;color:${tc};font-weight:700;">Join / Register →</a>` : ""}</td></tr></table>`;
+    }).join("");
     return `<tr><td style="padding:0 32px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:14px;"><tr><td><div style="font-size:11px;font-weight:700;color:#fff;background:#23a29e;text-transform:uppercase;letter-spacing:1.5px;padding:5px 12px;display:inline-block;">Events & Webinars</div></td></tr></table>${rows}</td></tr>`;
   })();
 
@@ -742,25 +746,35 @@ export default function App() {
           {s.sections.find(x=>x.key==="events")?.on && <Card title="Events & Webinars" color="#23a29e">
             {(s.events||[]).map((e, i) => {
               const ue = (k, v) => setS(p => ({ ...p, events: p.events.map((x, j) => j === i ? { ...x, [k]: v } : x) }));
-              return (<div key={i} style={{ padding: 12, background: "#fafbfc", borderRadius: 8, marginBottom: 10, border: "1px solid #e0f2f1" }}>
-                <div style={{ display: "grid", gridTemplateColumns: "130px 1fr 120px", gap: 8, marginBottom: 8 }}>
-                  <div>
-                    <label style={{ fontSize: 10, fontWeight: 700, color: "#555", textTransform: "uppercase", display: "block", marginBottom: 3 }}>Type</label>
-                    <select value={e.type||"Webinar"} onChange={ev => ue("type", ev.target.value)} style={{ ...ss, width: "100%", fontWeight: 600 }}>
-                      <option>Webinar</option><option>Conference</option><option>Earnings Call</option><option>Roadshow</option><option>Other</option>
-                    </select>
+              const typeColor = { Webinar:"#1e5ab0", Conference:"#23a29e", "Earnings Call":"#7b5ea7", Roadshow:"#e6a817", Other:"#555" }[e.type||"Webinar"] || "#555";
+              return (<div key={i} style={{ padding: 12, background: "#fafbfc", borderRadius: 8, marginBottom: 10, border: `1px solid ${typeColor}33` }}>
+                {/* Top row: type + date/time badge */}
+                <div style={{ display: "flex", gap: 8, alignItems: "flex-start", marginBottom: 10 }}>
+                  <div style={{ flex: 1, display: "grid", gridTemplateColumns: "130px 1fr", gap: 8 }}>
+                    <div>
+                      <label style={{ fontSize: 10, fontWeight: 700, color: "#555", textTransform: "uppercase", display: "block", marginBottom: 3 }}>Type</label>
+                      <select value={e.type||"Webinar"} onChange={ev => ue("type", ev.target.value)} style={{ ...ss, width: "100%", fontWeight: 600, borderColor: typeColor }}>
+                        <option>Webinar</option><option>Conference</option><option>Earnings Call</option><option>Roadshow</option><option>Other</option>
+                      </select>
+                    </div>
+                    <Inp label="Title" value={e.title||""} onChange={v => ue("title", v)} placeholder="e.g. LS Macro Webinar — Argentina 2026 Outlook" />
                   </div>
-                  <Inp label="Title / Description" value={e.title||""} onChange={v => ue("title", v)} placeholder="e.g. LS Macro Webinar — Argentina 2026 Outlook" />
-                  <Inp label="Date" value={e.date||""} onChange={v => ue("date", v)} placeholder="e.g. Mar 12, 2026" />
+                  {/* Date/time badge preview */}
+                  {(e.date || e.time) && (
+                    <div style={{ background: typeColor, borderRadius: 6, padding: "8px 12px", textAlign: "center", minWidth: 90, flexShrink: 0 }}>
+                      {e.date && <div style={{ fontSize: 12, fontWeight: 700, color: "#fff", lineHeight: 1.2 }}>{e.date}</div>}
+                      {e.time && <div style={{ fontSize: 10, color: "rgba(255,255,255,0.85)", marginTop: 3, fontWeight: 600 }}>{e.time}</div>}
+                    </div>
+                  )}
+                  <div style={{ paddingTop: 18 }}><X onClick={() => setS(p => ({ ...p, events: p.events.filter((_, j) => j !== i) }))} /></div>
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 120px", gap: 8, marginBottom: 8 }}>
-                  <Inp label="Body (optional)" value={e.description||""} onChange={v => ue("description", v)} placeholder="Brief description or agenda..." />
-                  <Inp label="Time" value={e.time||""} onChange={v => ue("time", v)} placeholder="e.g. 11:00 AM ART" />
+                {/* Date + Time inputs prominently */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8, padding: "8px 10px", background: `${typeColor}10`, borderRadius: 6, border: `1px solid ${typeColor}30` }}>
+                  <Inp label="📅 Date" value={e.date||""} onChange={v => ue("date", v)} placeholder="e.g. Mar 12, 2026" />
+                  <Inp label="🕐 Time" value={e.time||""} onChange={v => ue("time", v)} placeholder="e.g. 11:00 AM ART" />
                 </div>
-                <div style={{ display: "flex", alignItems: "flex-end", gap: 8 }}>
-                  <div style={{ flex: 1 }}><Inp label="Register / Zoom Link" value={e.link||""} onChange={v => ue("link", v)} placeholder="https://..." /></div>
-                  <div style={{ paddingBottom: 10 }}><X onClick={() => setS(p => ({ ...p, events: p.events.filter((_, j) => j !== i) }))} /></div>
-                </div>
+                <Inp label="Description (optional)" value={e.description||""} onChange={v => ue("description", v)} placeholder="Brief description or agenda..." />
+                <Inp label="Register / Zoom Link" value={e.link||""} onChange={v => ue("link", v)} placeholder="https://..." />
               </div>);
             })}
             <DashBtn onClick={() => setS(p => ({ ...p, events: [...(p.events||[]), { title: "", type: "Webinar", date: "", time: "", description: "", link: "" }] }))} color="#23a29e">+ Add Event</DashBtn>
