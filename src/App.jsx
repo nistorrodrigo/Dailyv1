@@ -181,7 +181,64 @@ function generateHTML(s) {
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Argentina Daily</title></head><body style="margin:0;padding:0;background:#f0f2f5;font-family:'Segoe UI',Calibri,Arial,sans-serif;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f0f2f5;"><tr><td align="center" style="padding:20px 10px;"><table role="presentation" width="680" cellpadding="0" cellspacing="0" border="0" style="max-width:680px;width:100%;background:#fff;"><tr><td style="background:${B.navy};padding:24px 32px 20px;border-bottom:3px solid ${B.sky};"><img src="${LOGO_WHITE_B64}" alt="Latin Securities" style="height:36px;display:block;" /><div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:${B.sky};margin-top:4px;">Sales &amp; Trading</div><div style="font-size:20px;font-weight:600;color:#fff;margin-top:14px;">Argentina Daily</div><div style="font-size:12px;color:#8aa8d4;margin-top:2px;">${formatDate(s.date)}</div></td></tr>${s.summaryBar ? `<tr><td style="background:${B.lightBg};border-left:4px solid ${B.blue};padding:14px 24px;font-size:13.5px;line-height:1.55;color:${B.navy};"><strong>Today:</strong> ${s.summaryBar}</td></tr>` : ""}<tr><td style="padding:22px 0 0;"></td></tr>${s.sections.filter(x=>x.on).map(x => ({macro,tradeIdeas:trade,flows:flow,macroEstimates:mEst,corporate:corp,research,bcra:bcraHtml,events:eventsHtml,keyEvents:keyEventsHtml,chart:chartHtml})[x.key]||"").join("")}<tr><td style="padding:12px 32px 0;border-top:1px solid #e4e8ed;"><img src="${LOGO_ORIG_B64}" alt="Latin Securities" style="height:30px;display:block;margin-bottom:10px;" />${sig}</td></tr><tr><td style="padding:16px 0 0;"></td></tr><tr><td style="background:${B.navy};padding:14px 24px;border-top:2px solid ${B.sky};"><div style="font-size:10px;font-weight:700;color:${B.sky};margin-bottom:4px;">LATIN SECURITIES S.A.</div><div style="font-size:9px;color:#8aa8d4;line-height:1.5;">Arenales 707, 6th Floor \u00B7 Buenos Aires, Argentina \u00B7 www.latinsecurities.com.ar<br><br>This material is for informational purposes only and does not constitute an offer to buy or sell any financial instrument. \u00A9 2026 Latin Securities S.A.</div></td></tr></table></td></tr></table></body></html>`;
 }
 
-function generateBBG(s) {
+function generateSummaryPrompt(s) {
+  const lines = [];
+  lines.push(`You are helping write the "Today:" summary bar for a Latin Securities Argentina Daily email sent to institutional clients.`);
+  lines.push(`\nThe summary bar appears at the top of the email as a single punchy paragraph (2-4 sentences max). It should highlight the most important market developments of the day in a professional, concise tone — no bullet points, no headers. Write it in English.`);
+  lines.push(`\nHere is today's content:\n`);
+  lines.push(`DATE: ${formatDate(s.date)}\n`);
+
+  if (s.macroBlocks?.length) {
+    lines.push("MACRO / POLITICAL:");
+    s.macroBlocks.forEach(b => {
+      if (b.title) lines.push(`  ${b.title}${b.body ? ": " + b.body.slice(0, 300) : ""}`);
+      if (b.lsPick) lines.push(`  LS Pick: ${b.lsPick}`);
+    });
+    lines.push("");
+  }
+
+  const secOn = (key) => s.sections.find(x => x.key === key)?.on;
+
+  if (secOn("tradeIdeas")) {
+    lines.push("TRADE IDEAS:");
+    const eq = s.equityPicks.filter(p => p.ticker);
+    if (eq.length) lines.push(`  Equity picks: ${eq.map(p => p.ticker + (p.reason ? ` (${p.reason})` : "")).join(", ")}`);
+    const fi = s.fiIdeas.filter(f => f.idea);
+    if (fi.length) lines.push(`  FI: ${fi.map(f => f.idea).join(" · ")}`);
+    lines.push("");
+  }
+
+  if (secOn("flows")) {
+    lines.push("DESK FLOWS:");
+    lines.push(`  EQ buyer: ${s.eqBuyer} | seller: ${s.eqSeller}`);
+    lines.push(`  FI net buyer: ${s.fiBuyer} | net seller: ${s.fiSeller}`);
+    lines.push("");
+  }
+
+  if (secOn("corporate") && s.corpBlocks?.length) {
+    lines.push("CORPORATE:");
+    s.corpBlocks.forEach(c => {
+      const r = res(c, s.analysts);
+      if (r.tickers.length || r.headline) {
+        lines.push(`  ${r.tickers.join("/")} — ${r.headline}`);
+        if (c.body) lines.push(`  ${c.body.slice(0, 200)}`);
+      }
+    });
+    lines.push("");
+  }
+
+  if (secOn("research") && s.researchReports?.length) {
+    const rpts = s.researchReports.filter(r => r.title);
+    if (rpts.length) {
+      lines.push("RESEARCH:");
+      rpts.forEach(r => lines.push(`  [${r.type}] ${r.title}${r.body ? " — " + r.body.slice(0, 150) : ""}`));
+      lines.push("");
+    }
+  }
+
+  lines.push(`---\nNow write the "Today:" summary bar. Output only the summary text, nothing else.`);
+  return lines.join("\n");
+}
   let L = [`\uD83C\uDDE6\uD83C\uDDF7 LATIN SECURITIES \u2013 Argentina Daily \u2013 ${formatDate(s.date)}`];
   if (s.summaryBar) L.push("", s.summaryBar); L.push("", "---");
   const bbgSec = {
@@ -381,6 +438,7 @@ export default function App() {
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           {saved && <span style={{ fontSize: 10, color: BRAND.green, fontWeight: 600, letterSpacing: 0.5 }}>{"\u2713"} SAVED</span>}
           <button onClick={newDaily} style={{ padding: "7px 16px", borderRadius: 6, border: `1px solid ${BRAND.orange}`, background: "transparent", color: BRAND.orange, fontSize: 11, fontWeight: 700, cursor: "pointer", textTransform: "uppercase" }}>New Daily</button>
+          <button onClick={() => copy(generateSummaryPrompt(s), "prompt")} style={{ padding: "7px 16px", borderRadius: 6, border: `1px solid ${BRAND.teal}`, background: "transparent", color: BRAND.teal, fontSize: 11, fontWeight: 700, cursor: "pointer", textTransform: "uppercase" }}>{cp === "prompt" ? "\u2713 Copied!" : "✦ Summary Prompt"}</button>
           <button onClick={() => copy(html, "html")} style={{ padding: "7px 16px", borderRadius: 6, border: `1px solid ${BRAND.sky}`, background: "transparent", color: BRAND.sky, fontSize: 11, fontWeight: 700, cursor: "pointer", textTransform: "uppercase" }}>{cp === "html" ? "\u2713 Copied!" : "Copy HTML"}</button>
           <button onClick={() => copy(bbg, "bbg")} style={{ padding: "7px 16px", borderRadius: 6, border: `1px solid ${BRAND.green}`, background: "transparent", color: BRAND.green, fontSize: 11, fontWeight: 700, cursor: "pointer", textTransform: "uppercase" }}>{cp === "bbg" ? "\u2713 Copied!" : "Copy BBG"}</button>
         </div>
