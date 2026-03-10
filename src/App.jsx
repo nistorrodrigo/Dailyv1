@@ -126,9 +126,9 @@ function generateHTML(s) {
     const priceDisplay = (m) => {
       if (!m.price) return "";
       const val = parseFloat(m.price);
-      if (m.currency === "USD") {
+      if (m.currency === "ADR") {
         const arsEq = ccl ? `<br><span style="color:#999;font-size:10px;">≈ ARS ${(val * ccl).toLocaleString("en-US",{maximumFractionDigits:0})}</span>` : "";
-        return `<span style="font-size:12px;color:#333;">USD ${val.toFixed(2)}</span>${arsEq}`;
+        return `<span style="font-size:12px;color:#333;">USD ${val.toFixed(2)}</span><span style="font-size:10px;color:#888;margin-left:3px;">ADR</span>${arsEq}`;
       } else {
         const usdEq = ccl ? `<br><span style="color:#999;font-size:10px;">≈ USD ${(val / ccl).toFixed(2)}</span>` : "";
         return `<span style="font-size:12px;color:#333;">ARS ${val.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}</span>${usdEq}`;
@@ -299,7 +299,7 @@ function generateBBG(s) {
     macroEstimates: () => { sep(); L.push(`MACRO ESTIMATES — ${s.macroSource}`); s.macroRows.forEach(r => L.push(`${r.label}: ${s.macroCols.map(c => `${c} ${r.vals[c]||""}`).join(" | ")}`)); },
     corporate: () => { sep(); L.push("CORPORATE"); s.corpBlocks.forEach(c => { const r = res(c, s.analysts); L.push("", `${r.tickers.join(" / ")} — ${r.headline}`); r.covs.filter(cv=>cv.ticker).forEach(cv => { const ups = fmtUpside(cv.tp, cv.last); L.push(`  ${cv.ticker} | ${cv.rating} | TP ${cv.tp}${cv.last ? ` | Last ${cv.last}` : ""}${ups ? ` | ${ups}` : ""}`); }); if (r.body) L.push(r.body.replace(/\*\*/g,"")); if (r.link) L.push(r.link); if (c.sourceLink) L.push(c.sourceLink); }); },
     research: () => { if (!s.researchReports?.length) return; sep(); L.push("RESEARCH"); s.researchReports.filter(r=>r.title).forEach(r => { L.push("", `[${r.type}] ${r.title}${r.author ? ` — ${r.author}` : ""}`); if (r.body) L.push(r.body); if (r.link) L.push(r.link); }); },
-    topMovers: () => { const tm = s.topMovers; const ccl = s.cclRate; const hasData = (m) => m.ticker || m.price || m.chgPct; const gainers = (tm?.gainers||[]).filter(hasData); const losers = (tm?.losers||[]).filter(hasData); if (!gainers.length && !losers.length) return; sep(); L.push(`TOP MOVERS${ccl ? ` — CCL ARS ${ccl.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}` : ""}`); const fmt = (m) => { let priceStr = ""; if (m.price) { if (m.currency==="USD") { priceStr = `USD ${parseFloat(m.price).toFixed(2)}`; if (ccl) priceStr += ` (≈ ARS ${(parseFloat(m.price)*ccl).toLocaleString("en-US",{maximumFractionDigits:0})})`;  } else { priceStr = `ARS ${parseFloat(m.price).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}`; if (ccl) priceStr += ` (≈ USD ${(parseFloat(m.price)/ccl).toFixed(2)})`; } } const chg = m.chgPct ? ` ${parseFloat(m.chgPct)>=0?"+":""}${parseFloat(m.chgPct).toFixed(2)}%` : ""; return `  ${m.ticker}  ${priceStr}${chg}${m.comment ? `  // ${m.comment}` : ""}`; }; if (gainers.length) { L.push("", "▲ Best:"); gainers.forEach(m => L.push(fmt(m))); } if (losers.length) { L.push("", "▼ Worst:"); losers.forEach(m => L.push(fmt(m))); } },
+    topMovers: () => { const tm = s.topMovers; const ccl = s.cclRate; const hasData = (m) => m.ticker || m.price || m.chgPct; const gainers = (tm?.gainers||[]).filter(hasData); const losers = (tm?.losers||[]).filter(hasData); if (!gainers.length && !losers.length) return; sep(); L.push(`TOP MOVERS${ccl ? ` — CCL ARS ${ccl.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}` : ""}`); const fmt = (m) => { let priceStr = ""; if (m.price) { if (m.currency==="ADR") { priceStr = `USD ${parseFloat(m.price).toFixed(2)} (ADR)`; if (ccl) priceStr += ` / ≈ ARS ${(parseFloat(m.price)*ccl).toLocaleString("en-US",{maximumFractionDigits:0})}`; } else { priceStr = `ARS ${parseFloat(m.price).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}`; if (ccl) priceStr += ` / ≈ USD ${(parseFloat(m.price)/ccl).toFixed(2)}`; } } const chg = m.chgPct ? ` ${parseFloat(m.chgPct)>=0?"+":""}${parseFloat(m.chgPct).toFixed(2)}%` : ""; return `  ${m.ticker}  ${priceStr}${chg}${m.comment ? `  // ${m.comment}` : ""}`; }; if (gainers.length) { L.push("", "▲ Best:"); gainers.forEach(m => L.push(fmt(m))); } if (losers.length) { L.push("", "▼ Worst:"); losers.forEach(m => L.push(fmt(m))); } },
     bcra: () => { const bd = s.bcraData; const d = bd?.data; if (!d) return; const hidden = s.bcraHiddenRows||{}; sep(); L.push(`BCRA — ${bd.fetchedAt ? new Date(bd.fetchedAt).toLocaleDateString("en-US",{month:"short",day:"numeric"}) : ""}`); const fN=(v)=>v==null?"N/D":Number(v).toLocaleString("en-US",{minimumFractionDigits:0,maximumFractionDigits:0}); const fV=(v)=>v==null?"N/D":(v>=0?"+":"")+fN(v); const line=(key,label,unit)=>{ if(hidden[key]) return; const r=d[key]; if(!r||r.value==null) return; L.push(`${label}: ${fN(r.value)} ${unit} | D/D ${fV(r.d1)} | MTD ${fV(r.mtd)} | YTD ${fV(r.ytd)}`); }; line("reservas","Reserves","USD M"); line("comprasBCRA","BCRA FX Purchases","USD M"); line("depTotalARS","ARS Deposits","ARS$ bn"); line("depUSD","USD Deposits","US$ mn"); line("prestARS","Loans ARS","ARS M"); line("prestUSD","Loans USD","USD M"); },
     events: () => { const evts = (s.events||[]).filter(e=>e.title); if (!evts.length) return; sep(); L.push("EVENTS"); evts.forEach(e => { const tz = [e.timeET&&`ET ${fmtTime(e.timeET)}`,e.timeBUE&&`BUE ${fmtTime(e.timeBUE)}`,e.timeLON&&`LON ${fmtTime(e.timeLON)}`].filter(Boolean).join(" · "); L.push("", `[${e.type||"Event"}] ${e.title}${e.date ? ` — ${fmtEventDate(e.date)}` : ""}${tz ? `  ${tz}` : ""}`); if (e.description) L.push(e.description); if (e.link) L.push(e.link); }); },
     keyEvents: () => { const ke = (s.keyEvents||[]).filter(e=>e.event); if (!ke.length) return; sep(); L.push("KEY EVENTS"); ke.forEach(e => L.push(`  ${fmtEventDate(e.date)}  ${e.event}`)); },
@@ -480,6 +480,7 @@ const migrateMover = (m) => {
   const out = { ...m };
   if (out.priceARS !== undefined && out.price === undefined) { out.price = out.priceARS; out.currency = "ARS"; delete out.priceARS; }
   if (out.name !== undefined) { delete out.name; }
+  if (out.currency === "USD") out.currency = "ADR"; // migrate old USD label to ADR
   if (out.currency === undefined) out.currency = "ARS";
   return out;
 };
@@ -846,7 +847,7 @@ export default function App() {
               }} style={{ marginLeft: "auto", padding: "5px 14px", borderRadius: 6, border: "none", background: "#e65100", color: "#fff", fontWeight: 700, fontSize: 11, cursor: "pointer" }}>
                 {s.cclLoading ? "..." : "⟳ Fetch CCL"}
               </button>
-              {s.cclRate && <span style={{ fontSize: 10, color: "#888" }}>USD price = ARS ÷ CCL</span>}
+              {s.cclRate && <span style={{ fontSize: 10, color: "#888" }}>ARS ÷ CCL = USD · ADR = direct NYSE price</span>}
             </div>
 
             {/* Gainers / Losers */}
@@ -872,9 +873,9 @@ export default function App() {
                 {items.map((m, i) => {
                   const ccy = m.currency || "ARS";
                   const eqLabel = m.price && s.cclRate
-                    ? ccy === "ARS"
-                      ? `≈ USD ${(parseFloat(m.price)/s.cclRate).toFixed(2)}`
-                      : `≈ ARS ${(parseFloat(m.price)*s.cclRate).toLocaleString("en-US",{maximumFractionDigits:0})}`
+                    ? ccy === "ADR"
+                      ? `≈ ARS ${(parseFloat(m.price)*s.cclRate).toLocaleString("en-US",{maximumFractionDigits:0})}`
+                      : `≈ USD ${(parseFloat(m.price)/s.cclRate).toFixed(2)}`
                     : null;
                   return (<div key={i} style={{ display: "grid", gridTemplateColumns: "80px 80px 50px 80px 1fr 24px", gap: 5, marginBottom: 6, alignItems: "center" }}>
                     <input value={m.ticker} onChange={e => upd(i,"ticker",e.target.value.toUpperCase())} placeholder="GGAL" style={{ ...is, fontWeight: 800, textAlign:"center", color }} />
@@ -882,11 +883,11 @@ export default function App() {
                       <input value={m.price} onChange={e => upd(i,"price",e.target.value)} placeholder="0.00" style={{ ...is, textAlign:"right", width:"100%", boxSizing:"border-box" }} />
                       {eqLabel && <div style={{ position:"absolute", bottom:"-13px", right:0, fontSize:9, color:"#aaa", whiteSpace:"nowrap" }}>{eqLabel}</div>}
                     </div>
-                    {/* ARS / USD toggle */}
-                    <div style={{ display:"flex", borderRadius:4, overflow:"hidden", border:"1px solid #d0d5dd", fontSize:10, fontWeight:700, cursor:"pointer" }}>
-                      {["ARS","USD"].map(c => (
+                    {/* ARS (local ÷ CCL) / ADR (direct USD) toggle */}
+                    <div style={{ display:"flex", borderRadius:4, overflow:"hidden", border:"1px solid #d0d5dd", fontSize:10, fontWeight:700, cursor:"pointer" }} title="ARS = local price in pesos (÷CCL for USD equiv)\nADR = direct USD price on NYSE">
+                      {["ARS","ADR"].map(c => (
                         <div key={c} onClick={() => upd(i,"currency",c)}
-                          style={{ flex:1, textAlign:"center", padding:"5px 0", background: ccy===c ? (c==="USD" ? "#1a237e" : "#37474f") : "#fff", color: ccy===c ? "#fff" : "#666", transition:"background 0.15s" }}>
+                          style={{ flex:1, textAlign:"center", padding:"5px 2px", background: ccy===c ? (c==="ADR" ? "#1a237e" : "#37474f") : "#fff", color: ccy===c ? "#fff" : "#666", transition:"background 0.15s", whiteSpace:"nowrap" }}>
                           {c}
                         </div>
                       ))}
