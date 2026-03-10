@@ -256,8 +256,8 @@ function BcraCard({ bcraData, onFetch, hiddenRows = {}, onToggleRow }) {
           </td>
           <NumCell main={fV(data.value, unit)} sub={unit} color={vc(data.value)} />
           <NumCell main="—" sub="" color="#ccc" />
-          <NumCell main={fV(data.mtdSum, unit)} sub={`${unit} · cum. (${data.mtdDays}d)`} color={vc(data.mtdSum)} />
-          <NumCell main={fV(data.ytdSum, unit)} sub={`${unit} · cum. (${data.ytdDays}d)`} color={vc(data.ytdSum)} />
+          <NumCell main={fV(data.mtdSum, unit)} sub={unit} color={vc(data.mtdSum)} />
+          <NumCell main={fV(data.ytdSum, unit)} sub={unit} color={vc(data.ytdSum)} />
         </tr>
       );
     }
