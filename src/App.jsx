@@ -167,8 +167,9 @@ function generateHTML(s) {
     const typeColor = t => ({ Webinar:"#1e5ab0", Conference:"#23a29e", "Earnings Call":"#7b5ea7", Roadshow:"#e6a817", Other:"#555" }[t]||"#555");
     const rows = evts.map(e => {
       const tc = typeColor(e.type);
-      const dateBlock = (e.date || e.time) ? `<td width="80" valign="top" style="padding-right:14px;text-align:center;"><div style="background:${tc};border-radius:6px;padding:8px 6px;display:inline-block;min-width:70px;">${e.date ? `<div style="font-size:13px;font-weight:700;color:#fff;line-height:1.2;">${e.date}</div>` : ""}${e.time ? `<div style="font-size:10px;color:rgba(255,255,255,0.85);margin-top:3px;font-weight:600;">${e.time}</div>` : ""}</div></td>` : "";
-      return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:12px;border-bottom:1px solid #eef0f3;padding-bottom:12px;"><tr>${dateBlock}<td valign="top"><span style="display:inline-block;background:${tc};color:#fff;font-size:9px;font-weight:700;padding:2px 7px;border-radius:3px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:5px;">${e.type||"Event"}</span><div style="font-size:13px;font-weight:700;color:#000039;margin-bottom:4px;line-height:1.3;">${e.title}</div>${e.description ? `<div style="font-size:12px;color:#555;line-height:1.5;margin-bottom:5px;">${e.description}</div>` : ""}${e.link ? `<a href="${e.link}" style="font-size:11px;color:${tc};font-weight:700;">Join / Register →</a>` : ""}</td></tr></table>`;
+      const tzRow = (e.timeET || e.timeBUE || e.timeLON) ? `<div style="display:inline-flex;gap:6px;margin-top:5px;margin-bottom:6px;flex-wrap:wrap;">${[["ET",e.timeET],["BUE",e.timeBUE],["LON",e.timeLON]].filter(([,v])=>v).map(([lbl,val])=>`<span style="display:inline-block;background:${tc}18;border:1px solid ${tc}44;border-radius:4px;padding:3px 8px;font-size:11px;font-weight:700;color:${tc};"><span style="font-weight:400;color:#888;font-size:10px;margin-right:3px;">${lbl}</span>${val}</span>`).join("")}</div>` : "";
+      const dateBlock = e.date ? `<td width="80" valign="top" style="padding-right:14px;text-align:center;"><div style="background:${tc};border-radius:6px;padding:8px 6px;display:inline-block;min-width:70px;"><div style="font-size:13px;font-weight:700;color:#fff;line-height:1.2;">${e.date}</div></div></td>` : "";
+      return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:12px;border-bottom:1px solid #eef0f3;padding-bottom:12px;"><tr>${dateBlock}<td valign="top"><span style="display:inline-block;background:${tc};color:#fff;font-size:9px;font-weight:700;padding:2px 7px;border-radius:3px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:5px;">${e.type||"Event"}</span><div style="font-size:13px;font-weight:700;color:#000039;margin-bottom:2px;line-height:1.3;">${e.title}</div>${tzRow}${e.description ? `<div style="font-size:12px;color:#555;line-height:1.5;margin-bottom:5px;">${e.description}</div>` : ""}${e.link ? `<a href="${e.link}" style="font-size:11px;color:${tc};font-weight:700;">Join / Register →</a>` : ""}</td></tr></table>`;
     }).join("");
     return `<tr><td style="padding:0 32px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:14px;"><tr><td><div style="font-size:11px;font-weight:700;color:#fff;background:#23a29e;text-transform:uppercase;letter-spacing:1.5px;padding:5px 12px;display:inline-block;">Events & Webinars</div></td></tr></table>${rows}</td></tr>`;
   })();
@@ -264,7 +265,7 @@ function generateBBG(s) {
     corporate: () => { L.push("", "CORPORATE", ""); s.corpBlocks.forEach(c => { const r = res(c, s.analysts); L.push(`${r.tickers.join(" / ")} \u2013 ${r.headline}`); r.covs.filter(cv=>cv.ticker).forEach(cv => { const ups = fmtUpside(cv.tp, cv.last); L.push(`  ${cv.ticker} | ${cv.rating} | TP ${cv.tp}${cv.last ? ` | Last ${cv.last}` : ""}${ups ? ` | ${ups}` : ""}`); }); L.push(`  ${r.analyst}`); if (r.body) L.push(r.body); if (r.link) L.push(`Link: ${r.link}`); if (c.sourceLink) L.push(`Source: ${c.sourceLink}`); L.push(""); }); L.push("---"); },
     research: () => { if (!s.researchReports?.length) return; L.push("", "RESEARCH REPORTS", ""); s.researchReports.filter(r=>r.title).forEach(r => { L.push(`[${r.type}] ${r.title}`); if (r.author) L.push(`  ${r.author}`); if (r.body) L.push(r.body); if (r.link) L.push(`Link: ${r.link}`); L.push(""); }); L.push("---"); },
     bcra: () => { const bd = s.bcraData; const d = bd?.data; if (!d) return; const hidden = s.bcraHiddenRows||{}; L.push("", "BCRA DASHBOARD", `Source: BCRA API · ${bd.fetchedAt ? new Date(bd.fetchedAt).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}) : ""}`, ""); const fN=(v)=>v==null?"N/D":Number(v).toLocaleString("en-US",{minimumFractionDigits:0,maximumFractionDigits:0}); const fV=(v)=>v==null?"N/D":(v>=0?"+":"")+fN(v); const fP=(v)=>v==null?"":` (${v>=0?"+":""}${Number(v).toFixed(1)}%)`; const line=(key,label,unit)=>{ if(hidden[key]) return; const r=d[key]; if(!r||r.value==null) return; L.push(`${label} [as of ${r.date}]: ${fN(r.value)} ${unit} | D/D: ${fV(r.d1)}${fP(r.d1pct)} | MTD: ${fV(r.mtd)}${fP(r.mtdpct)} | YTD: ${fV(r.ytd)}${fP(r.ytdpct)}`); }; L.push("Reserves & FX:"); line("reservas","  International Reserves","USD M"); line("comprasBCRA","  BCRA Net FX Purchases","USD M"); L.push("","Private Deposits:"); line("depTotalARS","  Total ARS Deposits","ARS$ bn"); line("depCC","    ↳ Demand (ARS$)","ARS$ bn"); line("depCA","    ↳ Savings (ARS$)","ARS$ bn"); line("depPF","    ↳ Time (ARS$)","ARS$ bn"); line("depUSD","  USD Deposits","US$ mn"); L.push("","Private Loans:"); line("prestARS","  Loans (ARS)","ARS M"); line("prestUSD","  Loans (USD)","USD M"); L.push("","---"); },
-    events: () => { const evts = (s.events||[]).filter(e=>e.title); if (!evts.length) return; L.push("","EVENTS & WEBINARS",""); evts.forEach(e => { L.push(`[${e.type||"Event"}] ${e.title}`); if (e.date) L.push(`  ${e.date}${e.time?" · "+e.time:""}`); if (e.description) L.push(`  ${e.description}`); if (e.link) L.push(`  ${e.link}`); L.push(""); }); L.push("---"); },
+    events: () => { const evts = (s.events||[]).filter(e=>e.title); if (!evts.length) return; L.push("","EVENTS & WEBINARS",""); evts.forEach(e => { L.push(`[${e.type||"Event"}] ${e.title}`); if (e.date) L.push(`  ${e.date}`); const tzParts = [e.timeET&&`ET: ${e.timeET}`, e.timeBUE&&`BUE: ${e.timeBUE}`, e.timeLON&&`LON: ${e.timeLON}`].filter(Boolean); if (tzParts.length) L.push(`  ${tzParts.join("  ·  ")}`); if (e.description) L.push(`  ${e.description}`); if (e.link) L.push(`  ${e.link}`); L.push(""); }); L.push("---"); },
     keyEvents: () => { const ke = (s.keyEvents||[]).filter(e=>e.event); if (!ke.length) return; L.push("","KEY EVENTS TO WATCH",""); ke.forEach(e => L.push(`  ${e.date||""}: ${e.event}`)); L.push("","---"); },
     chart: () => { if (s.chartImage?.caption || s.chartImage?.title) { L.push("","CHART",""); if (s.chartImage.title) L.push(s.chartImage.title); if (s.chartImage.caption) L.push(s.chartImage.caption); L.push("[Image attached]","","---"); } },
   };
@@ -795,24 +796,28 @@ export default function App() {
                     <Inp label="Title" value={e.title||""} onChange={v => ue("title", v)} placeholder="e.g. LS Macro Webinar — Argentina 2026 Outlook" />
                   </div>
                   {/* Date/time badge preview */}
-                  {(e.date || e.time) && (
-                    <div style={{ background: typeColor, borderRadius: 6, padding: "8px 12px", textAlign: "center", minWidth: 90, flexShrink: 0 }}>
-                      {e.date && <div style={{ fontSize: 12, fontWeight: 700, color: "#fff", lineHeight: 1.2 }}>{e.date}</div>}
-                      {e.time && <div style={{ fontSize: 10, color: "rgba(255,255,255,0.85)", marginTop: 3, fontWeight: 600 }}>{e.time}</div>}
+                  {(e.date || e.timeET || e.timeBUE || e.timeLON) && (
+                    <div style={{ background: typeColor, borderRadius: 6, padding: "8px 12px", textAlign: "center", minWidth: 80, flexShrink: 0 }}>
+                      {e.date && <div style={{ fontSize: 11, fontWeight: 700, color: "#fff", lineHeight: 1.3 }}>{e.date}</div>}
+                      {e.timeET && <div style={{ fontSize: 10, color: "rgba(255,255,255,0.85)", marginTop: 2 }}>ET {e.timeET}</div>}
+                      {e.timeBUE && <div style={{ fontSize: 10, color: "rgba(255,255,255,0.85)" }}>BUE {e.timeBUE}</div>}
+                      {e.timeLON && <div style={{ fontSize: 10, color: "rgba(255,255,255,0.85)" }}>LON {e.timeLON}</div>}
                     </div>
                   )}
                   <div style={{ paddingTop: 18 }}><X onClick={() => setS(p => ({ ...p, events: p.events.filter((_, j) => j !== i) }))} /></div>
                 </div>
-                {/* Date + Time inputs prominently */}
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8, padding: "8px 10px", background: `${typeColor}10`, borderRadius: 6, border: `1px solid ${typeColor}30` }}>
-                  <Inp label="📅 Date" value={e.date||""} onChange={v => ue("date", v)} placeholder="e.g. Mar 12, 2026" />
-                  <Inp label="🕐 Time" value={e.time||""} onChange={v => ue("time", v)} placeholder="e.g. 11:00 AM ART" />
+                {/* Date + Timezone inputs */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8, marginBottom: 8, padding: "8px 10px", background: `${typeColor}10`, borderRadius: 6, border: `1px solid ${typeColor}30` }}>
+                  <Inp label="📅 Date" value={e.date||""} onChange={v => ue("date", v)} placeholder="Mar 12, 2026" />
+                  <Inp label="🇺🇸 ET" value={e.timeET||""} onChange={v => ue("timeET", v)} placeholder="10:00 AM" />
+                  <Inp label="🇦🇷 BUE" value={e.timeBUE||""} onChange={v => ue("timeBUE", v)} placeholder="12:00 PM" />
+                  <Inp label="🇬🇧 LON" value={e.timeLON||""} onChange={v => ue("timeLON", v)} placeholder="3:00 PM" />
                 </div>
                 <Inp label="Description (optional)" value={e.description||""} onChange={v => ue("description", v)} placeholder="Brief description or agenda..." />
                 <Inp label="Register / Zoom Link" value={e.link||""} onChange={v => ue("link", v)} placeholder="https://..." />
               </div>);
             })}
-            <DashBtn onClick={() => setS(p => ({ ...p, events: [...(p.events||[]), { title: "", type: "Webinar", date: "", time: "", description: "", link: "" }] }))} color="#23a29e">+ Add Event</DashBtn>
+            <DashBtn onClick={() => setS(p => ({ ...p, events: [...(p.events||[]), { title: "", type: "Webinar", date: "", timeET: "", timeBUE: "", timeLON: "", description: "", link: "" }] }))} color="#23a29e">+ Add Event</DashBtn>
           </Card>}
 
           {s.sections.find(x=>x.key==="keyEvents")?.on && <Card title="Key Events to Watch" color={BRAND.navy}>
