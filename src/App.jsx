@@ -254,10 +254,10 @@ function BcraCard({ bcraData, onFetch, hiddenRows = {}, onToggleRow }) {
             <div style={{ lineHeight: "1.3" }}>{label}</div>
             <div style={{ fontSize: 10, color: "#aaa", fontWeight: 400, marginTop: 1 }}>daily flow · as of {data.date}</div>
           </td>
-          <NumCell main={`${fV(data.value, unit)} ${unit}`} sub="today" color={vc(data.value)} />
+          <NumCell main={fV(data.value, unit)} sub={unit} color={vc(data.value)} />
           <NumCell main="—" sub="" color="#ccc" />
-          <NumCell main={`${fV(data.mtdSum, unit)} ${unit}`} sub={`MTD cum. (${data.mtdDays}d)`} color={vc(data.mtdSum)} />
-          <NumCell main={`${fV(data.ytdSum, unit)} ${unit}`} sub={`YTD cum. (${data.ytdDays}d)`} color={vc(data.ytdSum)} />
+          <NumCell main={fV(data.mtdSum, unit)} sub={`${unit} · cum. (${data.mtdDays}d)`} color={vc(data.mtdSum)} />
+          <NumCell main={fV(data.ytdSum, unit)} sub={`${unit} · cum. (${data.ytdDays}d)`} color={vc(data.ytdSum)} />
         </tr>
       );
     }
