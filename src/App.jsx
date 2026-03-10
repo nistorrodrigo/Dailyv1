@@ -135,8 +135,9 @@ function generateHTML(s) {
       }
     };
     const moverRow = (m, color) => `<tr><td style="padding:8px 10px;border-bottom:1px solid ${color}22;"><span style="font-weight:800;font-size:13px;color:${color};">${m.ticker}</span></td><td style="padding:8px 10px;border-bottom:1px solid ${color}22;text-align:right;">${priceDisplay(m)}</td><td style="padding:8px 10px;border-bottom:1px solid ${color}22;text-align:right;"><span style="font-weight:800;font-size:13px;color:${color};">${fmtChg(m.chgPct)}</span></td><td style="padding:8px 10px;border-bottom:1px solid ${color}22;font-size:11.5px;color:#555;">${m.comment||""}</td></tr>`;
-    const gainers = (s.topMovers?.gainers||[]).filter(m=>m.ticker);
-    const losers = (s.topMovers?.losers||[]).filter(m=>m.ticker);
+    const hasData = (m) => m.ticker || m.price || m.chgPct;
+    const gainers = (s.topMovers?.gainers||[]).filter(hasData);
+    const losers = (s.topMovers?.losers||[]).filter(hasData);
     if (!gainers.length && !losers.length) return "";
     const cclNote = ccl ? `<span style="font-size:10px;color:#888;margin-left:8px;">CCL: ARS ${ccl.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})} · USD prices = ARS ÷ CCL</span>` : "";
     const half = "width:48%;display:inline-table;vertical-align:top;";
@@ -298,7 +299,7 @@ function generateBBG(s) {
     macroEstimates: () => { sep(); L.push(`MACRO ESTIMATES — ${s.macroSource}`); s.macroRows.forEach(r => L.push(`${r.label}: ${s.macroCols.map(c => `${c} ${r.vals[c]||""}`).join(" | ")}`)); },
     corporate: () => { sep(); L.push("CORPORATE"); s.corpBlocks.forEach(c => { const r = res(c, s.analysts); L.push("", `${r.tickers.join(" / ")} — ${r.headline}`); r.covs.filter(cv=>cv.ticker).forEach(cv => { const ups = fmtUpside(cv.tp, cv.last); L.push(`  ${cv.ticker} | ${cv.rating} | TP ${cv.tp}${cv.last ? ` | Last ${cv.last}` : ""}${ups ? ` | ${ups}` : ""}`); }); if (r.body) L.push(r.body.replace(/\*\*/g,"")); if (r.link) L.push(r.link); if (c.sourceLink) L.push(c.sourceLink); }); },
     research: () => { if (!s.researchReports?.length) return; sep(); L.push("RESEARCH"); s.researchReports.filter(r=>r.title).forEach(r => { L.push("", `[${r.type}] ${r.title}${r.author ? ` — ${r.author}` : ""}`); if (r.body) L.push(r.body); if (r.link) L.push(r.link); }); },
-    topMovers: () => { const tm = s.topMovers; const ccl = s.cclRate; const gainers = (tm?.gainers||[]).filter(m=>m.ticker); const losers = (tm?.losers||[]).filter(m=>m.ticker); if (!gainers.length && !losers.length) return; sep(); L.push(`TOP MOVERS${ccl ? ` — CCL ARS ${ccl.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}` : ""}`); const fmt = (m) => { let priceStr = ""; if (m.price) { if (m.currency==="USD") { priceStr = `USD ${parseFloat(m.price).toFixed(2)}`; if (ccl) priceStr += ` (≈ ARS ${(parseFloat(m.price)*ccl).toLocaleString("en-US",{maximumFractionDigits:0})})`;  } else { priceStr = `ARS ${parseFloat(m.price).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}`; if (ccl) priceStr += ` (≈ USD ${(parseFloat(m.price)/ccl).toFixed(2)})`; } } const chg = m.chgPct ? ` ${parseFloat(m.chgPct)>=0?"+":""}${parseFloat(m.chgPct).toFixed(2)}%` : ""; return `  ${m.ticker}  ${priceStr}${chg}${m.comment ? `  // ${m.comment}` : ""}`; }; if (gainers.length) { L.push("", "▲ Best:"); gainers.forEach(m => L.push(fmt(m))); } if (losers.length) { L.push("", "▼ Worst:"); losers.forEach(m => L.push(fmt(m))); } },
+    topMovers: () => { const tm = s.topMovers; const ccl = s.cclRate; const hasData = (m) => m.ticker || m.price || m.chgPct; const gainers = (tm?.gainers||[]).filter(hasData); const losers = (tm?.losers||[]).filter(hasData); if (!gainers.length && !losers.length) return; sep(); L.push(`TOP MOVERS${ccl ? ` — CCL ARS ${ccl.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}` : ""}`); const fmt = (m) => { let priceStr = ""; if (m.price) { if (m.currency==="USD") { priceStr = `USD ${parseFloat(m.price).toFixed(2)}`; if (ccl) priceStr += ` (≈ ARS ${(parseFloat(m.price)*ccl).toLocaleString("en-US",{maximumFractionDigits:0})})`;  } else { priceStr = `ARS ${parseFloat(m.price).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}`; if (ccl) priceStr += ` (≈ USD ${(parseFloat(m.price)/ccl).toFixed(2)})`; } } const chg = m.chgPct ? ` ${parseFloat(m.chgPct)>=0?"+":""}${parseFloat(m.chgPct).toFixed(2)}%` : ""; return `  ${m.ticker}  ${priceStr}${chg}${m.comment ? `  // ${m.comment}` : ""}`; }; if (gainers.length) { L.push("", "▲ Best:"); gainers.forEach(m => L.push(fmt(m))); } if (losers.length) { L.push("", "▼ Worst:"); losers.forEach(m => L.push(fmt(m))); } },
     bcra: () => { const bd = s.bcraData; const d = bd?.data; if (!d) return; const hidden = s.bcraHiddenRows||{}; sep(); L.push(`BCRA — ${bd.fetchedAt ? new Date(bd.fetchedAt).toLocaleDateString("en-US",{month:"short",day:"numeric"}) : ""}`); const fN=(v)=>v==null?"N/D":Number(v).toLocaleString("en-US",{minimumFractionDigits:0,maximumFractionDigits:0}); const fV=(v)=>v==null?"N/D":(v>=0?"+":"")+fN(v); const line=(key,label,unit)=>{ if(hidden[key]) return; const r=d[key]; if(!r||r.value==null) return; L.push(`${label}: ${fN(r.value)} ${unit} | D/D ${fV(r.d1)} | MTD ${fV(r.mtd)} | YTD ${fV(r.ytd)}`); }; line("reservas","Reserves","USD M"); line("comprasBCRA","BCRA FX Purchases","USD M"); line("depTotalARS","ARS Deposits","ARS$ bn"); line("depUSD","USD Deposits","US$ mn"); line("prestARS","Loans ARS","ARS M"); line("prestUSD","Loans USD","USD M"); },
     events: () => { const evts = (s.events||[]).filter(e=>e.title); if (!evts.length) return; sep(); L.push("EVENTS"); evts.forEach(e => { const tz = [e.timeET&&`ET ${fmtTime(e.timeET)}`,e.timeBUE&&`BUE ${fmtTime(e.timeBUE)}`,e.timeLON&&`LON ${fmtTime(e.timeLON)}`].filter(Boolean).join(" · "); L.push("", `[${e.type||"Event"}] ${e.title}${e.date ? ` — ${fmtEventDate(e.date)}` : ""}${tz ? `  ${tz}` : ""}`); if (e.description) L.push(e.description); if (e.link) L.push(e.link); }); },
     keyEvents: () => { const ke = (s.keyEvents||[]).filter(e=>e.event); if (!ke.length) return; sep(); L.push("KEY EVENTS"); ke.forEach(e => L.push(`  ${fmtEventDate(e.date)}  ${e.event}`)); },
@@ -473,8 +474,17 @@ function BcraCard({ bcraData, onFetch, hiddenRows = {}, onToggleRow }) {
   );
 }
 
+const migrateMover = (m) => {
+  if (!m) return m;
+  // Migrate old schema (priceARS/name) to new (price/currency)
+  const out = { ...m };
+  if (out.priceARS !== undefined && out.price === undefined) { out.price = out.priceARS; out.currency = "ARS"; delete out.priceARS; }
+  if (out.name !== undefined) { delete out.name; }
+  if (out.currency === undefined) out.currency = "ARS";
+  return out;
+};
 const STORAGE_KEY = "ls-daily-builder-state";
-const loadState = () => { try { const raw = localStorage.getItem(STORAGE_KEY); if (raw) { const saved = JSON.parse(raw); const mergedSections = DEFAULT_STATE.sections.map(def => { const existing = (saved.sections||[]).find(x => x.key === def.key); return existing || def; }); return { ...DEFAULT_STATE, ...saved, sections: mergedSections }; } } catch(e) {} return DEFAULT_STATE; };
+const loadState = () => { try { const raw = localStorage.getItem(STORAGE_KEY); if (raw) { const saved = JSON.parse(raw); const mergedSections = DEFAULT_STATE.sections.map(def => { const existing = (saved.sections||[]).find(x => x.key === def.key); return existing || def; }); const migratedTopMovers = saved.topMovers ? { gainers: (saved.topMovers.gainers||[]).map(migrateMover), losers: (saved.topMovers.losers||[]).map(migrateMover) } : DEFAULT_STATE.topMovers; return { ...DEFAULT_STATE, ...saved, sections: mergedSections, topMovers: migratedTopMovers }; } } catch(e) {} return DEFAULT_STATE; };
 const saveState = (state) => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch(e) {} };
 
 export default function App() {
