@@ -239,6 +239,8 @@ function generateSummaryPrompt(s) {
   lines.push(`---\nNow write the "Today:" summary bar. Output only the summary text, nothing else.`);
   return lines.join("\n");
 }
+
+function generateBBG(s) {
   let L = [`\uD83C\uDDE6\uD83C\uDDF7 LATIN SECURITIES \u2013 Argentina Daily \u2013 ${formatDate(s.date)}`];
   if (s.summaryBar) L.push("", s.summaryBar); L.push("", "---");
   const bbgSec = {
