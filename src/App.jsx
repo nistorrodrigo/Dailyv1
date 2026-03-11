@@ -441,6 +441,13 @@ function BcraCard({ bcraData, onFetch, hiddenRows = {}, onToggleRow, onOverride 
         </tr>
       );
     }
+    const isEditingStock = editingKey === rowKey;
+    const isOverriddenStock = data._overridden;
+    const commitStock = () => {
+      const num = parseFloat(editVal.replace(",", "."));
+      if (!isNaN(num)) onOverride(rowKey, num);
+      setEditingKey(null);
+    };
     return (
       <tr style={{ borderBottom: "1px solid #f0f2f5", background: hidden ? "#fafafa" : "#fff", opacity: hidden ? 0.45 : 1 }}>
         <td style={{ padding: "4px 6px", textAlign: "center", verticalAlign: "middle" }}>
@@ -448,9 +455,33 @@ function BcraCard({ bcraData, onFetch, hiddenRows = {}, onToggleRow, onOverride 
         </td>
         <td style={{ padding: "5px 10px", fontSize: 12, fontWeight: 600, color: "#333", verticalAlign: "top" }}>
           <div style={{ lineHeight: "1.3" }}>{label}</div>
-          <div style={{ fontSize: 10, color: "#aaa", fontWeight: 400, marginTop: 1 }}>as of {data.date}</div>
+          <div style={{ fontSize: 10, color: "#aaa", fontWeight: 400, marginTop: 1 }}>
+            as of {data.date}
+            {isOverriddenStock && <span style={{ color: "#e67e22", marginLeft: 6, fontWeight: 700 }}>✎ manual override</span>}
+          </div>
         </td>
-        <NumCell main={`${fN(data.value, unit)}`} sub={unit} color="#333" />
+        <td style={{ padding: "5px 10px", fontSize: 12, textAlign: "right", whiteSpace: "nowrap", verticalAlign: "top", width: 90 }}>
+          {isEditingStock ? (
+            <div style={{ display: "flex", gap: 4, justifyContent: "flex-end", alignItems: "center" }}>
+              <input autoFocus type="text" value={editVal}
+                onChange={e => setEditVal(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") commitStock(); if (e.key === "Escape") setEditingKey(null); }}
+                style={{ width: 70, fontSize: 11, padding: "2px 4px", border: "1px solid #f39c12", borderRadius: 3, textAlign: "right" }}
+              />
+              <button onClick={commitStock} style={{ fontSize: 10, padding: "2px 6px", background: "#27864a", color: "#fff", border: "none", borderRadius: 3, cursor: "pointer" }}>✓</button>
+              <button onClick={() => setEditingKey(null)} style={{ fontSize: 10, padding: "2px 6px", background: "#ccc", color: "#333", border: "none", borderRadius: 3, cursor: "pointer" }}>✕</button>
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+              <span style={{ fontWeight: 600, color: isOverriddenStock ? "#e67e22" : "#333" }}>{fN(data.value, unit)}</span>
+              <span style={{ fontSize: 10, color: "#aaa" }}>{unit}</span>
+              <button onClick={() => { setEditVal(String(data.value ?? "")); setEditingKey(rowKey); }}
+                title="Override value" style={{ marginTop: 2, fontSize: 9, padding: "1px 5px", background: "transparent", border: "1px solid #ddd", borderRadius: 3, color: "#999", cursor: "pointer" }}>
+                ✎ edit
+              </button>
+            </div>
+          )}
+        </td>
         <NumCell main={fV(data.d1, unit)} sub={fP(data.d1pct)} color={vc(data.d1)} />
         <NumCell main={fV(data.mtd, unit)} sub={fP(data.mtdpct)} color={vc(data.mtd)} />
         <NumCell main={fV(data.ytd, unit)} sub={fP(data.ytdpct)} color={vc(data.ytd)} />
