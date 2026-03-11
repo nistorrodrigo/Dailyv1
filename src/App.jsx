@@ -356,8 +356,8 @@ function BcraCard({ bcraData, onFetch, hiddenRows = {}, onToggleRow, onOverride 
   const error = bcraData?.error;
   const d = bcraData?.data || {};
   const fetchedAt = bcraData?.fetchedAt ? new Date(bcraData.fetchedAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : null;
-  const [editingKey, setEditingKey] = React.useState(null);
-  const [editVal, setEditVal] = React.useState("");
+  const [editingKey, setEditingKey] = useState(null);
+  const [editVal, setEditVal] = useState("");
 
   const vc = (v) => v == null ? "#888" : v >= 0 ? "#27864a" : "#c0392b";
   // ARS$ bn → 0 decimals, US$ mn → 0 decimals, flow US$ mn → 1 decimal
