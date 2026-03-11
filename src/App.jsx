@@ -351,11 +351,13 @@ const X = ({ onClick }) => <button onClick={onClick} style={{ background: "none"
 const DashBtn = ({ onClick, children, color = BRAND.blue }) => <button onClick={onClick} style={{ width: "100%", padding: 10, border: "2px dashed #d0d5dd", borderRadius: 6, background: "transparent", color, fontWeight: 600, fontSize: 12, cursor: "pointer" }}>{children}</button>;
 
 const BCRA_DEFAULT_HIDDEN = {};
-function BcraCard({ bcraData, onFetch, hiddenRows = {}, onToggleRow }) {
+function BcraCard({ bcraData, onFetch, hiddenRows = {}, onToggleRow, onOverride }) {
   const loading = bcraData?.loading;
   const error = bcraData?.error;
   const d = bcraData?.data || {};
   const fetchedAt = bcraData?.fetchedAt ? new Date(bcraData.fetchedAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : null;
+  const [editingKey, setEditingKey] = React.useState(null);
+  const [editVal, setEditVal] = React.useState("");
 
   const vc = (v) => v == null ? "#888" : v >= 0 ? "#27864a" : "#c0392b";
   // ARS$ bn → 0 decimals, US$ mn → 0 decimals, flow US$ mn → 1 decimal
@@ -389,6 +391,13 @@ function BcraCard({ bcraData, onFetch, hiddenRows = {}, onToggleRow }) {
     );
     const hidden = hiddenRows[rowKey];
     if (data.isFlow) {
+      const isEditing = editingKey === rowKey;
+      const isOverridden = data._overridden;
+      const commitEdit = () => {
+        const num = parseFloat(editVal.replace(",", "."));
+        if (!isNaN(num)) onOverride(rowKey, num);
+        setEditingKey(null);
+      };
       return (
         <tr style={{ borderBottom: "1px solid #f0f2f5", background: hidden ? "#fafafa" : "#fff", opacity: hidden ? 0.45 : 1 }}>
           <td style={{ padding: "4px 6px", textAlign: "center", verticalAlign: "middle" }}>
@@ -396,9 +405,36 @@ function BcraCard({ bcraData, onFetch, hiddenRows = {}, onToggleRow }) {
           </td>
           <td style={{ padding: "5px 10px", fontSize: 12, fontWeight: 600, color: "#333", verticalAlign: "top" }}>
             <div style={{ lineHeight: "1.3" }}>{label}</div>
-            <div style={{ fontSize: 10, color: "#aaa", fontWeight: 400, marginTop: 1 }}>daily flow · as of {data.date}</div>
+            <div style={{ fontSize: 10, color: "#aaa", fontWeight: 400, marginTop: 1 }}>
+              daily flow · as of {data.date}
+              {isOverridden && <span style={{ color: "#e67e22", marginLeft: 6, fontWeight: 700 }}>✎ manual override</span>}
+            </div>
           </td>
-          <NumCell main={fV(data.value, unit)} sub={unit} color={vc(data.value)} />
+          <td style={{ padding: "5px 10px", fontSize: 12, textAlign: "right", whiteSpace: "nowrap", verticalAlign: "top", width: 90 }}>
+            {isEditing ? (
+              <div style={{ display: "flex", gap: 4, justifyContent: "flex-end", alignItems: "center" }}>
+                <input
+                  autoFocus
+                  type="text"
+                  value={editVal}
+                  onChange={e => setEditVal(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter") commitEdit(); if (e.key === "Escape") setEditingKey(null); }}
+                  style={{ width: 60, fontSize: 11, padding: "2px 4px", border: "1px solid #f39c12", borderRadius: 3, textAlign: "right" }}
+                />
+                <button onClick={commitEdit} style={{ fontSize: 10, padding: "2px 6px", background: "#27864a", color: "#fff", border: "none", borderRadius: 3, cursor: "pointer" }}>✓</button>
+                <button onClick={() => setEditingKey(null)} style={{ fontSize: 10, padding: "2px 6px", background: "#ccc", color: "#333", border: "none", borderRadius: 3, cursor: "pointer" }}>✕</button>
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+                <span style={{ fontWeight: 600, color: isOverridden ? "#e67e22" : vc(data.value) }}>{fV(data.value, unit)}</span>
+                <span style={{ fontSize: 10, color: "#aaa" }}>{unit}</span>
+                <button onClick={() => { setEditVal(String(data.value ?? "")); setEditingKey(rowKey); }}
+                  title="Override value" style={{ marginTop: 2, fontSize: 9, padding: "1px 5px", background: "transparent", border: "1px solid #ddd", borderRadius: 3, color: "#999", cursor: "pointer" }}>
+                  ✎ edit
+                </button>
+              </div>
+            )}
+          </td>
           <NumCell main="—" sub="" color="#ccc" />
           <NumCell main={fV(data.mtdSum, unit)} sub={unit} color={vc(data.mtdSum)} />
           <NumCell main={fV(data.ytdSum, unit)} sub={unit} color={vc(data.ytdSum)} />
@@ -910,7 +946,7 @@ export default function App() {
             <DashBtn onClick={()=>setS(p=>({...p,tweets:[...(p.tweets||[]),{content:"",link:"",time:"",sentiment:"Bullish",impactType:"Market",impactValue:""}]}))} color="#1a8cd8">+ Add Tweet / Post</DashBtn>
           </Card>}
 
-          {s.sections.find(x=>x.key==="bcra")?.on && <BcraCard bcraData={s.bcraData} hiddenRows={s.bcraHiddenRows||{}} onToggleRow={(key) => setS(p => ({ ...p, bcraHiddenRows: { ...(p.bcraHiddenRows||{}), [key]: !(p.bcraHiddenRows||{})[key] } }))} onFetch={async () => {
+          {s.sections.find(x=>x.key==="bcra")?.on && <BcraCard bcraData={s.bcraData} hiddenRows={s.bcraHiddenRows||{}} onToggleRow={(key) => setS(p => ({ ...p, bcraHiddenRows: { ...(p.bcraHiddenRows||{}), [key]: !(p.bcraHiddenRows||{})[key] } }))} onOverride={(key, val) => setS(p => { const bd = p.bcraData; if (!bd?.data) return p; return { ...p, bcraData: { ...bd, data: { ...bd.data, [key]: { ...(bd.data[key]||{}), value: val, _overridden: true } } } }; })} onFetch={async () => {
             setS(p => ({ ...p, bcraData: { ...(p.bcraData||{}), loading: true, error: null } }));
             try {
               const r = await fetch("/api/bcra");
