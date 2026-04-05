@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { BRAND, LOGO_WHITE_URL } from "../constants/brand";
 import useDailyStore from "../store/useDailyStore";
 import { generateHTML } from "../utils/generateHTML";
@@ -16,7 +16,6 @@ const hBtn = (borderColor, textColor, bg = "transparent") => ({
 });
 
 export default function Header() {
-  const s = useDailyStore();
   const copiedLabel = useDailyStore((s) => s.copiedLabel);
   const copyToClipboard = useDailyStore((s) => s.copyToClipboard);
   const newDaily = useDailyStore((s) => s.newDaily);
@@ -27,8 +26,12 @@ export default function Header() {
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [emailOpen, setEmailOpen] = useState(false);
 
-  const html = generateHTML(s);
-  const bbg = generateBBG(s);
+  // Lazy generate — only compute when user clicks copy, not on every render
+  const copyGenerated = useCallback((type) => {
+    const state = useDailyStore.getState();
+    const text = type === "html" ? generateHTML(state) : generateBBG(state);
+    copyToClipboard(text, type);
+  }, [copyToClipboard]);
 
   return (
     <>
@@ -78,10 +81,10 @@ export default function Header() {
           <button onClick={() => setTemplatesOpen(true)} style={hBtn(BRAND.teal, BRAND.teal)}>Templates</button>
           <button onClick={() => setHistoryOpen(true)} style={hBtn(BRAND.salmon, BRAND.salmon)}>History</button>
           <button onClick={newDaily} style={hBtn(BRAND.orange, BRAND.orange)}>New Daily</button>
-          <button onClick={() => copyToClipboard(html, "html")} style={hBtn(BRAND.sky, BRAND.sky)}>
+          <button onClick={() => copyGenerated("html")} style={hBtn(BRAND.sky, BRAND.sky)}>
             {copiedLabel === "html" ? "\u2713 Copied!" : "Copy HTML"}
           </button>
-          <button onClick={() => copyToClipboard(bbg, "bbg")} style={hBtn(BRAND.green, BRAND.green)}>
+          <button onClick={() => copyGenerated("bbg")} style={hBtn(BRAND.green, BRAND.green)}>
             {copiedLabel === "bbg" ? "\u2713 Copied!" : "Copy BBG"}
           </button>
           <button onClick={() => setEmailOpen(true)} style={hBtn("none", "#fff", BRAND.blue)}>
