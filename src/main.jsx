@@ -1,6 +1,11 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
+import useDailyStore from './store/useDailyStore'
+import { setupSupabaseSync } from './lib/supabaseSync'
+
+// Initialize Supabase sync after store is ready
+setupSupabaseSync(useDailyStore);
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
