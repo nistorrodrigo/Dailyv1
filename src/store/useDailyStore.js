@@ -5,8 +5,8 @@ import { DEFAULT_STATE, DEFAULT_ANALYSTS, STORAGE_KEY } from "../constants/defau
 
 const useDailyStore = create(
   temporal(
-  devtools(
-    persist(
+    devtools(
+      persist(
       (set, get) => ({
         // === State ===
         ...DEFAULT_STATE,
@@ -250,9 +250,9 @@ const useDailyStore = create(
         version: 1,
       }
     ),
-    { name: "DailyBuilder" }
-  ),
-  { limit: 50, wrapTemporal: (fn) => fn }
+      { name: "DailyBuilder" }
+    ),
+    { limit: 50 }
   )
 );
 

@@ -1,3 +1,4 @@
+import { useShallow } from "zustand/react/shallow";
 import { useRef } from "react";
 import useDailyStore from "../../store/useDailyStore";
 import { Card, Inp } from "../ui";

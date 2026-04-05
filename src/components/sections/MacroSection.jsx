@@ -1,3 +1,4 @@
+import { useShallow } from "zustand/react/shallow";
 import useDailyStore from "../../store/useDailyStore";
 import { Card, Inp, X, DashBtn } from "../ui";
 import MarkdownEditor from "../ui/MarkdownEditor";

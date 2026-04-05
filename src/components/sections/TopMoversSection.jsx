@@ -1,3 +1,4 @@
+import { useShallow } from "zustand/react/shallow";
 import { useState } from "react";
 import useDailyStore from "../../store/useDailyStore";
 import { Card, X, DashBtn } from "../ui";
