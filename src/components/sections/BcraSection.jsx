@@ -4,10 +4,8 @@ import { Card } from "../ui";
 import { BRAND } from "../../constants/brand";
 
 export default function BcraSection() {
-  const sections = useDailyStore((s) => s.sections);
-  const bcraData = useDailyStore((s) => s.bcraData);
-  const bcraHiddenRows = useDailyStore((s) => s.bcraHiddenRows);
-  const setBcraData = useDailyStore((s) => s.setBcraData);
+    const { sections, bcraData, bcraHiddenRows } = useDailyStore(useShallow((s) => ({ sections: s.sections, bcraData: s.bcraData, bcraHiddenRows: s.bcraHiddenRows })));
+      const setBcraData = useDailyStore((s) => s.setBcraData);
   const toggleBcraRow = useDailyStore((s) => s.toggleBcraRow);
   const [fetching, setFetching] = useState(false);
 

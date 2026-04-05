@@ -14,9 +14,8 @@ const sentimentBg = (s) =>
   s === "Bullish" ? "#e8f5e9" : s === "Bearish" ? "#fbe9e7" : "#f0f0f0";
 
 export default function TweetsSection() {
-  const sections = useDailyStore((s) => s.sections);
-  const tweets = useDailyStore((s) => s.tweets);
-  const addTweet = useDailyStore((s) => s.addTweet);
+    const { sections, tweets } = useDailyStore(useShallow((s) => ({ sections: s.sections, tweets: s.tweets })));
+    const addTweet = useDailyStore((s) => s.addTweet);
   const updateTweet = useDailyStore((s) => s.updateTweet);
   const removeTweet = useDailyStore((s) => s.removeTweet);
 

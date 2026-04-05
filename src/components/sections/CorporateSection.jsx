@@ -7,10 +7,8 @@ const is = { padding: "6px 8px", borderRadius: 4, border: "1px solid #d0d5dd", f
 const ss = { ...is, background: "#fff" };
 
 export default function CorporateSection() {
-  const sections = useDailyStore((s) => s.sections);
-  const corpBlocks = useDailyStore((s) => s.corpBlocks);
-  const analysts = useDailyStore((s) => s.analysts);
-  const updateListItem = useDailyStore((s) => s.updateListItem);
+    const { sections, corpBlocks, analysts } = useDailyStore(useShallow((s) => ({ sections: s.sections, corpBlocks: s.corpBlocks, analysts: s.analysts })));
+      const updateListItem = useDailyStore((s) => s.updateListItem);
   const addListItem = useDailyStore((s) => s.addListItem);
   const removeListItem = useDailyStore((s) => s.removeListItem);
 

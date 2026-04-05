@@ -4,9 +4,8 @@ import { Card, Inp } from "../ui";
 import { BRAND } from "../../constants/brand";
 
 export default function ChartSection() {
-  const sections = useDailyStore((s) => s.sections);
-  const chartImage = useDailyStore((s) => s.chartImage);
-  const setChartImage = useDailyStore((s) => s.setChartImage);
+    const { sections, chartImage } = useDailyStore(useShallow((s) => ({ sections: s.sections, chartImage: s.chartImage })));
+    const setChartImage = useDailyStore((s) => s.setChartImage);
   const setField = useDailyStore((s) => s.setField);
   const fileRef = useRef();
 

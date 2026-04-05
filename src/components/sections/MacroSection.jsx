@@ -4,9 +4,8 @@ import MarkdownEditor from "../ui/MarkdownEditor";
 import { BRAND } from "../../constants/brand";
 
 export default function MacroSection() {
-  const sections = useDailyStore((s) => s.sections);
-  const macroBlocks = useDailyStore((s) => s.macroBlocks);
-  const updateListItem = useDailyStore((s) => s.updateListItem);
+    const { sections, macroBlocks } = useDailyStore(useShallow((s) => ({ sections: s.sections, macroBlocks: s.macroBlocks })));
+    const updateListItem = useDailyStore((s) => s.updateListItem);
   const addListItem = useDailyStore((s) => s.addListItem);
   const removeListItem = useDailyStore((s) => s.removeListItem);
 

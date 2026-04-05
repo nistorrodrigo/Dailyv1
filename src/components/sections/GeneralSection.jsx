@@ -3,9 +3,8 @@ import { Card, Inp } from "../ui";
 import { BRAND } from "../../constants/brand";
 
 export default function GeneralSection() {
-  const date = useDailyStore((s) => s.date);
-  const summaryBar = useDailyStore((s) => s.summaryBar);
-  const setField = useDailyStore((s) => s.setField);
+    const { date, summaryBar } = useDailyStore(useShallow((s) => ({ date: s.date, summaryBar: s.summaryBar })));
+    const setField = useDailyStore((s) => s.setField);
 
   return (
     <Card title="General" color={BRAND.navy}>

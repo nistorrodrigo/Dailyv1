@@ -5,11 +5,8 @@ import { BRAND } from "../../constants/brand";
 const is = { padding: "6px 8px", borderRadius: 4, border: "1px solid #d0d5dd", fontSize: 12, boxSizing: "border-box" };
 
 export default function MacroEstimatesSection() {
-  const sections = useDailyStore((s) => s.sections);
-  const macroSource = useDailyStore((s) => s.macroSource);
-  const macroCols = useDailyStore((s) => s.macroCols);
-  const macroRows = useDailyStore((s) => s.macroRows);
-  const setField = useDailyStore((s) => s.setField);
+    const { sections, macroSource, macroCols, macroRows } = useDailyStore(useShallow((s) => ({ sections: s.sections, macroSource: s.macroSource, macroCols: s.macroCols, macroRows: s.macroRows })));
+        const setField = useDailyStore((s) => s.setField);
   const updateMacroRow = useDailyStore((s) => s.updateMacroRow);
   const updateMacroRowValue = useDailyStore((s) => s.updateMacroRowValue);
   const addMacroCol = useDailyStore((s) => s.addMacroCol);

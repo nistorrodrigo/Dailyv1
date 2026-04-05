@@ -8,9 +8,8 @@ const ss = { ...is, background: "#fff" };
 const REPORT_TYPES = ["Macro", "Weekly", "Strategy", "Sector", "Special"];
 
 export default function ResearchSection() {
-  const sections = useDailyStore((s) => s.sections);
-  const researchReports = useDailyStore((s) => s.researchReports);
-  const updateListItem = useDailyStore((s) => s.updateListItem);
+    const { sections, researchReports } = useDailyStore(useShallow((s) => ({ sections: s.sections, researchReports: s.researchReports })));
+    const updateListItem = useDailyStore((s) => s.updateListItem);
   const addListItem = useDailyStore((s) => s.addListItem);
   const removeListItem = useDailyStore((s) => s.removeListItem);
 

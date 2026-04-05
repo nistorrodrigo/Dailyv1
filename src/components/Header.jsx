@@ -16,12 +16,10 @@ const hBtn = (borderColor, textColor, bg = "transparent") => ({
 });
 
 export default function Header() {
-  const copiedLabel = useDailyStore((s) => s.copiedLabel);
+    const { copiedLabel, saveStatus, darkMode } = useDailyStore(useShallow((s) => ({ copiedLabel: s.copiedLabel, saveStatus: s.saveStatus, darkMode: s.darkMode })));
   const copyToClipboard = useDailyStore((s) => s.copyToClipboard);
   const newDaily = useDailyStore((s) => s.newDaily);
-  const saveStatus = useDailyStore((s) => s.saveStatus);
-  const darkMode = useDailyStore((s) => s.darkMode);
-  const toggleDarkMode = useDailyStore((s) => s.toggleDarkMode);
+      const toggleDarkMode = useDailyStore((s) => s.toggleDarkMode);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [emailOpen, setEmailOpen] = useState(false);

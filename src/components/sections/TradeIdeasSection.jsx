@@ -8,11 +8,8 @@ const is = { padding: "6px 8px", borderRadius: 4, border: "1px solid #d0d5dd", f
 const ss = { ...is, background: "#fff" };
 
 export default function TradeIdeasSection() {
-  const sections = useDailyStore((s) => s.sections);
-  const equityPicks = useDailyStore((s) => s.equityPicks);
-  const fiIdeas = useDailyStore((s) => s.fiIdeas);
-  const analysts = useDailyStore((s) => s.analysts);
-  const updateEquityPick = useDailyStore((s) => s.updateEquityPick);
+    const { sections, equityPicks, fiIdeas, analysts } = useDailyStore(useShallow((s) => ({ sections: s.sections, equityPicks: s.equityPicks, fiIdeas: s.fiIdeas, analysts: s.analysts })));
+        const updateEquityPick = useDailyStore((s) => s.updateEquityPick);
   const addEquityPick = useDailyStore((s) => s.addEquityPick);
   const removeEquityPick = useDailyStore((s) => s.removeEquityPick);
   const updateFIIdea = useDailyStore((s) => s.updateFIIdea);

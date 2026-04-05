@@ -3,12 +3,8 @@ import { Card, Inp } from "../ui";
 import { BRAND } from "../../constants/brand";
 
 export default function FlowsSection() {
-  const sections = useDailyStore((s) => s.sections);
-  const eqBuyer = useDailyStore((s) => s.eqBuyer);
-  const eqSeller = useDailyStore((s) => s.eqSeller);
-  const fiBuyer = useDailyStore((s) => s.fiBuyer);
-  const fiSeller = useDailyStore((s) => s.fiSeller);
-  const setField = useDailyStore((s) => s.setField);
+    const { sections, eqBuyer, eqSeller, fiBuyer, fiSeller } = useDailyStore(useShallow((s) => ({ sections: s.sections, eqBuyer: s.eqBuyer, eqSeller: s.eqSeller, fiBuyer: s.fiBuyer, fiSeller: s.fiSeller })));
+          const setField = useDailyStore((s) => s.setField);
 
   if (!sections.find((x) => x.key === "flows")?.on) return null;
 

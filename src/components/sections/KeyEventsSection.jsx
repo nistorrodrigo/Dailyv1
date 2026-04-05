@@ -5,9 +5,8 @@ import { BRAND } from "../../constants/brand";
 const is = { padding: "6px 8px", borderRadius: 4, border: "1px solid #d0d5dd", fontSize: 12, boxSizing: "border-box" };
 
 export default function KeyEventsSection() {
-  const sections = useDailyStore((s) => s.sections);
-  const keyEvents = useDailyStore((s) => s.keyEvents);
-  const addKeyEvent = useDailyStore((s) => s.addKeyEvent);
+    const { sections, keyEvents } = useDailyStore(useShallow((s) => ({ sections: s.sections, keyEvents: s.keyEvents })));
+    const addKeyEvent = useDailyStore((s) => s.addKeyEvent);
   const updateKeyEvent = useDailyStore((s) => s.updateKeyEvent);
   const removeKeyEvent = useDailyStore((s) => s.removeKeyEvent);
 

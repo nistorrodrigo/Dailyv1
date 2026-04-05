@@ -14,6 +14,7 @@ import EventsSection from "./EventsSection";
 import KeyEventsSection from "./KeyEventsSection";
 import ChartSection from "./ChartSection";
 import LivePreviewPanel from "../LivePreviewPanel";
+import LazySection from "../ui/LazySection";
 import useDailyStore from "../../store/useDailyStore";
 
 const SECTION_COMPONENTS = {
@@ -41,7 +42,11 @@ export default function EditorTab() {
         <SectionToggleList />
         {sections.filter((sec) => sec.on).map((sec) => {
           const Component = SECTION_COMPONENTS[sec.key];
-          return Component ? <Component key={sec.key} /> : null;
+          return Component ? (
+            <LazySection key={sec.key}>
+              <Component />
+            </LazySection>
+          ) : null;
         })}
         <SignaturesSection />
       </div>

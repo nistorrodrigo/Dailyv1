@@ -6,10 +6,8 @@ import { BRAND } from "../../constants/brand";
 const is = { padding: "6px 8px", borderRadius: 4, border: "1px solid #d0d5dd", fontSize: 12, boxSizing: "border-box" };
 
 export default function TopMoversSection() {
-  const sections = useDailyStore((s) => s.sections);
-  const topMovers = useDailyStore((s) => s.topMovers);
-  const cclRate = useDailyStore((s) => s.cclRate);
-  const updateMover = useDailyStore((s) => s.updateMover);
+    const { sections, topMovers, cclRate } = useDailyStore(useShallow((s) => ({ sections: s.sections, topMovers: s.topMovers, cclRate: s.cclRate })));
+      const updateMover = useDailyStore((s) => s.updateMover);
   const addMover = useDailyStore((s) => s.addMover);
   const removeMover = useDailyStore((s) => s.removeMover);
   const setField = useDailyStore((s) => s.setField);

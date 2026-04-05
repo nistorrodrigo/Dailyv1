@@ -6,10 +6,9 @@ import { generateBBG } from "../../utils/generateBBG";
 
 export default function PreviewTab() {
   const ref = useRef(null);
-  const pm = useDailyStore((s) => s.previewMode);
+    const { previewMode, copiedLabel } = useDailyStore(useShallow((s) => ({ previewMode: s.previewMode, copiedLabel: s.copiedLabel })));
   const setPreviewMode = useDailyStore((s) => s.setPreviewMode);
-  const copiedLabel = useDailyStore((s) => s.copiedLabel);
-  const copyToClipboard = useDailyStore((s) => s.copyToClipboard);
+    const copyToClipboard = useDailyStore((s) => s.copyToClipboard);
 
   const [html, setHtml] = useState("");
   const [bbg, setBbg] = useState("");

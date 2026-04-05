@@ -8,9 +8,8 @@ const ss = { ...is, background: "#fff" };
 const EVENT_TYPES = ["Data Release", "Earnings", "Fed", "Other"];
 
 export default function EventsSection() {
-  const sections = useDailyStore((s) => s.sections);
-  const events = useDailyStore((s) => s.events);
-  const addEvent = useDailyStore((s) => s.addEvent);
+    const { sections, events } = useDailyStore(useShallow((s) => ({ sections: s.sections, events: s.events })));
+    const addEvent = useDailyStore((s) => s.addEvent);
   const updateEvent = useDailyStore((s) => s.updateEvent);
   const removeEvent = useDailyStore((s) => s.removeEvent);
 
