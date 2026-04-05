@@ -1,20 +1,19 @@
 import { BRAND } from "../../constants/brand";
 
 export const Toggle = ({ checked, onChange, label }) => (
-  <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", userSelect: "none" }}>
+  <label className="flex items-center gap-2.5 cursor-pointer select-none">
     <div
       onClick={() => onChange(!checked)}
-      style={{
-        width: 40, height: 22, borderRadius: 11, position: "relative",
-        background: checked ? BRAND.blue : "#c8cdd3", transition: "background 0.2s",
-      }}
+      className="relative w-10 h-[22px] rounded-full transition-colors duration-200"
+      style={{ background: checked ? BRAND.blue : "#c8cdd3" }}
     >
-      <div style={{
-        width: 18, height: 18, borderRadius: 9, background: "#fff",
-        position: "absolute", top: 2, left: checked ? 20 : 2,
-        transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
-      }} />
+      <div
+        className="absolute top-0.5 w-[18px] h-[18px] rounded-full bg-white shadow-sm transition-[left] duration-200"
+        style={{ left: checked ? 20 : 2 }}
+      />
     </div>
-    <span style={{ fontSize: 13, fontWeight: 600, color: checked ? "var(--text-primary)" : "var(--text-muted)" }}>{label}</span>
+    <span className={`text-[13px] font-semibold ${checked ? "text-[var(--text-primary)]" : "text-[var(--text-muted)]"}`}>
+      {label}
+    </span>
   </label>
 );

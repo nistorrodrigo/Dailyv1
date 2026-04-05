@@ -1,50 +1,43 @@
 import { saveDaily, loadDaily } from "./dailyApi";
 import { supabase } from "./supabase";
+import useUIStore from "../store/useUIStore";
 
 let debounceTimer = null;
 
-export function setupSupabaseSync(store) {
+export function setupSupabaseSync(dataStore) {
   if (!supabase) return;
 
+  const setSaveStatus = (status) => useUIStore.getState().setSaveStatus(status);
+
   // Load from Supabase on init
-  const date = store.getState().date;
+  const date = dataStore.getState().date;
   if (date) {
     loadDaily(date).then((daily) => {
       if (daily?.state) {
-        store.setState({ ...daily.state, saveStatus: "saved" });
+        dataStore.setState({ ...daily.state });
+        setSaveStatus("saved");
       }
     }).catch(() => {});
   }
 
-  // Subscribe to state changes and debounce save
-  store.subscribe((state, prevState) => {
-    // Skip UI-only changes
-    if (
-      state.tab !== prevState.tab ||
-      state.previewMode !== prevState.previewMode ||
-      state.copiedLabel !== prevState.copiedLabel ||
-      state.saveStatus !== prevState.saveStatus ||
-      state.darkMode !== prevState.darkMode
-    ) {
-      return;
-    }
-
-    store.setState({ saveStatus: "saving" });
+  // Subscribe to data store changes and debounce save
+  dataStore.subscribe(() => {
+    setSaveStatus("saving");
 
     if (debounceTimer) clearTimeout(debounceTimer);
     debounceTimer = setTimeout(async () => {
       try {
-        const { tab, previewMode, copiedLabel, saveStatus, darkMode, ...stateToSave } = store.getState();
-        await saveDaily(stateToSave.date, stateToSave);
-        store.setState({ saveStatus: "saved" });
+        const state = dataStore.getState();
+        await saveDaily(state.date, state);
+        setSaveStatus("saved");
         setTimeout(() => {
-          if (store.getState().saveStatus === "saved") {
-            store.setState({ saveStatus: "idle" });
+          if (useUIStore.getState().saveStatus === "saved") {
+            setSaveStatus("idle");
           }
         }, 1500);
       } catch (err) {
         console.error("Supabase save failed:", err);
-        store.setState({ saveStatus: "error" });
+        setSaveStatus("error");
       }
     }, 2000);
   });

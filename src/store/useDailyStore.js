@@ -9,13 +9,6 @@ const useDailyStore = create(
         // === State ===
         ...DEFAULT_STATE,
 
-        // === UI state ===
-        tab: "edit",
-        previewMode: "html",
-        copiedLabel: "",
-        saveStatus: "idle", // idle | saving | saved | error
-        darkMode: localStorage.getItem("ls-dark-mode") === "1",
-
         // === General actions ===
         setField: (field, value) => set((s) => ({ [field]: value })),
 
@@ -249,36 +242,10 @@ const useDailyStore = create(
             bcraHiddenRows: { ...s.bcraHiddenRows, [key]: !s.bcraHiddenRows[key] },
           })),
 
-        // === UI actions ===
-        setTab: (tab) => set({ tab }),
-        setPreviewMode: (mode) => set({ previewMode: mode }),
-        setCopiedLabel: (label) => {
-          set({ copiedLabel: label });
-          setTimeout(() => set({ copiedLabel: "" }), 2000);
-        },
-        setSaveStatus: (status) => set({ saveStatus: status }),
-        toggleDarkMode: () => {
-          const next = !get().darkMode;
-          document.documentElement.setAttribute("data-theme", next ? "dark" : "light");
-          localStorage.setItem("ls-dark-mode", next ? "1" : "0");
-          set({ darkMode: next });
-        },
-
-        // === Copy to clipboard ===
-        copyToClipboard: (text, label) => {
-          navigator.clipboard.writeText(text).then(() => {
-            set({ copiedLabel: label });
-            setTimeout(() => set({ copiedLabel: "" }), 2000);
-          });
-        },
       }),
       {
         name: STORAGE_KEY,
         version: 1,
-        partialize: (state) => {
-          const { tab, previewMode, copiedLabel, saveStatus, darkMode, ...rest } = state;
-          return rest;
-        },
       }
     ),
     { name: "DailyBuilder" }

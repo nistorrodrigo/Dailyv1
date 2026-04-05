@@ -1,41 +1,24 @@
 export const Inp = ({ label, value, onChange, multi, rows = 2, placeholder }) => (
-  <div style={{ marginBottom: 10 }}>
+  <div className="mb-2.5">
     {label && (
-      <label style={{
-        fontSize: 11, fontWeight: 600, color: "var(--text-secondary)",
-        textTransform: "uppercase", letterSpacing: 0.5,
-        display: "block", marginBottom: 4,
-      }}>
+      <label className="block mb-1 text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide">
         {label}
       </label>
     )}
     {multi ? (
       <textarea
-        className="themed-input"
+        className="themed-input w-full px-2.5 py-2 rounded-md border border-[var(--border-input)] text-[13px] font-sans leading-relaxed resize-y box-border bg-[var(--bg-input)] text-[var(--text-primary)]"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         rows={rows}
         placeholder={placeholder}
-        style={{
-          width: "100%", padding: "8px 10px", borderRadius: 6,
-          border: "1px solid var(--border-input)", fontSize: 13,
-          fontFamily: "'Segoe UI',sans-serif", resize: "vertical",
-          lineHeight: 1.5, boxSizing: "border-box",
-          background: "var(--bg-input)", color: "var(--text-primary)",
-        }}
       />
     ) : (
       <input
-        className="themed-input"
+        className="themed-input w-full px-2.5 py-2 rounded-md border border-[var(--border-input)] text-[13px] font-sans box-border bg-[var(--bg-input)] text-[var(--text-primary)]"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        style={{
-          width: "100%", padding: "8px 10px", borderRadius: 6,
-          border: "1px solid var(--border-input)", fontSize: 13,
-          fontFamily: "'Segoe UI',sans-serif", boxSizing: "border-box",
-          background: "var(--bg-input)", color: "var(--text-primary)",
-        }}
       />
     )}
   </div>

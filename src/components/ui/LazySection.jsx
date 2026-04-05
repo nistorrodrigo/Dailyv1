@@ -7,7 +7,6 @@ export default function LazySection({ children, minHeight = 80 }) {
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
@@ -17,7 +16,6 @@ export default function LazySection({ children, minHeight = 80 }) {
       },
       { rootMargin: "200px" }
     );
-
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
@@ -27,13 +25,8 @@ export default function LazySection({ children, minHeight = 80 }) {
   return (
     <div
       ref={ref}
-      style={{
-        minHeight,
-        background: "var(--bg-card)",
-        borderRadius: 10,
-        marginBottom: 14,
-        border: "1px solid var(--border-light)",
-      }}
+      className="rounded-[10px] mb-3.5 border border-[var(--border-light)] bg-[var(--bg-card)]"
+      style={{ minHeight }}
     />
   );
 }

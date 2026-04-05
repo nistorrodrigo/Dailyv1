@@ -1,21 +1,28 @@
+@import "tailwindcss";
+
 /* === LS Daily Builder — Theme System === */
 
-:root {
-  /* Brand colors (constant) */
-  --brand-navy: #000039;
-  --brand-blue: #1e5ab0;
-  --brand-sky: #3399ff;
-  --brand-teal: #23a29e;
-  --brand-salmon: #ebaca2;
-  --brand-green: #acd484;
-  --brand-orange: #ffbe65;
+@theme {
+  /* Brand colors */
+  --color-navy: #000039;
+  --color-ls-blue: #1e5ab0;
+  --color-sky: #3399ff;
+  --color-teal: #23a29e;
+  --color-salmon: #ebaca2;
+  --color-ls-green: #acd484;
+  --color-ls-orange: #ffbe65;
 
+  /* Font */
+  --font-sans: 'Segoe UI', Calibri, Arial, Helvetica, sans-serif;
+}
+
+:root {
   /* Light theme (default) */
   --bg-page: #f0f2f5;
   --bg-card: #ffffff;
   --bg-card-alt: #fafbfc;
   --bg-input: #ffffff;
-  --bg-header: var(--brand-navy);
+  --bg-header: var(--color-navy);
   --bg-tab-bar: #ffffff;
   --bg-hover: #f5f7fa;
   --bg-section-on: #f0f6ff;
@@ -32,10 +39,6 @@
 
   --shadow-card: 0 1px 3px rgba(0, 0, 57, 0.06);
   --shadow-panel: 0 2px 12px rgba(0, 0, 57, 0.1);
-
-  /* Transitions */
-  --transition-fast: 0.15s ease;
-  --transition-normal: 0.25s ease;
 }
 
 /* Dark theme */
@@ -63,18 +66,11 @@
   --shadow-panel: 0 4px 20px rgba(0, 0, 0, 0.4);
 }
 
-/* === Base styles === */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
+/* === Base overrides === */
 body {
-  font-family: 'Segoe UI', Calibri, Arial, Helvetica, sans-serif;
   background: var(--bg-page);
   color: var(--text-primary);
-  transition: background var(--transition-normal), color var(--transition-normal);
+  transition: background 0.25s ease, color 0.25s ease;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -87,89 +83,28 @@ body {
 /* === Focus styles === */
 input:focus, textarea:focus, select:focus {
   outline: none;
-  border-color: var(--brand-sky) !important;
+  border-color: var(--color-sky) !important;
   box-shadow: 0 0 0 2px rgba(51, 153, 255, 0.15);
 }
 
-/* === Responsive header === */
-@media (max-width: 768px) {
-  .header-content {
-    flex-direction: column;
-    gap: 8px !important;
-    padding: 10px 12px !important;
-  }
-  .header-buttons {
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 4px !important;
-  }
-  .header-buttons button {
-    padding: 5px 10px !important;
-    font-size: 9px !important;
-  }
-  .tab-bar button {
-    padding: 8px 12px !important;
-    font-size: 11px !important;
-  }
-  .editor-container {
-    padding: 12px !important;
-  }
-}
-
-@media (max-width: 480px) {
-  .header-logo-text {
-    display: none;
-  }
-  .header-buttons button span.btn-label {
-    display: none;
-  }
-}
-
-/* === Smooth transitions for themed elements === */
-.themed-card {
-  background: var(--bg-card);
-  border-color: var(--border-light);
-  box-shadow: var(--shadow-card);
-  transition: background var(--transition-normal), border-color var(--transition-normal);
-}
-
+/* === Themed utilities === */
 .themed-input {
   background: var(--bg-input);
   border-color: var(--border-input);
   color: var(--text-primary);
-  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
+.themed-input::placeholder { color: var(--text-placeholder); }
 
-.themed-input::placeholder {
-  color: var(--text-placeholder);
-}
-
-/* === Button hover effects === */
-button {
-  transition: all var(--transition-fast);
-}
-button:hover:not(:disabled) {
-  opacity: 0.85;
-  transform: translateY(-1px);
-}
-button:active:not(:disabled) {
-  transform: translateY(0);
-}
-
-/* === Animation for save indicator === */
+/* === Animations === */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(-4px); }
   to { opacity: 1; transform: translateY(0); }
 }
-.save-indicator {
-  animation: fadeIn 0.2s ease;
-}
+.save-indicator { animation: fadeIn 0.2s ease; }
 
-/* === Card enter animation === */
 @keyframes cardSlideIn {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
-.card-animated {
-  animation: cardSlideIn 0.2s ease;
-}
+.card-animated { animation: cardSlideIn 0.2s ease; }

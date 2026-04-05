@@ -1,14 +1,16 @@
 import { useRef, useState, useEffect, useCallback } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { BRAND } from "../../constants/brand";
 import useDailyStore from "../../store/useDailyStore";
+import useUIStore from "../../store/useUIStore";
 import { generateHTML } from "../../utils/generateHTML";
 import { generateBBG } from "../../utils/generateBBG";
 
 export default function PreviewTab() {
   const ref = useRef(null);
-    const { previewMode, copiedLabel } = useDailyStore(useShallow((s) => ({ previewMode: s.previewMode, copiedLabel: s.copiedLabel })));
-  const setPreviewMode = useDailyStore((s) => s.setPreviewMode);
-    const copyToClipboard = useDailyStore((s) => s.copyToClipboard);
+  const { previewMode, copiedLabel } = useUIStore(useShallow((s) => ({ previewMode: s.previewMode, copiedLabel: s.copiedLabel })));
+  const setPreviewMode = useUIStore((s) => s.setPreviewMode);
+  const copyToClipboard = useUIStore((s) => s.copyToClipboard);
 
   const [html, setHtml] = useState("");
   const [bbg, setBbg] = useState("");

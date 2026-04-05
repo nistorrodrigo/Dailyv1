@@ -1,6 +1,8 @@
 import { useState, useCallback } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { BRAND, LOGO_WHITE_URL } from "../constants/brand";
 import useDailyStore from "../store/useDailyStore";
+import useUIStore from "../store/useUIStore";
 import { generateHTML } from "../utils/generateHTML";
 import { generateBBG } from "../utils/generateBBG";
 import HistoryPanel from "./HistoryPanel";
@@ -16,15 +18,14 @@ const hBtn = (borderColor, textColor, bg = "transparent") => ({
 });
 
 export default function Header() {
-    const { copiedLabel, saveStatus, darkMode } = useDailyStore(useShallow((s) => ({ copiedLabel: s.copiedLabel, saveStatus: s.saveStatus, darkMode: s.darkMode })));
-  const copyToClipboard = useDailyStore((s) => s.copyToClipboard);
+  const { copiedLabel, saveStatus, darkMode } = useUIStore(useShallow((s) => ({ copiedLabel: s.copiedLabel, saveStatus: s.saveStatus, darkMode: s.darkMode })));
+  const copyToClipboard = useUIStore((s) => s.copyToClipboard);
+  const toggleDarkMode = useUIStore((s) => s.toggleDarkMode);
   const newDaily = useDailyStore((s) => s.newDaily);
-      const toggleDarkMode = useDailyStore((s) => s.toggleDarkMode);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [emailOpen, setEmailOpen] = useState(false);
 
-  // Lazy generate — only compute when user clicks copy, not on every render
   const copyGenerated = useCallback((type) => {
     const state = useDailyStore.getState();
     const text = type === "html" ? generateHTML(state) : generateBBG(state);

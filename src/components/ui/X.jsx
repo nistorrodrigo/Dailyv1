@@ -1,10 +1,7 @@
 export const X = ({ onClick }) => (
   <button
     onClick={onClick}
-    style={{
-      background: "none", border: "none", color: "#c0392b",
-      cursor: "pointer", fontSize: 18, padding: "0 4px", lineHeight: 1,
-    }}
+    className="bg-transparent border-none text-red-600 cursor-pointer text-lg px-1 leading-none hover:text-red-800"
   >
     {"\u00D7"}
   </button>
