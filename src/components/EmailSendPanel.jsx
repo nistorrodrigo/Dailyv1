@@ -181,18 +181,52 @@ export default function EmailSendPanel({ open, onClose }) {
           />
           {pinError && <div className="text-[11px] text-red-500 mt-1 font-semibold">{pinError}</div>}
         </div>
-        <button
-          onClick={handleSend}
-          disabled={sending || !pin.trim()}
-          style={{
-            width: "100%", padding: "12px 20px", borderRadius: 6,
-            border: "none", background: sending || !pin.trim() ? "#999" : BRAND.blue,
-            color: "#fff", fontSize: 13, fontWeight: 700,
-            cursor: sending || !pin.trim() ? "default" : "pointer", textTransform: "uppercase",
-          }}
-        >
-          {sending ? "Sending..." : "Send Daily Email"}
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => {
+              if (!pin.trim()) { setPinError("Enter PIN"); return; }
+              const testEmail = prompt("Send test to which email?", "rodrigo.nistor@latinsecurities.ar");
+              if (!testEmail) return;
+              setSending(true);
+              setPinError("");
+              generateHTML(useDailyStore.getState()).then ? null : null;
+              const html = generateHTML(useDailyStore.getState());
+              fetch("/api/send-email", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ html, subject: `[TEST] ${subject.trim()}`, recipients: [testEmail], pin: pin.trim() }),
+              }).then(r => r.json()).then(data => {
+                if (!data.ok) throw new Error(data.error);
+                alert(`Test email sent to ${testEmail}`);
+              }).catch(err => {
+                if (err.message?.includes("Invalid PIN")) setPinError("Invalid PIN");
+                else alert("Test failed: " + err.message);
+              }).finally(() => setSending(false));
+            }}
+            disabled={sending || !pin.trim()}
+            style={{
+              flex: 1, padding: "12px 16px", borderRadius: 6,
+              border: `2px solid ${BRAND.orange}`, background: "transparent",
+              color: BRAND.orange, fontSize: 12, fontWeight: 700,
+              cursor: sending || !pin.trim() ? "default" : "pointer", textTransform: "uppercase",
+              opacity: sending || !pin.trim() ? 0.5 : 1,
+            }}
+          >
+            {sending ? "..." : "Test Email"}
+          </button>
+          <button
+            onClick={handleSend}
+            disabled={sending || !pin.trim()}
+            style={{
+              flex: 2, padding: "12px 20px", borderRadius: 6,
+              border: "none", background: sending || !pin.trim() ? "#999" : BRAND.blue,
+              color: "#fff", fontSize: 13, fontWeight: 700,
+              cursor: sending || !pin.trim() ? "default" : "pointer", textTransform: "uppercase",
+            }}
+          >
+            {sending ? "Sending..." : "Send Daily Email"}
+          </button>
+        </div>
       </div>
     </div>
   );
