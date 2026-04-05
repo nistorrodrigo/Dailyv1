@@ -25,9 +25,9 @@ export default function PreviewTab() {
   const handleCopy = useCallback(() => {
     // Regenerate fresh on copy
     const state = useDailyStore.getState();
-    const text = pm === "html" ? generateHTML(state) : generateBBG(state);
-    copyToClipboard(text, pm);
-  }, [pm, copyToClipboard]);
+    const text = previewMode === "html" ? generateHTML(state) : generateBBG(state);
+    copyToClipboard(text, previewMode);
+  }, [previewMode, copyToClipboard]);
 
   const handleRefresh = useCallback(() => {
     const state = useDailyStore.getState();
@@ -46,8 +46,8 @@ export default function PreviewTab() {
               padding: "8px 20px", borderRadius: 6, border: "none",
               cursor: "pointer", fontSize: 12, fontWeight: 700,
               textTransform: "uppercase",
-              background: pm === m ? "var(--brand-navy)" : "var(--bg-card-alt)",
-              color: pm === m ? "#fff" : "var(--text-muted)",
+              background: previewMode === m ? "var(--brand-navy)" : "var(--bg-card-alt)",
+              color: previewMode === m ? "#fff" : "var(--text-muted)",
             }}
           >
             {m === "html" ? "SendGrid HTML" : "Bloomberg Text"}
@@ -73,10 +73,10 @@ export default function PreviewTab() {
             cursor: "pointer", textTransform: "uppercase",
           }}
         >
-          {copiedLabel === pm ? "\u2713 Copied!" : `Copy ${pm === "html" ? "HTML" : "BBG"}`}
+          {copiedLabel === previewMode ? "\u2713 Copied!" : `Copy ${previewMode === "html" ? "HTML" : "BBG"}`}
         </button>
       </div>
-      {pm === "html" ? (
+      {previewMode === "html" ? (
         <div style={{
           background: "#fff", borderRadius: 8, overflow: "hidden",
           boxShadow: "var(--shadow-panel)",
