@@ -5,8 +5,16 @@ import { Card, Inp, X, DashBtn } from "../ui";
 import MarkdownEditor from "../ui/MarkdownEditor";
 import { BRAND } from "../../constants/brand";
 
+const AI_MODELS = [
+  { key: "haiku", label: "Haiku 4.5", cost: "~$0.002/draft" },
+  { key: "sonnet", label: "Sonnet 4.6", cost: "~$0.012/draft" },
+  { key: "opus", label: "Opus 4.6", cost: "~$0.06/draft" },
+];
+
 export default function MacroSection() {
-  const { sections, macroBlocks, date } = useDailyStore(useShallow((s) => ({ sections: s.sections, macroBlocks: s.macroBlocks, date: s.date })));
+  const { sections, macroBlocks, date, analysts } = useDailyStore(useShallow((s) => ({
+    sections: s.sections, macroBlocks: s.macroBlocks, date: s.date, analysts: s.analysts,
+  })));
   const updateListItem = useDailyStore((s) => s.updateListItem);
   const addListItem = useDailyStore((s) => s.addListItem);
   const removeListItem = useDailyStore((s) => s.removeListItem);
@@ -15,10 +23,14 @@ export default function MacroSection() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiContext, setAiContext] = useState("");
   const [showAiInput, setShowAiInput] = useState(false);
+  const [aiModel, setAiModel] = useState("haiku");
+  const [aiMode, setAiMode] = useState("macro"); // "macro" | "full"
 
   if (!sections.find((x) => x.key === "macro")?.on) return null;
 
   const handleAiDraft = async () => {
+    if (aiMode === "full" && !window.confirm("Generate a FULL daily draft? This will add content to Macro, Trade Ideas, and Flows sections.")) return;
+
     setAiLoading(true);
     try {
       const resp = await fetch("/api/ai-draft", {
@@ -28,32 +40,50 @@ export default function MacroSection() {
           context: aiContext,
           existingBlocks: macroBlocks.filter((b) => b.body),
           date,
+          model: aiModel,
+          mode: aiMode,
+          analysts: aiMode === "full" ? analysts : undefined,
         }),
       });
       const data = await resp.json();
       if (!data.ok) throw new Error(data.error);
 
-      const newBlocks = data.blocks.map((b, i) => ({
-        id: `ai${Date.now()}${i}`,
-        title: b.title || "AI DRAFT",
-        body: b.body || "",
-        lsPick: b.lsPick || "",
-      }));
+      if (aiMode === "full" && data.daily) {
+        const d = data.daily;
+        // Apply full daily draft
+        if (d.summaryBar) setField("summaryBar", d.summaryBar);
+        if (d.macroBlocks?.length) {
+          const newBlocks = d.macroBlocks.map((b, i) => ({
+            id: `ai${Date.now()}${i}`, title: b.title || "", body: b.body || "", lsPick: b.lsPick || "",
+          }));
+          setField("macroBlocks", [...macroBlocks, ...newBlocks]);
+        }
+        if (d.equityPicks?.length) setField("equityPicks", d.equityPicks);
+        if (d.fiIdeas?.length) setField("fiIdeas", d.fiIdeas);
+        if (d.eqBuyer) setField("eqBuyer", d.eqBuyer);
+        if (d.eqSeller) setField("eqSeller", d.eqSeller);
+        if (d.fiBuyer) setField("fiBuyer", d.fiBuyer);
+        if (d.fiSeller) setField("fiSeller", d.fiSeller);
+      } else if (data.blocks) {
+        const newBlocks = data.blocks.map((b, i) => ({
+          id: `ai${Date.now()}${i}`, title: b.title || "AI DRAFT", body: b.body || "", lsPick: b.lsPick || "",
+        }));
+        setField("macroBlocks", [...macroBlocks, ...newBlocks]);
+      }
 
-      setField("macroBlocks", [...macroBlocks, ...newBlocks]);
       setShowAiInput(false);
       setAiContext("");
 
-      const cost = data.usage
-        ? `(${data.usage.input + data.usage.output} tokens)`
-        : "";
-      alert(`Added ${newBlocks.length} AI-drafted blocks ${cost}`);
+      const tokens = data.usage ? data.usage.input + data.usage.output : 0;
+      alert(`${aiMode === "full" ? "Full daily" : "Macro blocks"} drafted with ${data.model} (${tokens} tokens)`);
     } catch (err) {
       alert("AI Draft failed: " + err.message);
     } finally {
       setAiLoading(false);
     }
   };
+
+  const selectedModel = AI_MODELS.find((m) => m.key === aiModel);
 
   return (
     <Card title="Macro / Political" color={BRAND.navy}>
@@ -89,14 +119,66 @@ export default function MacroSection() {
 
       {showAiInput && (
         <div className="p-3 rounded-md border border-[var(--border-light)] mt-2" style={{ background: "var(--bg-card-alt)" }}>
+          {/* Mode selector */}
+          <div className="flex gap-2 mb-3">
+            <button
+              onClick={() => setAiMode("macro")}
+              className={`flex-1 py-2 rounded-md text-xs font-bold border cursor-pointer ${
+                aiMode === "macro"
+                  ? "border-[#8b5cf6] text-white"
+                  : "border-[var(--border-input)] text-[var(--text-muted)] bg-transparent"
+              }`}
+              style={aiMode === "macro" ? { background: "#8b5cf6" } : {}}
+            >
+              Macro Only
+            </button>
+            <button
+              onClick={() => setAiMode("full")}
+              className={`flex-1 py-2 rounded-md text-xs font-bold border cursor-pointer ${
+                aiMode === "full"
+                  ? "border-[#8b5cf6] text-white"
+                  : "border-[var(--border-input)] text-[var(--text-muted)] bg-transparent"
+              }`}
+              style={aiMode === "full" ? { background: "#8b5cf6" } : {}}
+            >
+              Full Daily
+            </button>
+          </div>
+
+          {/* Model selector */}
+          <div className="mb-3">
+            <label className="block mb-1 text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide">Model</label>
+            <div className="flex gap-1.5">
+              {AI_MODELS.map((m) => (
+                <button
+                  key={m.key}
+                  onClick={() => setAiModel(m.key)}
+                  className={`flex-1 py-1.5 rounded text-[10px] font-bold border cursor-pointer ${
+                    aiModel === m.key
+                      ? "border-[#8b5cf6] text-[#8b5cf6]"
+                      : "border-[var(--border-input)] text-[var(--text-muted)]"
+                  }`}
+                  style={{ background: aiModel === m.key ? "rgba(139,92,246,0.1)" : "transparent" }}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+            <div className="text-[10px] text-[var(--text-muted)] mt-1">{selectedModel?.cost}</div>
+          </div>
+
+          {/* Context input */}
           <label className="block mb-1 text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide">
-            Context / notes for AI (optional)
+            Context / notes (optional)
           </label>
           <textarea
             value={aiContext}
             onChange={(e) => setAiContext(e.target.value)}
             rows={3}
-            placeholder="E.g. 'BCRA bought $200mn today, inflation came in at 2.1% MoM, treasury auction was oversubscribed...'"
+            placeholder={aiMode === "full"
+              ? "E.g. 'Risk-on day, BCRA bought $200mn, inflation 2.1%, banks rallying on earnings...'"
+              : "E.g. 'BCRA bought $200mn today, inflation came in at 2.1% MoM...'"
+            }
             className="themed-input w-full px-2.5 py-2 rounded-md border border-[var(--border-input)] text-[13px] font-sans leading-relaxed resize-y box-border bg-[var(--bg-input)] text-[var(--text-primary)] mb-2"
           />
           <div className="flex gap-2 items-center">
@@ -106,7 +188,7 @@ export default function MacroSection() {
               className="px-4 py-2 rounded-md border-none text-white text-xs font-bold cursor-pointer disabled:opacity-50"
               style={{ background: "#8b5cf6" }}
             >
-              {aiLoading ? "Generating..." : "Generate Draft"}
+              {aiLoading ? "Generating..." : aiMode === "full" ? "Generate Full Daily" : "Generate Macro Blocks"}
             </button>
             <button
               onClick={() => { setShowAiInput(false); setAiContext(""); }}
@@ -114,9 +196,6 @@ export default function MacroSection() {
             >
               Cancel
             </button>
-            <span className="text-[10px] text-[var(--text-muted)]">
-              Powered by Claude Haiku — ~$0.002/draft
-            </span>
           </div>
         </div>
       )}
