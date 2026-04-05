@@ -1,4 +1,5 @@
 import useUIStore from "./store/useUIStore";
+import useKeyboardShortcuts from "./hooks/useKeyboardShortcuts";
 import Header from "./components/Header";
 import EditorTab from "./components/sections/EditorTab";
 import AnalystsTab from "./components/sections/AnalystsTab";
@@ -14,6 +15,7 @@ const tabCls = (active) =>
 export default function App() {
   const tab = useUIStore((s) => s.tab);
   const setTab = useUIStore((s) => s.setTab);
+  useKeyboardShortcuts();
 
   return (
     <div className="min-h-screen bg-[var(--bg-page)] font-sans">

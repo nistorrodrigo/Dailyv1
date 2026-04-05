@@ -1,8 +1,10 @@
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
+import { temporal } from "zundo";
 import { DEFAULT_STATE, DEFAULT_ANALYSTS, STORAGE_KEY } from "../constants/defaultState";
 
 const useDailyStore = create(
+  temporal(
   devtools(
     persist(
       (set, get) => ({
@@ -249,6 +251,8 @@ const useDailyStore = create(
       }
     ),
     { name: "DailyBuilder" }
+  ),
+  { limit: 50, wrapTemporal: (fn) => fn }
   )
 );
 

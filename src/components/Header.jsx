@@ -8,6 +8,8 @@ import { generateBBG } from "../utils/generateBBG";
 import HistoryPanel from "./HistoryPanel";
 import TemplatesPanel from "./TemplatesPanel";
 import EmailSendPanel from "./EmailSendPanel";
+import DuplicateYesterdayBtn from "./DuplicateYesterdayBtn";
+import DiffPanel from "./DiffPanel";
 
 const hBtn = (borderColor, textColor, bg = "transparent") => ({
   padding: "6px 14px", borderRadius: 6,
@@ -25,6 +27,7 @@ export default function Header() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [emailOpen, setEmailOpen] = useState(false);
+  const [diffOpen, setDiffOpen] = useState(false);
 
   const copyGenerated = useCallback((type) => {
     const state = useDailyStore.getState();
@@ -79,6 +82,8 @@ export default function Header() {
 
           <button onClick={() => setTemplatesOpen(true)} style={hBtn(BRAND.teal, BRAND.teal)}>Templates</button>
           <button onClick={() => setHistoryOpen(true)} style={hBtn(BRAND.salmon, BRAND.salmon)}>History</button>
+          <button onClick={() => setDiffOpen(true)} style={hBtn("#9b59b6", "#9b59b6")}>Diff</button>
+          <DuplicateYesterdayBtn />
           <button onClick={newDaily} style={hBtn(BRAND.orange, BRAND.orange)}>New Daily</button>
           <button onClick={() => copyGenerated("html")} style={hBtn(BRAND.sky, BRAND.sky)}>
             {copiedLabel === "html" ? "\u2713 Copied!" : "Copy HTML"}
@@ -94,6 +99,7 @@ export default function Header() {
       <HistoryPanel open={historyOpen} onClose={() => setHistoryOpen(false)} />
       <TemplatesPanel open={templatesOpen} onClose={() => setTemplatesOpen(false)} />
       <EmailSendPanel open={emailOpen} onClose={() => setEmailOpen(false)} />
+      <DiffPanel open={diffOpen} onClose={() => setDiffOpen(false)} />
     </>
   );
 }
