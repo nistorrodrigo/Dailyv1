@@ -14,7 +14,7 @@ const useDailyStore = create(
         previewMode: "html",
         copiedLabel: "",
         saveStatus: "idle", // idle | saving | saved | error
-        darkMode: false,
+        darkMode: localStorage.getItem("ls-dark-mode") === "1",
 
         // === General actions ===
         setField: (field, value) => set((s) => ({ [field]: value })),
@@ -260,6 +260,7 @@ const useDailyStore = create(
         toggleDarkMode: () => {
           const next = !get().darkMode;
           document.documentElement.setAttribute("data-theme", next ? "dark" : "light");
+          localStorage.setItem("ls-dark-mode", next ? "1" : "0");
           set({ darkMode: next });
         },
 
@@ -275,7 +276,7 @@ const useDailyStore = create(
         name: STORAGE_KEY,
         version: 1,
         partialize: (state) => {
-          const { tab, previewMode, copiedLabel, saveStatus, ...rest } = state;
+          const { tab, previewMode, copiedLabel, saveStatus, darkMode, ...rest } = state;
           return rest;
         },
       }

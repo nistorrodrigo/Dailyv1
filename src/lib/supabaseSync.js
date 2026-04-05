@@ -23,7 +23,8 @@ export function setupSupabaseSync(store) {
       state.tab !== prevState.tab ||
       state.previewMode !== prevState.previewMode ||
       state.copiedLabel !== prevState.copiedLabel ||
-      state.saveStatus !== prevState.saveStatus
+      state.saveStatus !== prevState.saveStatus ||
+      state.darkMode !== prevState.darkMode
     ) {
       return;
     }
@@ -33,7 +34,7 @@ export function setupSupabaseSync(store) {
     if (debounceTimer) clearTimeout(debounceTimer);
     debounceTimer = setTimeout(async () => {
       try {
-        const { tab, previewMode, copiedLabel, saveStatus, ...stateToSave } = store.getState();
+        const { tab, previewMode, copiedLabel, saveStatus, darkMode, ...stateToSave } = store.getState();
         await saveDaily(stateToSave.date, stateToSave);
         store.setState({ saveStatus: "saved" });
         setTimeout(() => {
