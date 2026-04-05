@@ -14,8 +14,8 @@ function SortableItem({ sec }) {
     transition,
     display: "flex", alignItems: "center", gap: 10,
     padding: "8px 10px", marginBottom: 4,
-    background: sec.on ? "#f0f6ff" : "#fafafa",
-    borderRadius: 6, border: `1px solid ${sec.on ? BRAND.sky + "40" : "#eee"}`,
+    background: sec.on ? "var(--bg-section-on)" : "var(--bg-section-off)",
+    borderRadius: 6, border: `1px solid ${sec.on ? BRAND.sky + "40" : "var(--border-section)"}`,
   };
 
   return (
@@ -30,7 +30,7 @@ function SortableItem({ sec }) {
       >
         {"\u2630"}
       </div>
-      <span style={{ fontSize: 13, fontWeight: 600, color: BRAND.navy, flex: 1 }}>
+      <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", flex: 1 }}>
         {sec.label}
       </span>
       <Toggle
@@ -60,8 +60,8 @@ export default function SectionToggleList() {
   };
 
   return (
-    <Card title="Sections \u2014 Toggle & Reorder" color={BRAND.navy}>
-      <p style={{ fontSize: 11, color: "#888", margin: "0 0 10px" }}>
+    <Card title="Sections — Toggle & Reorder" color={BRAND.navy}>
+      <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "0 0 10px" }}>
         Toggle on/off and drag to reorder. Output follows this order.
       </p>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>

@@ -14,6 +14,7 @@ const useDailyStore = create(
         previewMode: "html",
         copiedLabel: "",
         saveStatus: "idle", // idle | saving | saved | error
+        darkMode: false,
 
         // === General actions ===
         setField: (field, value) => set((s) => ({ [field]: value })),
@@ -256,6 +257,11 @@ const useDailyStore = create(
           setTimeout(() => set({ copiedLabel: "" }), 2000);
         },
         setSaveStatus: (status) => set({ saveStatus: status }),
+        toggleDarkMode: () => {
+          const next = !get().darkMode;
+          document.documentElement.setAttribute("data-theme", next ? "dark" : "light");
+          set({ darkMode: next });
+        },
 
         // === Copy to clipboard ===
         copyToClipboard: (text, label) => {

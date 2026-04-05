@@ -135,7 +135,7 @@ export default function AnalystsTab() {
           </span>
         </div>
         {analysts.map((a) => (
-          <div key={a.id} style={{ padding: 14, background: "#fafbfc", borderRadius: 8, marginBottom: 14, border: "1px solid #eee" }}>
+          <div key={a.id} style={{ padding: 14, background: "var(--bg-card-alt)", borderRadius: 8, marginBottom: 14, border: "1px solid #eee" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
               <div style={{ display: "flex", gap: 8, flex: 1 }}>
                 <input value={a.name} onChange={(e) => updateListItem("analysts", a.id, "name", e.target.value)} placeholder="Name" style={{ ...is, fontWeight: 700, flex: 2 }} />

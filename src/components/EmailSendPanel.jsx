@@ -85,7 +85,7 @@ export default function EmailSendPanel({ open, onClose }) {
   return (
     <div style={{
       position: "fixed", top: 0, right: 0, bottom: 0, width: 400,
-      background: "#fff", boxShadow: "-4px 0 24px rgba(0,0,57,0.15)",
+      background: "var(--bg-card)", boxShadow: "var(--shadow-panel)",
       zIndex: 1000, display: "flex", flexDirection: "column",
     }}>
       <div style={{

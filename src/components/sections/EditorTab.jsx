@@ -36,7 +36,7 @@ export default function EditorTab() {
 
   return (
     <LivePreviewPanel>
-      <div style={{ maxWidth: 800, margin: "0 auto", padding: 20 }}>
+      <div className="editor-container" style={{ maxWidth: 800, margin: "0 auto", padding: 20 }}>
         <GeneralSection />
         <SectionToggleList />
         {sections.filter((sec) => sec.on).map((sec) => {

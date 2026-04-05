@@ -63,7 +63,7 @@ export default function HistoryPanel({ open, onClose }) {
   return (
     <div style={{
       position: "fixed", top: 0, right: 0, bottom: 0, width: 360,
-      background: "#fff", boxShadow: "-4px 0 24px rgba(0,0,57,0.15)",
+      background: "var(--bg-card)", boxShadow: "var(--shadow-panel)",
       zIndex: 1000, display: "flex", flexDirection: "column",
     }}>
       <div style={{
@@ -93,9 +93,9 @@ export default function HistoryPanel({ open, onClose }) {
         {dailies.map((d) => (
           <div key={d.id} style={{
             padding: 12, marginBottom: 8, borderRadius: 6,
-            border: "1px solid #e4e8ed", background: "#fafbfc",
+            border: "1px solid var(--border-light)", background: "var(--bg-card-alt)",
           }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: BRAND.navy, marginBottom: 4 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", marginBottom: 4 }}>
               {d.date}
             </div>
             <div style={{ fontSize: 10, color: "#999", marginBottom: 8 }}>

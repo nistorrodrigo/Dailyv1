@@ -15,6 +15,6 @@ export const Toggle = ({ checked, onChange, label }) => (
         transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
       }} />
     </div>
-    <span style={{ fontSize: 13, fontWeight: 600, color: checked ? BRAND.navy : "#999" }}>{label}</span>
+    <span style={{ fontSize: 13, fontWeight: 600, color: checked ? "var(--text-primary)" : "var(--text-muted)" }}>{label}</span>
   </label>
 );

@@ -7,12 +7,22 @@ import HistoryPanel from "./HistoryPanel";
 import TemplatesPanel from "./TemplatesPanel";
 import EmailSendPanel from "./EmailSendPanel";
 
+const hBtn = (borderColor, textColor, bg = "transparent") => ({
+  padding: "6px 14px", borderRadius: 6,
+  border: bg === "transparent" ? `1px solid ${borderColor}` : "none",
+  background: bg, color: textColor,
+  fontSize: 10, fontWeight: 700, cursor: "pointer",
+  textTransform: "uppercase", letterSpacing: 0.5, whiteSpace: "nowrap",
+});
+
 export default function Header() {
   const s = useDailyStore();
   const copiedLabel = useDailyStore((s) => s.copiedLabel);
   const copyToClipboard = useDailyStore((s) => s.copyToClipboard);
   const newDaily = useDailyStore((s) => s.newDaily);
   const saveStatus = useDailyStore((s) => s.saveStatus);
+  const darkMode = useDailyStore((s) => s.darkMode);
+  const toggleDarkMode = useDailyStore((s) => s.toggleDarkMode);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [emailOpen, setEmailOpen] = useState(false);
@@ -21,100 +31,67 @@ export default function Header() {
   const bbg = generateBBG(s);
 
   return (
-    <div style={{
-      background: BRAND.navy, padding: "12px 24px",
-      display: "flex", alignItems: "center", justifyContent: "space-between",
-      borderBottom: `3px solid ${BRAND.sky}`,
-    }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <img src={LOGO_WHITE_URL} alt="LS" style={{ height: 28 }} />
-        <div style={{
-          fontSize: 10, letterSpacing: 1, color: BRAND.sky, textTransform: "uppercase",
-        }}>
-          Daily Builder
+    <>
+      <div className="header-content" style={{
+        background: "var(--bg-header)", padding: "10px 20px",
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        borderBottom: `3px solid ${BRAND.sky}`,
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <img src={LOGO_WHITE_URL} alt="LS" style={{ height: 26 }} />
+          <span className="header-logo-text" style={{
+            fontSize: 10, letterSpacing: 1.2, color: BRAND.sky,
+            textTransform: "uppercase", fontWeight: 600,
+          }}>
+            Daily Builder
+          </span>
         </div>
-      </div>
-      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-        {saveStatus === "saved" && (
-          <span style={{ fontSize: 10, color: BRAND.green, fontWeight: 600, letterSpacing: 0.5 }}>
-            {"\u2713"} SAVED
-          </span>
-        )}
-        {saveStatus === "saving" && (
-          <span style={{ fontSize: 10, color: BRAND.orange, fontWeight: 600, letterSpacing: 0.5 }}>
-            SAVING...
-          </span>
-        )}
-        <button
-          onClick={() => setTemplatesOpen(true)}
-          style={{
-            padding: "7px 16px", borderRadius: 6,
-            border: `1px solid ${BRAND.teal}`, background: "transparent",
-            color: BRAND.teal, fontSize: 11, fontWeight: 700,
-            cursor: "pointer", textTransform: "uppercase",
-          }}
-        >
-          Templates
-        </button>
-        <button
-          onClick={() => setHistoryOpen(true)}
-          style={{
-            padding: "7px 16px", borderRadius: 6,
-            border: `1px solid ${BRAND.salmon}`, background: "transparent",
-            color: BRAND.salmon, fontSize: 11, fontWeight: 700,
-            cursor: "pointer", textTransform: "uppercase",
-          }}
-        >
-          History
-        </button>
-        <button
-          onClick={newDaily}
-          style={{
-            padding: "7px 16px", borderRadius: 6,
-            border: `1px solid ${BRAND.orange}`, background: "transparent",
-            color: BRAND.orange, fontSize: 11, fontWeight: 700,
-            cursor: "pointer", textTransform: "uppercase",
-          }}
-        >
-          New Daily
-        </button>
-        <button
-          onClick={() => copyToClipboard(html, "html")}
-          style={{
-            padding: "7px 16px", borderRadius: 6,
-            border: `1px solid ${BRAND.sky}`, background: "transparent",
-            color: BRAND.sky, fontSize: 11, fontWeight: 700,
-            cursor: "pointer", textTransform: "uppercase",
-          }}
-        >
-          {copiedLabel === "html" ? "\u2713 Copied!" : "Copy HTML"}
-        </button>
-        <button
-          onClick={() => copyToClipboard(bbg, "bbg")}
-          style={{
-            padding: "7px 16px", borderRadius: 6,
-            border: `1px solid ${BRAND.green}`, background: "transparent",
-            color: BRAND.green, fontSize: 11, fontWeight: 700,
-            cursor: "pointer", textTransform: "uppercase",
-          }}
-        >
-          {copiedLabel === "bbg" ? "\u2713 Copied!" : "Copy BBG"}
-        </button>
-        <button
-          onClick={() => setEmailOpen(true)}
-          style={{
-            padding: "7px 16px", borderRadius: 6,
-            border: "none", background: BRAND.blue,
-            color: "#fff", fontSize: 11, fontWeight: 700,
-            cursor: "pointer", textTransform: "uppercase",
-          }}
-        >
-          Send Email
-        </button>
+        <div className="header-buttons" style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          {saveStatus === "saved" && (
+            <span className="save-indicator" style={{ fontSize: 10, color: BRAND.green, fontWeight: 600, letterSpacing: 0.5 }}>
+              {"\u2713"} SAVED
+            </span>
+          )}
+          {saveStatus === "saving" && (
+            <span className="save-indicator" style={{ fontSize: 10, color: BRAND.orange, fontWeight: 600, letterSpacing: 0.5 }}>
+              SAVING...
+            </span>
+          )}
+          {saveStatus === "error" && (
+            <span className="save-indicator" style={{ fontSize: 10, color: "#e74c3c", fontWeight: 600 }}>
+              OFFLINE
+            </span>
+          )}
+
+          {/* Dark mode toggle */}
+          <button
+            onClick={toggleDarkMode}
+            style={{
+              ...hBtn("transparent", "#fff", "transparent"),
+              border: "none", fontSize: 16, padding: "4px 8px",
+            }}
+            title={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+          >
+            {darkMode ? "\u2600" : "\u263E"}
+          </button>
+
+          <button onClick={() => setTemplatesOpen(true)} style={hBtn(BRAND.teal, BRAND.teal)}>Templates</button>
+          <button onClick={() => setHistoryOpen(true)} style={hBtn(BRAND.salmon, BRAND.salmon)}>History</button>
+          <button onClick={newDaily} style={hBtn(BRAND.orange, BRAND.orange)}>New Daily</button>
+          <button onClick={() => copyToClipboard(html, "html")} style={hBtn(BRAND.sky, BRAND.sky)}>
+            {copiedLabel === "html" ? "\u2713 Copied!" : "Copy HTML"}
+          </button>
+          <button onClick={() => copyToClipboard(bbg, "bbg")} style={hBtn(BRAND.green, BRAND.green)}>
+            {copiedLabel === "bbg" ? "\u2713 Copied!" : "Copy BBG"}
+          </button>
+          <button onClick={() => setEmailOpen(true)} style={hBtn("none", "#fff", BRAND.blue)}>
+            Send Email
+          </button>
+        </div>
       </div>
       <HistoryPanel open={historyOpen} onClose={() => setHistoryOpen(false)} />
       <TemplatesPanel open={templatesOpen} onClose={() => setTemplatesOpen(false)} />
       <EmailSendPanel open={emailOpen} onClose={() => setEmailOpen(false)} />
-    </div>
+    </>
   );
 }
