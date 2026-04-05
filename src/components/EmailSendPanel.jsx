@@ -14,6 +14,8 @@ export default function EmailSendPanel({ open, onClose }) {
   const [newName, setNewName] = useState("");
   const date = useDailyStore((s) => s.date);
   const [subject, setSubject] = useState("");
+  const [pin, setPin] = useState("");
+  const [pinError, setPinError] = useState("");
 
   useEffect(() => {
     if (open) {
@@ -56,9 +58,6 @@ export default function EmailSendPanel({ open, onClose }) {
       try { await removeRecipient(id); } catch (err) { console.error(err); }
     }
   };
-
-  const [pin, setPin] = useState("");
-  const [pinError, setPinError] = useState("");
 
   const handleSend = async () => {
     const activeRecipients = recipients.filter((r) => r.active).map((r) => r.email);
