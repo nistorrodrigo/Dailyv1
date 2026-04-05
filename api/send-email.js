@@ -6,7 +6,16 @@ export default async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
-  const { html, subject, recipients } = req.body;
+  const { html, subject, recipients, pin } = req.body;
+
+  // === Security: PIN verification ===
+  const validPin = process.env.SEND_EMAIL_PIN;
+  if (!validPin) {
+    return res.status(500).json({ error: "SEND_EMAIL_PIN not configured in environment variables." });
+  }
+  if (!pin || pin !== validPin) {
+    return res.status(403).json({ error: "Invalid PIN. Email not sent." });
+  }
 
   if (!html || !subject || !recipients?.length) {
     return res.status(400).json({ error: "Missing html, subject, or recipients" });

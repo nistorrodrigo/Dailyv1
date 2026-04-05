@@ -57,26 +57,36 @@ export default function EmailSendPanel({ open, onClose }) {
     }
   };
 
+  const [pin, setPin] = useState("");
+  const [pinError, setPinError] = useState("");
+
   const handleSend = async () => {
     const activeRecipients = recipients.filter((r) => r.active).map((r) => r.email);
     if (!activeRecipients.length) return alert("No active recipients selected");
     if (!subject.trim()) return alert("Subject is required");
-    if (!window.confirm(`Send daily to ${activeRecipients.length} recipient(s)?`)) return;
+    if (!pin.trim()) { setPinError("Enter PIN to send"); return; }
+    if (!window.confirm(`Send daily to ${activeRecipients.length} recipient(s)?\n\nRecipients:\n${activeRecipients.join("\n")}`)) return;
 
     setSending(true);
+    setPinError("");
     try {
       const html = generateHTML(useDailyStore.getState());
       const resp = await fetch("/api/send-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ html, subject: subject.trim(), recipients: activeRecipients }),
+        body: JSON.stringify({ html, subject: subject.trim(), recipients: activeRecipients, pin: pin.trim() }),
       });
       const data = await resp.json();
       if (!data.ok) throw new Error(data.error);
       alert(`Email sent to ${data.sent} recipient(s)!`);
+      setPin("");
       onClose();
     } catch (err) {
-      alert("Send failed: " + err.message);
+      if (err.message.includes("Invalid PIN")) {
+        setPinError("Invalid PIN. Try again.");
+      } else {
+        alert("Send failed: " + err.message);
+      }
     } finally {
       setSending(false);
     }
@@ -155,15 +165,30 @@ export default function EmailSendPanel({ open, onClose }) {
           ))}
         </div>
       </div>
-      <div style={{ padding: 16, borderTop: "1px solid #e4e8ed" }}>
+      <div style={{ padding: 16, borderTop: "1px solid var(--border-light)" }}>
+        <div className="mb-3">
+          <label className="block mb-1 text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide">
+            Security PIN
+          </label>
+          <input
+            type="password"
+            value={pin}
+            onChange={(e) => { setPin(e.target.value); setPinError(""); }}
+            placeholder="Enter PIN to authorize send"
+            className="themed-input w-full px-2.5 py-2 rounded-md border text-sm bg-[var(--bg-input)] text-[var(--text-primary)]"
+            style={{ borderColor: pinError ? "#e74c3c" : "var(--border-input)" }}
+            onKeyDown={(e) => e.key === "Enter" && handleSend()}
+          />
+          {pinError && <div className="text-[11px] text-red-500 mt-1 font-semibold">{pinError}</div>}
+        </div>
         <button
           onClick={handleSend}
-          disabled={sending}
+          disabled={sending || !pin.trim()}
           style={{
             width: "100%", padding: "12px 20px", borderRadius: 6,
-            border: "none", background: sending ? "#999" : BRAND.blue,
+            border: "none", background: sending || !pin.trim() ? "#999" : BRAND.blue,
             color: "#fff", fontSize: 13, fontWeight: 700,
-            cursor: sending ? "default" : "pointer", textTransform: "uppercase",
+            cursor: sending || !pin.trim() ? "default" : "pointer", textTransform: "uppercase",
           }}
         >
           {sending ? "Sending..." : "Send Daily Email"}
