@@ -1,4 +1,7 @@
 export default async function handler(req, res) {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Cache-Control", "s-maxage=300, stale-while-revalidate=600");
+
   const { tickers } = req.query;
   if (!tickers) return res.status(400).json({ error: "Missing tickers param" });
 

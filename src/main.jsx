@@ -2,8 +2,13 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import './theme.css'
 import App from './App.jsx'
+import ErrorBoundary from './components/ErrorBoundary'
+import { inject } from '@vercel/analytics'
 import useDailyStore from './store/useDailyStore'
 import { setupSupabaseSync } from './lib/supabaseSync'
+
+// Vercel Analytics
+inject();
 
 // Initialize Supabase sync after store is ready
 setupSupabaseSync(useDailyStore);
@@ -15,6 +20,8 @@ if (localStorage.getItem("ls-dark-mode") === "1") {
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <App />
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </React.StrictMode>,
 )

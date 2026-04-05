@@ -1,5 +1,6 @@
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Cache-Control", "s-maxage=300, stale-while-revalidate=600");
   try {
     const r = await fetch("https://dolarapi.com/v1/dolares/contadoconliqui", {
       headers: { "User-Agent": "Mozilla/5.0" }
