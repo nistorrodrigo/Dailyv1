@@ -24,10 +24,7 @@ export default function Header() {
   const copyToClipboard = useUIStore((s) => s.copyToClipboard);
   const toggleDarkMode = useUIStore((s) => s.toggleDarkMode);
   const newDaily = useDailyStore((s) => s.newDaily);
-  const [historyOpen, setHistoryOpen] = useState(false);
-  const [templatesOpen, setTemplatesOpen] = useState(false);
-  const [emailOpen, setEmailOpen] = useState(false);
-  const [diffOpen, setDiffOpen] = useState(false);
+  const [openPanel, setOpenPanel] = useState(null); // "history" | "templates" | "email" | "diff" | null
 
   const copyGenerated = useCallback((type) => {
     const state = useDailyStore.getState();
@@ -80,9 +77,9 @@ export default function Header() {
             {darkMode ? "\u2600" : "\u263E"}
           </button>
 
-          <button onClick={() => setTemplatesOpen(true)} style={hBtn(BRAND.teal, BRAND.teal)}>Templates</button>
-          <button onClick={() => setHistoryOpen(true)} style={hBtn(BRAND.salmon, BRAND.salmon)}>History</button>
-          <button onClick={() => setDiffOpen(true)} style={hBtn("#9b59b6", "#9b59b6")}>Diff</button>
+          <button onClick={() => setOpenPanel("templates")} style={hBtn(BRAND.teal, BRAND.teal)}>Templates</button>
+          <button onClick={() => setOpenPanel("history")} style={hBtn(BRAND.salmon, BRAND.salmon)}>History</button>
+          <button onClick={() => setOpenPanel("diff")} style={hBtn("#9b59b6", "#9b59b6")}>Diff</button>
           <DuplicateYesterdayBtn />
           <button onClick={newDaily} style={hBtn(BRAND.orange, BRAND.orange)}>New Daily</button>
           <button onClick={() => copyGenerated("html")} style={hBtn(BRAND.sky, BRAND.sky)}>
@@ -91,15 +88,15 @@ export default function Header() {
           <button onClick={() => copyGenerated("bbg")} style={hBtn(BRAND.green, BRAND.green)}>
             {copiedLabel === "bbg" ? "\u2713 Copied!" : "Copy BBG"}
           </button>
-          <button onClick={() => setEmailOpen(true)} style={hBtn("none", "#fff", BRAND.blue)}>
+          <button onClick={() => setOpenPanel("email")} style={hBtn("none", "#fff", BRAND.blue)}>
             Send Email
           </button>
         </div>
       </div>
-      <HistoryPanel open={historyOpen} onClose={() => setHistoryOpen(false)} />
-      <TemplatesPanel open={templatesOpen} onClose={() => setTemplatesOpen(false)} />
-      <EmailSendPanel open={emailOpen} onClose={() => setEmailOpen(false)} />
-      <DiffPanel open={diffOpen} onClose={() => setDiffOpen(false)} />
+      <HistoryPanel open={openPanel === "history"} onClose={() => setOpenPanel(null)} />
+      <TemplatesPanel open={openPanel === "templates"} onClose={() => setOpenPanel(null)} />
+      <EmailSendPanel open={openPanel === "email"} onClose={() => setOpenPanel(null)} />
+      <DiffPanel open={openPanel === "diff"} onClose={() => setOpenPanel(null)} />
     </>
   );
 }
