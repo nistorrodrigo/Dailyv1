@@ -61,9 +61,31 @@ export default function SectionToggleList() {
 
   return (
     <Card title="Sections — Toggle & Reorder" color={BRAND.navy}>
-      <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "0 0 10px" }}>
-        Toggle on/off and drag to reorder. Output follows this order.
-      </p>
+      <div className="flex items-center justify-between mb-2.5">
+        <p className="text-[11px] text-[var(--text-muted)] m-0">
+          Toggle on/off and drag to reorder.
+        </p>
+        <div className="flex gap-1.5">
+          <button
+            onClick={() => setField("sections", sections.map((s) => ({ ...s, on: true })))}
+            className="px-2 py-1 rounded text-[9px] font-bold bg-transparent border border-[var(--border-input)] text-[var(--text-secondary)] cursor-pointer hover:bg-[var(--bg-hover)]"
+          >
+            All On
+          </button>
+          <button
+            onClick={() => setField("sections", sections.map((s) => ({ ...s, on: false })))}
+            className="px-2 py-1 rounded text-[9px] font-bold bg-transparent border border-[var(--border-input)] text-[var(--text-secondary)] cursor-pointer hover:bg-[var(--bg-hover)]"
+          >
+            All Off
+          </button>
+          <button
+            onClick={() => setField("sections", sections.map((s) => ({ ...s, on: ["macro","tradeIdeas","flows","macroEstimates","corporate","research"].includes(s.key) })))}
+            className="px-2 py-1 rounded text-[9px] font-bold bg-transparent border border-[var(--border-input)] text-[var(--text-secondary)] cursor-pointer hover:bg-[var(--bg-hover)]"
+          >
+            Default
+          </button>
+        </div>
+      </div>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={sections.map((s) => s.key)} strategy={verticalListSortingStrategy}>
           {sections.map((sec) => (

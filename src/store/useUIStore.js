@@ -5,11 +5,15 @@ const useUIStore = create((set, get) => ({
   previewMode: "html",
   copiedLabel: "",
   saveStatus: "idle",
+  lastSavedAt: null,
   darkMode: localStorage.getItem("ls-dark-mode") === "1",
 
   setTab: (tab) => set({ tab }),
   setPreviewMode: (mode) => set({ previewMode: mode }),
-  setSaveStatus: (status) => set({ saveStatus: status }),
+  setSaveStatus: (status) => set({
+    saveStatus: status,
+    ...(status === "saved" ? { lastSavedAt: Date.now() } : {}),
+  }),
 
   setCopiedLabel: (label) => {
     set({ copiedLabel: label });

@@ -1,13 +1,15 @@
+import { useState, useMemo } from "react";
 import useDailyStore from "../../store/useDailyStore";
 import { Card, X } from "../ui";
 import { BRAND } from "../../constants/brand";
 import { rc } from "../../utils/ratings";
 
-const is = { padding: "6px 8px", borderRadius: 4, border: "1px solid #d0d5dd", fontSize: 12, boxSizing: "border-box" };
-const ss = { ...is, background: "#fff" };
+const is = { padding: "6px 8px", borderRadius: 4, border: "1px solid var(--border-input)", fontSize: 12, boxSizing: "border-box" };
+const ss = { ...is, background: "var(--bg-input)" };
 
 export default function AnalystsTab() {
   const analysts = useDailyStore((s) => s.analysts);
+  const [search, setSearch] = useState("");
   const updateListItem = useDailyStore((s) => s.updateListItem);
   const addListItem = useDailyStore((s) => s.addListItem);
   const removeListItem = useDailyStore((s) => s.removeListItem);
@@ -134,7 +136,19 @@ export default function AnalystsTab() {
             Excel (.xlsx) or CSV with: Analyst Name, Ticker, Rating, Target Price
           </span>
         </div>
-        {analysts.map((a) => (
+        <div className="mb-3">
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search analyst or ticker..."
+            className="themed-input w-full px-2.5 py-2 rounded-md border border-[var(--border-input)] text-sm bg-[var(--bg-input)] text-[var(--text-primary)]"
+          />
+        </div>
+        {analysts.filter((a) => {
+          if (!search) return true;
+          const q = search.toLowerCase();
+          return a.name.toLowerCase().includes(q) || a.title.toLowerCase().includes(q) || a.coverage.some((c) => c.ticker.toLowerCase().includes(q));
+        }).map((a) => (
           <div key={a.id} style={{ padding: 14, background: "var(--bg-card-alt)", borderRadius: 8, marginBottom: 14, border: "1px solid #eee" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
               <div style={{ display: "flex", gap: 8, flex: 1 }}>

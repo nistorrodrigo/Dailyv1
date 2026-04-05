@@ -11,6 +11,16 @@ import EmailSendPanel from "./EmailSendPanel";
 import DuplicateYesterdayBtn from "./DuplicateYesterdayBtn";
 import DiffPanel from "./DiffPanel";
 
+function timeAgo(ts) {
+  if (!ts) return "";
+  const s = Math.floor((Date.now() - ts) / 1000);
+  if (s < 5) return "just now";
+  if (s < 60) return `${s}s ago`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ago`;
+  return `${Math.floor(m / 60)}h ago`;
+}
+
 const hBtn = (borderColor, textColor, bg = "transparent") => ({
   padding: "6px 14px", borderRadius: 6,
   border: bg === "transparent" ? `1px solid ${borderColor}` : "none",
@@ -20,7 +30,7 @@ const hBtn = (borderColor, textColor, bg = "transparent") => ({
 });
 
 export default function Header() {
-  const { copiedLabel, saveStatus, darkMode } = useUIStore(useShallow((s) => ({ copiedLabel: s.copiedLabel, saveStatus: s.saveStatus, darkMode: s.darkMode })));
+  const { copiedLabel, saveStatus, darkMode, lastSavedAt } = useUIStore(useShallow((s) => ({ copiedLabel: s.copiedLabel, saveStatus: s.saveStatus, darkMode: s.darkMode, lastSavedAt: s.lastSavedAt })));
   const copyToClipboard = useUIStore((s) => s.copyToClipboard);
   const toggleDarkMode = useUIStore((s) => s.toggleDarkMode);
   const newDaily = useDailyStore((s) => s.newDaily);
@@ -49,9 +59,9 @@ export default function Header() {
           </span>
         </div>
         <div className="header-buttons" style={{ display: "flex", gap: 6, alignItems: "center" }}>
-          {saveStatus === "saved" && (
+          {(saveStatus === "saved" || saveStatus === "idle") && lastSavedAt && (
             <span className="save-indicator" style={{ fontSize: 10, color: BRAND.green, fontWeight: 600, letterSpacing: 0.5 }}>
-              {"\u2713"} SAVED
+              {"\u2713"} Saved {timeAgo(lastSavedAt)}
             </span>
           )}
           {saveStatus === "saving" && (
@@ -90,6 +100,9 @@ export default function Header() {
           </button>
           <button onClick={() => setOpenPanel("email")} style={hBtn("none", "#fff", BRAND.blue)}>
             Send Email
+          </button>
+          <button onClick={() => import("../utils/exportPDF").then((m) => m.exportPDF())} style={hBtn("#e74c3c", "#e74c3c")}>
+            PDF
           </button>
         </div>
       </div>

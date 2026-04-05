@@ -15,15 +15,26 @@ export default function ChartSection() {
   const handleFile = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
+    // Compress image to max 680px width (email width) for smaller base64
+    const img = new Image();
+    img.onload = () => {
+      const MAX_W = 680;
+      let w = img.width, h = img.height;
+      if (w > MAX_W) { h = Math.round(h * (MAX_W / w)); w = MAX_W; }
+      const canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+      const compressed = canvas.toDataURL("image/jpeg", 0.85);
+      const sizeKB = Math.round(compressed.length * 0.75 / 1024);
       setChartImage({
         ...(chartImage || {}),
-        data: ev.target.result,
+        base64: compressed,
+        data: compressed,
         fileName: file.name,
+        sizeKB,
       });
     };
-    reader.readAsDataURL(file);
+    img.src = URL.createObjectURL(file);
   };
 
   const img = chartImage || {};
@@ -76,7 +87,9 @@ export default function ChartSection() {
             style={{ maxWidth: "100%", maxHeight: 300, borderRadius: 6, border: "1px solid #e4e8ed" }}
           />
           {img.fileName && (
-            <div style={{ fontSize: 11, color: "#999", marginTop: 4 }}>{img.fileName}</div>
+            <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>
+              {img.fileName}{img.sizeKB ? ` (${img.sizeKB} KB)` : ""}
+            </div>
           )}
         </div>
       )}
