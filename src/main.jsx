@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import './theme.css'
 import App from './App.jsx'
 import ErrorBoundary from './components/ErrorBoundary'
+import LoginGate from './components/LoginGate'
 import { inject } from '@vercel/analytics'
 import useDailyStore from './store/useDailyStore'
 import { setupSupabaseSync } from './lib/supabaseSync'
@@ -21,7 +22,9 @@ if (localStorage.getItem("ls-dark-mode") === "1") {
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <ErrorBoundary>
-      <App />
+      <LoginGate>
+        <App />
+      </LoginGate>
     </ErrorBoundary>
   </React.StrictMode>,
 )

@@ -10,6 +10,7 @@ import TemplatesPanel from "./TemplatesPanel";
 import EmailSendPanel from "./EmailSendPanel";
 import DuplicateYesterdayBtn from "./DuplicateYesterdayBtn";
 import DiffPanel from "./DiffPanel";
+import { logout } from "./LoginGate";
 
 function timeAgo(ts) {
   if (!ts) return "";
@@ -103,6 +104,9 @@ export default function Header() {
           </button>
           <button onClick={() => import("../utils/exportPDF").then((m) => m.exportPDF())} style={hBtn("#e74c3c", "#e74c3c")}>
             PDF
+          </button>
+          <button onClick={logout} style={hBtn("#888", "#888")} title="Log out">
+            Logout
           </button>
         </div>
       </div>
