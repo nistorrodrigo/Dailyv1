@@ -12,18 +12,18 @@ export default function EmailSendPanel({ open, onClose }) {
   const [sending, setSending] = useState(false);
   const [newEmail, setNewEmail] = useState("");
   const [newName, setNewName] = useState("");
-  const s = useDailyStore();
+  const date = useDailyStore((s) => s.date);
   const [subject, setSubject] = useState("");
 
   useEffect(() => {
     if (open) {
-      setSubject(`Argentina Daily - ${formatDate(s.date)}`);
+      setSubject(`Argentina Daily - ${formatDate(date)}`);
       if (supabase) {
         setLoading(true);
         listRecipients().then(setRecipients).finally(() => setLoading(false));
       }
     }
-  }, [open, s.date]);
+  }, [open, date]);
 
   if (!open) return null;
 
@@ -65,7 +65,7 @@ export default function EmailSendPanel({ open, onClose }) {
 
     setSending(true);
     try {
-      const html = generateHTML(s);
+      const html = generateHTML(useDailyStore.getState());
       const resp = await fetch("/api/send-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { BRAND } from "../constants/brand";
 import useDailyStore from "../store/useDailyStore";
 import { generateHTML } from "../utils/generateHTML";
@@ -6,8 +6,32 @@ import { generateHTML } from "../utils/generateHTML";
 export default function LivePreviewPanel({ children }) {
   const [showPreview, setShowPreview] = useState(false);
   const ref = useRef(null);
-  const s = useDailyStore();
-  const html = useMemo(() => generateHTML(s), [s]);
+  const [html, setHtml] = useState("");
+  const timerRef = useRef(null);
+
+  // Only subscribe and generate when preview is visible, debounced
+  useEffect(() => {
+    if (!showPreview) return;
+
+    const update = () => {
+      const state = useDailyStore.getState();
+      setHtml(generateHTML(state));
+    };
+
+    // Initial render
+    update();
+
+    // Subscribe with debounce
+    const unsub = useDailyStore.subscribe(() => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(update, 500);
+    });
+
+    return () => {
+      unsub();
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, [showPreview]);
 
   if (!showPreview) {
     return (
@@ -17,7 +41,7 @@ export default function LivePreviewPanel({ children }) {
             onClick={() => setShowPreview(true)}
             style={{
               padding: "5px 12px", borderRadius: 4, border: `1px solid ${BRAND.sky}`,
-              background: "transparent", color: BRAND.sky, fontSize: 10,
+              background: "transparent", color: "var(--brand-sky)", fontSize: 10,
               fontWeight: 700, cursor: "pointer", textTransform: "uppercase",
             }}
           >
@@ -37,7 +61,7 @@ export default function LivePreviewPanel({ children }) {
             onClick={() => setShowPreview(false)}
             style={{
               padding: "5px 12px", borderRadius: 4, border: `1px solid ${BRAND.sky}`,
-              background: BRAND.navy, color: "#fff", fontSize: 10,
+              background: "var(--brand-navy)", color: "#fff", fontSize: 10,
               fontWeight: 700, cursor: "pointer", textTransform: "uppercase",
             }}
           >
@@ -48,11 +72,11 @@ export default function LivePreviewPanel({ children }) {
       </div>
       <div style={{
         width: 720, flexShrink: 0, borderLeft: `2px solid ${BRAND.sky}`,
-        background: "#f0f2f5", overflow: "auto",
+        background: "var(--bg-page)", overflow: "auto",
       }}>
         <div style={{
-          padding: "8px 12px", background: BRAND.navy, fontSize: 10,
-          fontWeight: 700, color: BRAND.sky, textTransform: "uppercase",
+          padding: "8px 12px", background: "var(--brand-navy)", fontSize: 10,
+          fontWeight: 700, color: "var(--brand-sky)", textTransform: "uppercase",
           letterSpacing: 1, textAlign: "center",
         }}>
           Live Preview
