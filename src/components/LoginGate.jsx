@@ -10,7 +10,7 @@ export default function LoginGate({ children }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [mode, setMode] = useState("login"); // "login" | "signup"
+  const [mode, setMode] = useState("login"); // "login" | "signup" | "check-email"
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -47,11 +47,14 @@ export default function LoginGate({ children }) {
     setSubmitting(true);
     try {
       if (mode === "signup") {
-        const { error: err } = await supabase.auth.signUp({ email: email.trim(), password });
+        const { error: err } = await supabase.auth.signUp({
+          email: email.trim(),
+          password,
+          options: { emailRedirectTo: window.location.origin },
+        });
         if (err) throw err;
         setError("");
-        setMode("login");
-        alert("Account created! You can now log in.");
+        setMode("check-email");
       } else {
         const { error: err } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
         if (err) throw err;
@@ -83,6 +86,26 @@ export default function LoginGate({ children }) {
           Daily Builder
         </div>
 
+        {mode === "check-email" ? (
+          <>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>&#9993;</div>
+            <h3 style={{ color: "#fff", marginBottom: 8, fontSize: 16 }}>Check your email</h3>
+            <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 13, lineHeight: 1.5, marginBottom: 20 }}>
+              We sent a confirmation link to <strong style={{ color: BRAND.sky }}>{email}</strong>. Click the link to verify your account, then come back and log in.
+            </p>
+            <button
+              onClick={() => setMode("login")}
+              style={{
+                padding: "10px 24px", borderRadius: 8, border: `1px solid ${BRAND.sky}`,
+                background: "transparent", color: BRAND.sky, fontSize: 13,
+                fontWeight: 600, cursor: "pointer",
+              }}
+            >
+              Back to Log In
+            </button>
+          </>
+        ) : (
+          <>
         <input
           type="email"
           value={email}
@@ -140,6 +163,8 @@ export default function LoginGate({ children }) {
         <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", marginTop: 16 }}>
           Access restricted to @{ALLOWED_DOMAIN}
         </div>
+          </>
+        )}
       </div>
     </div>
   );
