@@ -25,6 +25,7 @@ export default function MacroSection() {
   const [showAiInput, setShowAiInput] = useState(false);
   const [aiModel, setAiModel] = useState("haiku");
   const [aiMode, setAiMode] = useState("macro"); // "macro" | "full"
+  const [includeNews, setIncludeNews] = useState(true);
 
   if (!sections.find((x) => x.key === "macro")?.on) return null;
 
@@ -42,6 +43,7 @@ export default function MacroSection() {
           date,
           model: aiModel,
           mode: aiMode,
+          includeNews,
           analysts: aiMode === "full" ? analysts : undefined,
         }),
       });
@@ -168,6 +170,22 @@ export default function MacroSection() {
           </div>
 
           {/* Context input */}
+          {/* Include news toggle */}
+          <div className="flex items-center justify-between mb-3 p-2 rounded bg-[var(--bg-card-alt)] border border-[var(--border-light)]">
+            <div>
+              <div className="text-xs font-semibold text-[var(--text-primary)]">Include Argentina news</div>
+              <div className="text-[10px] text-[var(--text-muted)]">Fetches latest headlines as context for AI</div>
+            </div>
+            <button
+              onClick={() => setIncludeNews(!includeNews)}
+              className="relative w-10 h-5 rounded-full cursor-pointer border-none"
+              style={{ background: includeNews ? "#8b5cf6" : "#c8cdd3" }}
+            >
+              <div className="absolute top-[2px] w-[16px] h-[16px] rounded-full bg-white shadow-sm transition-[left] duration-200"
+                style={{ left: includeNews ? 22 : 2 }} />
+            </button>
+          </div>
+
           <label className="block mb-1 text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide">
             Context / notes (optional)
           </label>

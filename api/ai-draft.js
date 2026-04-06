@@ -45,9 +45,31 @@ export default async function handler(req, res) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return res.status(500).json({ error: "ANTHROPIC_API_KEY not configured" });
 
-  const { context, existingBlocks, date, model = "haiku", mode = "macro", analysts } = req.body;
+  const { context, existingBlocks, date, model = "haiku", mode = "macro", analysts, includeNews } = req.body;
 
   const modelConfig = MODELS[model] || MODELS.haiku;
+
+  // Fetch Argentina news headlines if requested
+  let newsContext = "";
+  if (includeNews) {
+    try {
+      const newsResp = await fetch("https://newsdata.io/api/1/latest?country=ar&language=es,en&category=business,politics&size=10&apikey=" + (process.env.NEWSDATA_API_KEY || "pub_0"));
+      const newsData = await newsResp.json();
+      if (newsData.results?.length) {
+        newsContext = "\n\nLatest Argentina news headlines:\n" + newsData.results.map(n => `- ${n.title}`).join("\n");
+      }
+    } catch (e) {
+      // Fallback: try Google News RSS
+      try {
+        const rssResp = await fetch("https://news.google.com/rss/search?q=argentina+economy+BCRA&hl=en&gl=AR&ceid=AR:en");
+        const rssText = await rssResp.text();
+        const titles = [...rssText.matchAll(/<title><!\[CDATA\[(.*?)\]\]><\/title>/g)].slice(0, 8).map(m => m[1]);
+        if (titles.length) {
+          newsContext = "\n\nLatest Argentina news headlines:\n" + titles.map(t => `- ${t}`).join("\n");
+        }
+      } catch (e2) { /* skip news */ }
+    }
+  }
 
   let systemPrompt, userPrompt, maxTokens;
 
@@ -60,7 +82,7 @@ export default async function handler(req, res) {
       : "";
 
     userPrompt = `Today is ${date}. Generate a COMPLETE Argentina Daily report.
-${context ? `\nContext/notes:\n${context}` : ""}${tickerList}
+${context ? `\nContext/notes:\n${context}` : ""}${newsContext}${tickerList}
 
 Return a JSON object with these fields:
 {
@@ -81,7 +103,7 @@ Return ONLY the JSON object, no markdown, no explanation.`;
 
     userPrompt = `Today is ${date}. Generate 2-3 macro blocks for today's Argentina Daily report.
 
-${context ? `Context/notes from the analyst:\n${context}\n` : ""}
+${context ? `Context/notes from the analyst:\n${context}\n` : ""}${newsContext}
 ${existingBlocks?.length ? `Existing blocks to improve or complement (don't repeat these):\n${existingBlocks.map(b => `- ${b.title}: ${b.body}`).join("\n")}\n` : ""}
 
 Return a JSON array of blocks. Each block has: title (string, UPPERCASE), body (string), lsPick (string or empty).

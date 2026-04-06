@@ -18,6 +18,9 @@ export default function EmailSendPanel({ open, onClose }) {
   const [pinError, setPinError] = useState("");
   const [sendResult, setSendResult] = useState(null);
   const [sgLists, setSgLists] = useState([]);
+  const [selectedListName, setSelectedListName] = useState("");
+  const [emailLogs, setEmailLogs] = useState([]);
+  const [showLogs, setShowLogs] = useState(false);
   const [sgLoading, setSgLoading] = useState(false); // { type: "success"|"error", message }
 
   useEffect(() => {
@@ -76,7 +79,7 @@ export default function EmailSendPanel({ open, onClose }) {
       const resp = await fetch("/api/send-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ html, subject: subject.trim(), recipients: activeRecipients, pin: pin.trim() }),
+        body: JSON.stringify({ html, subject: subject.trim(), recipients: activeRecipients, pin: pin.trim(), dailyDate: date, listName: selectedListName || null }),
       });
       const data = await resp.json();
       if (!data.ok) throw new Error(data.error);
@@ -165,6 +168,7 @@ export default function EmailSendPanel({ open, onClose }) {
                       .filter((c) => !recipients.find((r) => r.email === c.email))
                       .map((c) => ({ id: `sg${Date.now()}${Math.random()}`, email: c.email, name: c.name, active: true }));
                     setRecipients((prev) => [...prev, ...newRecipients]);
+                    setSelectedListName(list.name);
                     setSendResult({ type: "success", message: `Imported ${newRecipients.length} contacts from "${list.name}"` });
                   } catch (err) {
                     setSendResult({ type: "error", message: "Import failed: " + err.message });
@@ -267,7 +271,7 @@ export default function EmailSendPanel({ open, onClose }) {
               fetch("/api/send-email", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ html, subject: `[TEST] ${subject.trim()}`, recipients: [testEmail], pin: pin.trim() }),
+                body: JSON.stringify({ html, subject: `[TEST] ${subject.trim()}`, recipients: [testEmail], pin: pin.trim(), isTest: true, dailyDate: date }),
               }).then(r => r.json()).then(data => {
                 if (!data.ok) throw new Error(data.error);
                 setSendResult({ type: "success", message: `\u2713 Test email sent to ${testEmail}` });
@@ -300,6 +304,35 @@ export default function EmailSendPanel({ open, onClose }) {
             {sending ? "Sending..." : "Send Daily Email"}
           </button>
         </div>
+
+        {/* Send History */}
+        <button
+          onClick={async () => {
+            setShowLogs(!showLogs);
+            if (!showLogs && emailLogs.length === 0) {
+              const resp = await fetch("/api/email-log");
+              const data = await resp.json();
+              if (data.ok) setEmailLogs(data.logs);
+            }
+          }}
+          className="w-full mt-3 py-2 rounded-md border border-[var(--border-input)] bg-transparent text-[var(--text-muted)] text-xs font-semibold cursor-pointer"
+        >
+          {showLogs ? "Hide Send History" : "Show Send History"}
+        </button>
+        {showLogs && (
+          <div className="mt-2 max-h-48 overflow-auto">
+            {emailLogs.length === 0 && <p className="text-xs text-[var(--text-muted)] text-center py-2">No emails sent yet</p>}
+            {emailLogs.map((log) => (
+              <div key={log.id} className="flex items-center gap-2 py-1.5 border-b border-[var(--border-light)] text-xs">
+                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${log.is_test ? "bg-amber-400" : "bg-green-500"}`} />
+                <span className="text-[var(--text-primary)] font-semibold">{log.daily_date}</span>
+                <span className="text-[var(--text-muted)]">{log.recipients_count} recipients</span>
+                {log.list_name && <span className="text-[var(--text-muted)]">({log.list_name})</span>}
+                <span className="text-[var(--text-muted)] ml-auto">{new Date(log.sent_at).toLocaleTimeString()}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
