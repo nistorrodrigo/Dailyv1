@@ -155,14 +155,26 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
       </div>
       <div style={{ flex: 1, overflow: "auto", padding: 16 }}>
         <div style={{ marginBottom: 16 }}>
-          <label style={{ fontSize: 11, fontWeight: 600, color: "#555", textTransform: "uppercase", display: "block", marginBottom: 4 }}>
+          <label className="block mb-1 text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide">
             Subject
           </label>
-          <input
-            value={subject}
-            onChange={(e) => setSubject(e.target.value)}
-            style={{ width: "100%", padding: "8px 10px", borderRadius: 6, border: "1px solid #d0d5dd", fontSize: 13, boxSizing: "border-box" }}
-          />
+          <div className="flex gap-2">
+            <input
+              value={subject}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSubject(e.target.value)}
+              className="themed-input flex-1 px-2.5 py-2 rounded-md border border-[var(--border-input)] text-[13px] bg-[var(--bg-input)] text-[var(--text-primary)]"
+            />
+            <button
+              onClick={() => setSubject(`Argentina Daily - ${formatDate(date)}`)}
+              className="px-2.5 py-2 rounded-md border border-[var(--border-input)] bg-transparent text-[var(--text-muted)] text-[10px] font-semibold cursor-pointer whitespace-nowrap"
+              title="Reset to default"
+            >
+              Reset
+            </button>
+          </div>
+          <div className="text-[10px] text-[var(--text-muted)] mt-1">
+            Default: Argentina Daily - {formatDate(date)}
+          </div>
         </div>
 
         {/* SendGrid Lists */}
