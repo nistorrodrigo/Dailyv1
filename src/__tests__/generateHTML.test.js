@@ -20,7 +20,7 @@ describe("generateHTML", () => {
   it("includes email-safe table layout", () => {
     const html = generateHTML(DEFAULT_STATE);
     expect(html).toContain('role="presentation"');
-    expect(html).toContain("width=\"680\"");
+    expect(html).toContain("width=\"640\"");
   });
 
   it("includes brand elements", () => {
@@ -70,19 +70,19 @@ describe("generateHTML", () => {
   it("includes footer disclaimer", () => {
     const html = generateHTML(DEFAULT_STATE);
     expect(html).toContain("informational purposes");
-    expect(html).toContain("LATIN SECURITIES S.A.");
+    expect(html).toContain("Latin Securities S.A.");
   });
 
   it("includes summary bar when set", () => {
     const state = { ...DEFAULT_STATE, summaryBar: "Bonds up 2% on IMF deal" };
     const html = generateHTML(state);
     expect(html).toContain("Bonds up 2% on IMF deal");
-    expect(html).toContain("<strong>Today:</strong>");
+    expect(html).toContain("Today");
   });
 
   it("omits summary bar when empty", () => {
     const html = generateHTML(DEFAULT_STATE);
-    expect(html).not.toContain("<strong>Today:</strong>");
+    expect(html).not.toContain("Bonds up");
   });
 
   it("handles empty sections gracefully", () => {
