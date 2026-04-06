@@ -136,7 +136,7 @@ export function generateHTML(s: DailyState, mode: string = "full"): string {
     + '<tr><td style="height:3px;background:linear-gradient(90deg,' + DS.sky + ',' + DS.accent + ');"></td></tr>'
 
     // SUMMARY BAR
-    + (s.summaryBar ? '<tr><td style="padding:20px 40px 0;"><div style="border-left:3px solid ' + DS.accent + ';padding:12px 16px;background:' + DS.bgAlt + ';font-size:13.5px;line-height:1.6;color:' + DS.text + ';"><strong style="color:' + DS.navy + ';">Today</strong> \u2014 ' + s.summaryBar + '</div></td></tr>' : '')
+    + (s.summaryBar ? '<tr><td style="padding:20px 40px 0;"><div style="border-left:3px solid ' + DS.accent + ';padding:12px 16px;background:' + DS.bgAlt + ';font-size:13.5px;line-height:1.6;color:' + DS.text + ';text-align:justify;"><strong style="color:' + DS.navy + ';">Today</strong> \u2014 ' + s.summaryBar + '</div></td></tr>' : '')
 
     // SECTIONS
     + sectionContent
