@@ -10,6 +10,7 @@ import TemplatesPanel from "./TemplatesPanel";
 import EmailSendPanel from "./EmailSendPanel";
 import DuplicateYesterdayBtn from "./DuplicateYesterdayBtn";
 import DiffPanel from "./DiffPanel";
+import SchedulePanel from "./SchedulePanel";
 import { logout } from "./LoginGate";
 
 function timeAgo(ts) {
@@ -91,6 +92,7 @@ export default function Header() {
           <button onClick={() => setOpenPanel("templates")} style={hBtn(BRAND.teal, BRAND.teal)}>Templates</button>
           <button onClick={() => setOpenPanel("history")} style={hBtn(BRAND.salmon, BRAND.salmon)}>History</button>
           <button onClick={() => setOpenPanel("diff")} style={hBtn("#9b59b6", "#9b59b6")}>Diff</button>
+          <button onClick={() => setOpenPanel("schedule")} style={hBtn("#e67e22", "#e67e22")}>Schedule</button>
           <DuplicateYesterdayBtn />
           <button onClick={newDaily} style={hBtn(BRAND.orange, BRAND.orange)}>New Daily</button>
           <button onClick={() => copyGenerated("html")} style={hBtn(BRAND.sky, BRAND.sky)}>
@@ -114,6 +116,7 @@ export default function Header() {
       <TemplatesPanel open={openPanel === "templates"} onClose={() => setOpenPanel(null)} />
       <EmailSendPanel open={openPanel === "email"} onClose={() => setOpenPanel(null)} />
       <DiffPanel open={openPanel === "diff"} onClose={() => setOpenPanel(null)} />
+      <SchedulePanel open={openPanel === "schedule"} onClose={() => setOpenPanel(null)} />
     </>
   );
 }

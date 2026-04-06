@@ -1,0 +1,37 @@
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  process.env.VITE_SUPABASE_URL,
+  process.env.VITE_SUPABASE_ANON_KEY
+);
+
+export default async function handler(req, res) {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+  if (req.method === "OPTIONS") return res.status(200).end();
+
+  if (req.method === "GET") {
+    const { data, error } = await supabase.from("schedule").select("*").limit(1).single();
+    if (error) return res.status(500).json({ ok: false, error: error.message });
+    return res.status(200).json({ ok: true, schedule: data });
+  }
+
+  if (req.method === "POST") {
+    const { enabled, send_time, timezone, sendgrid_list_id, sendgrid_list_name, recipient_emails } = req.body;
+
+    const { data: existing } = await supabase.from("schedule").select("id").limit(1).single();
+    if (!existing) return res.status(404).json({ ok: false, error: "No schedule row found" });
+
+    const { error } = await supabase.from("schedule").update({
+      enabled, send_time, timezone, sendgrid_list_id, sendgrid_list_name,
+      recipient_emails, updated_at: new Date().toISOString(),
+    }).eq("id", existing.id);
+
+    if (error) return res.status(500).json({ ok: false, error: error.message });
+    return res.status(200).json({ ok: true });
+  }
+
+  res.status(405).json({ error: "Method not allowed" });
+}
