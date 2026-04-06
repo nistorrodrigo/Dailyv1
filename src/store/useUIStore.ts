@@ -1,6 +1,20 @@
 import { create } from "zustand";
+import type { UIState } from "../types";
 
-const useUIStore = create((set, get) => ({
+interface UIActions {
+  setTab: (tab: UIState["tab"]) => void;
+  setPreviewMode: (mode: UIState["previewMode"]) => void;
+  setSaveStatus: (status: UIState["saveStatus"]) => void;
+  setCopiedLabel: (label: string) => void;
+  toggleDarkMode: () => void;
+  copyToClipboard: (text: string, label: string) => void;
+}
+
+interface UIStore extends UIState {
+  lastSavedAt: number | null;
+}
+
+const useUIStore = create<UIStore & UIActions>((set, get) => ({
   tab: "edit",
   previewMode: "html",
   copiedLabel: "",
@@ -8,14 +22,14 @@ const useUIStore = create((set, get) => ({
   lastSavedAt: null,
   darkMode: localStorage.getItem("ls-dark-mode") === "1",
 
-  setTab: (tab) => set({ tab }),
-  setPreviewMode: (mode) => set({ previewMode: mode }),
-  setSaveStatus: (status) => set({
+  setTab: (tab: UIState["tab"]) => set({ tab }),
+  setPreviewMode: (mode: UIState["previewMode"]) => set({ previewMode: mode }),
+  setSaveStatus: (status: UIState["saveStatus"]) => set({
     saveStatus: status,
     ...(status === "saved" ? { lastSavedAt: Date.now() } : {}),
   }),
 
-  setCopiedLabel: (label) => {
+  setCopiedLabel: (label: string) => {
     set({ copiedLabel: label });
     setTimeout(() => set({ copiedLabel: "" }), 2000);
   },
@@ -27,7 +41,7 @@ const useUIStore = create((set, get) => ({
     set({ darkMode: next });
   },
 
-  copyToClipboard: (text, label) => {
+  copyToClipboard: (text: string, label: string) => {
     navigator.clipboard.writeText(text).then(() => {
       set({ copiedLabel: label });
       setTimeout(() => set({ copiedLabel: "" }), 2000);

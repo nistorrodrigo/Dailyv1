@@ -1,6 +1,24 @@
 import { supabase } from "./supabase";
+import type { DailyState } from "../types";
 
-export async function saveDaily(date, state) {
+interface DailyRecord {
+  id: string;
+  date: string;
+  title: string;
+  state: DailyState;
+  created_at: string;
+  updated_at: string;
+}
+
+interface DailyListItem {
+  id: string;
+  date: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function saveDaily(date: string, state: DailyState): Promise<DailyRecord | null> {
   if (!supabase) return null;
   const { data, error } = await supabase
     .from("dailies")
@@ -14,7 +32,7 @@ export async function saveDaily(date, state) {
   return data;
 }
 
-export async function loadDaily(date) {
+export async function loadDaily(date: string): Promise<DailyRecord | null> {
   if (!supabase) return null;
   const { data, error } = await supabase
     .from("dailies")
@@ -25,7 +43,7 @@ export async function loadDaily(date) {
   return data;
 }
 
-export async function listDailies(limit = 30) {
+export async function listDailies(limit: number = 30): Promise<DailyListItem[]> {
   if (!supabase) return [];
   const { data, error } = await supabase
     .from("dailies")
@@ -36,13 +54,13 @@ export async function listDailies(limit = 30) {
   return data || [];
 }
 
-export async function deleteDaily(id) {
+export async function deleteDaily(id: string): Promise<void> {
   if (!supabase) return;
   const { error } = await supabase.from("dailies").delete().eq("id", id);
   if (error) throw error;
 }
 
-export async function duplicateDaily(sourceDate, targetDate) {
+export async function duplicateDaily(sourceDate: string, targetDate: string): Promise<DailyRecord | null> {
   if (!supabase) return null;
   const source = await loadDaily(sourceDate);
   if (!source) throw new Error("Source daily not found");

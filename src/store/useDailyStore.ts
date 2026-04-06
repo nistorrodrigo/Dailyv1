@@ -2,8 +2,84 @@ import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 import { temporal } from "zundo";
 import { DEFAULT_STATE, DEFAULT_ANALYSTS, STORAGE_KEY } from "../constants/defaultState";
+import type {
+  DailyState,
+  MacroBlock,
+  CorpBlock,
+  ResearchReport,
+  Signature,
+  Analyst,
+  EquityPick,
+  FIIdea,
+  MacroRow,
+  Mover,
+  Tweet,
+  DailyEvent,
+  KeyEvent,
+  ChartImage,
+  Section,
+} from "../types";
 
-const useDailyStore = create(
+type ListField = "macroBlocks" | "corpBlocks" | "researchReports" | "signatures";
+type MoverType = "gainers" | "losers";
+
+interface DailyActions {
+  setField: <K extends keyof DailyState>(field: K, value: DailyState[K]) => void;
+  resetState: () => void;
+  newDaily: () => void;
+
+  updateListItem: (field: ListField, id: string, key: string, value: string) => void;
+  addListItem: (field: ListField, item: MacroBlock | CorpBlock | ResearchReport | Signature) => void;
+  removeListItem: (field: ListField, id: string) => void;
+
+  updateCoverage: (analystId: string, coverageIndex: number, key: string, value: string) => void;
+  addCoverage: (analystId: string) => void;
+  deleteCoverage: (analystId: string, coverageIndex: number) => void;
+
+  updateEquityPick: (index: number, key: string, value: string) => void;
+  addEquityPick: () => void;
+  removeEquityPick: (index: number) => void;
+
+  updateFIIdea: (index: number, key: string, value: string) => void;
+  addFIIdea: () => void;
+  removeFIIdea: (index: number) => void;
+
+  updateMacroRow: (index: number, field: string, value: string) => void;
+  updateMacroRowValue: (index: number, col: string, value: string) => void;
+  addMacroCol: () => void;
+  removeMacroCol: (col: string) => void;
+  addMacroRow: () => void;
+  removeMacroRow: (index: number) => void;
+
+  toggleSection: (key: string) => void;
+  setSectionOn: (key: string, on: boolean) => void;
+  moveSection: (from: number, to: number) => void;
+
+  updateMover: (type: MoverType, index: number, key: string, value: string) => void;
+  addMover: (type: MoverType) => void;
+  removeMover: (type: MoverType, index: number) => void;
+
+  addTweet: () => void;
+  updateTweet: (index: number, key: string, value: string) => void;
+  removeTweet: (index: number) => void;
+
+  addEvent: () => void;
+  updateEvent: (index: number, key: string, value: string) => void;
+  removeEvent: (index: number) => void;
+
+  addKeyEvent: () => void;
+  updateKeyEvent: (index: number, key: string, value: string) => void;
+  removeKeyEvent: (index: number) => void;
+
+  setChartImage: (img: ChartImage | null) => void;
+
+  setBcraData: (data: Record<string, string> | null) => void;
+  toggleBcraRow: (key: string) => void;
+}
+
+type DailyStore = DailyState & { flows: { global: string; local: string; positioning: string } } & DailyActions;
+
+const useDailyStore = create<DailyStore>()(
   temporal(
     devtools(
       persist(
@@ -35,14 +111,14 @@ const useDailyStore = create(
         // === List item actions ===
         updateListItem: (field, id, key, value) =>
           set((s) => ({
-            [field]: s[field].map((x) => (x.id === id ? { ...x, [key]: value } : x)),
+            [field]: (s[field] as Array<{ id: string }>).map((x) => (x.id === id ? { ...x, [key]: value } : x)),
           })),
 
         addListItem: (field, item) =>
-          set((s) => ({ [field]: [...s[field], item] })),
+          set((s) => ({ [field]: [...(s[field] as Array<unknown>), item] })),
 
         removeListItem: (field, id) =>
-          set((s) => ({ [field]: s[field].filter((x) => x.id !== id) })),
+          set((s) => ({ [field]: (s[field] as Array<{ id: string }>).filter((x) => x.id !== id) })),
 
         // === Analyst coverage actions ===
         updateCoverage: (analystId, coverageIndex, key, value) =>
@@ -58,7 +134,7 @@ const useDailyStore = create(
           set((s) => ({
             analysts: s.analysts.map((a) =>
               a.id === analystId
-                ? { ...a, coverage: [...a.coverage, { ticker: "", rating: "Neutral", tp: "" }] }
+                ? { ...a, coverage: [...a.coverage, { ticker: "", rating: "Neutral" as const, tp: "" }] }
                 : a
             ),
           })),
@@ -187,7 +263,7 @@ const useDailyStore = create(
           set((s) => ({
             tweets: [...s.tweets, {
               content: "", link: "", time: "",
-              sentiment: "Neutral", impactType: "Market", impactValue: "",
+              sentiment: "Neutral" as const, impactType: "Market" as const, impactValue: "",
             }],
           })),
 
@@ -205,7 +281,7 @@ const useDailyStore = create(
         addEvent: () =>
           set((s) => ({
             events: [...s.events, {
-              title: "", type: "Data Release", date: "", timeET: "", timeBUE: "", timeLON: "",
+              title: "", type: "Data Release" as const, date: "", timeET: "", timeBUE: "", timeLON: "",
               description: "", link: "",
             }],
           })),

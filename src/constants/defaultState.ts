@@ -1,4 +1,6 @@
-export const DEFAULT_ANALYSTS = [
+import type { Analyst, DailyState } from "../types";
+
+export const DEFAULT_ANALYSTS: Analyst[] = [
   { id: "a1", name: "George Gasztowtt", title: "O&G Analyst", coverage: [
     { ticker: "VIST", rating: "Overweight", tp: "US$68.00" },
     { ticker: "YPF", rating: "Overweight", tp: "US$45.00" },
@@ -12,7 +14,7 @@ export const DEFAULT_ANALYSTS = [
   ]},
 ];
 
-export const DEFAULT_STATE = {
+export const DEFAULT_STATE: DailyState & { flows: { global: string; local: string; positioning: string } } = {
   date: new Date().toISOString().split("T")[0],
   sections: [
     { key: "macro", label: "Macro / Political", on: true },
@@ -88,4 +90,4 @@ export const DEFAULT_STATE = {
   flows: { global: "", local: "", positioning: "" },
 };
 
-export const STORAGE_KEY = "ls-daily-builder-state";
+export const STORAGE_KEY: string = "ls-daily-builder-state";

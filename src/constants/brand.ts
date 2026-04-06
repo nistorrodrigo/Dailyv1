@@ -9,7 +9,7 @@ export const BRAND = {
   lightBg: "#f0f6ff",
   greenBg: "#f4faf0",
   salmonBg: "#fdf5f3",
-};
+} as const;
 
-export const LOGO_WHITE_URL = "/logo-white.png";
-export const LOGO_ORIG_URL = "/logo.png";
+export const LOGO_WHITE_URL: string = "/logo-white.png";
+export const LOGO_ORIG_URL: string = "/logo.png";
