@@ -14,26 +14,32 @@ export default function PreviewTab() {
 
   const [html, setHtml] = useState("");
   const [bbg, setBbg] = useState("");
+  const [emailMode, setEmailMode] = useState("full"); // "full" | "toc" | "compact"
 
-  // Generate on mount and when tab becomes visible
+  // Generate on mount
   useEffect(() => {
     const state = useDailyStore.getState();
-    setHtml(generateHTML(state));
+    setHtml(generateHTML(state, emailMode));
     setBbg(generateBBG(state));
   }, []);
 
-  const handleCopy = useCallback(() => {
-    // Regenerate fresh on copy
+  // Regenerate when mode changes
+  useEffect(() => {
     const state = useDailyStore.getState();
-    const text = previewMode === "html" ? generateHTML(state) : generateBBG(state);
+    setHtml(generateHTML(state, emailMode));
+  }, [emailMode]);
+
+  const handleCopy = useCallback(() => {
+    const state = useDailyStore.getState();
+    const text = previewMode === "html" ? generateHTML(state, emailMode) : generateBBG(state);
     copyToClipboard(text, previewMode);
-  }, [previewMode, copyToClipboard]);
+  }, [previewMode, emailMode, copyToClipboard]);
 
   const handleRefresh = useCallback(() => {
     const state = useDailyStore.getState();
-    setHtml(generateHTML(state));
+    setHtml(generateHTML(state, emailMode));
     setBbg(generateBBG(state));
-  }, []);
+  }, [emailMode]);
 
   return (
     <div style={{ maxWidth: 900, margin: "0 auto", padding: 20 }}>
@@ -56,7 +62,7 @@ export default function PreviewTab() {
         <button
           onClick={handleRefresh}
           style={{
-            padding: "8px 16px", borderRadius: 6, border: `1px solid var(--border-input)`,
+            padding: "8px 16px", borderRadius: 6, border: "1px solid var(--border-input)",
             background: "transparent", color: "var(--text-secondary)",
             fontSize: 12, fontWeight: 600, cursor: "pointer",
           }}
@@ -64,6 +70,29 @@ export default function PreviewTab() {
           Refresh
         </button>
         <div style={{ flex: 1 }} />
+        {previewMode === "html" && (
+          <div style={{ display: "flex", gap: 4, marginRight: 8 }}>
+            {[
+              { key: "full", label: "Full" },
+              { key: "toc", label: "TOC" },
+              { key: "compact", label: "Compact" },
+            ].map((m) => (
+              <button
+                key={m.key}
+                onClick={() => setEmailMode(m.key)}
+                style={{
+                  padding: "6px 12px", borderRadius: 4, border: "none",
+                  cursor: "pointer", fontSize: 10, fontWeight: 700,
+                  textTransform: "uppercase", letterSpacing: 0.5,
+                  background: emailMode === m.key ? "var(--brand-navy)" : "var(--bg-card-alt)",
+                  color: emailMode === m.key ? "#fff" : "var(--text-muted)",
+                }}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
+        )}
         <button
           onClick={handleCopy}
           style={{

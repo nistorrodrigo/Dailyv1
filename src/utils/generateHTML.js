@@ -21,11 +21,20 @@ const DS = {
   greenBg: "#edf7ed",
 };
 
-function secHdr(title) {
-  return '<tr><td style="padding:28px 40px 0;"><div style="font-size:11px;font-weight:700;color:' + DS.navy + ';text-transform:uppercase;letter-spacing:2px;padding-bottom:8px;border-bottom:2px solid ' + DS.navy + ';margin-bottom:16px;">' + title + '</div></td></tr>';
+function secHdr(title, id) {
+  return '<tr><td style="padding:28px 40px 0;" id="sec-' + (id || title) + '"><div style="font-size:11px;font-weight:700;color:' + DS.navy + ';text-transform:uppercase;letter-spacing:2px;padding-bottom:8px;border-bottom:2px solid ' + DS.navy + ';margin-bottom:16px;">' + title + '</div></td></tr>';
 }
 
-export function generateHTML(s) {
+// Section label map for TOC
+const SEC_LABELS = {
+  macro: "Macro / Political", tradeIdeas: "Trade Ideas", flows: "LS Trading Desk Flows",
+  macroEstimates: "Macro Estimates", corporate: "Corporate", research: "Research Reports",
+  topMovers: "Top Movers", tweets: "Market Noise", bcra: "BCRA Dashboard",
+  events: "Events", keyEvents: "Key Events Calendar", chart: "Chart of the Day",
+};
+
+// mode: "full" (default) | "toc" (with table of contents) | "compact" (summary only)
+export function generateHTML(s, mode = "full") {
   const logo = getLogoOrigB64();
   const logoW = getLogoWhiteB64();
   const allTickers = s.analysts.flatMap(a => a.coverage.map(c => ({ ticker: c.ticker, rating: c.rating, tp: c.tp, last: c.last || "", analyst: a.name })));
@@ -75,7 +84,42 @@ export function generateHTML(s) {
   const sig = s.signatures.map(x => '<div style="margin-bottom:6px;"><span style="font-size:13px;font-weight:600;color:' + DS.navy + ';">' + x.name + '</span><span style="font-size:12px;color:' + DS.textLight + ';margin-left:6px;">' + x.role + '</span><br><span style="font-size:12px;color:' + DS.accent + ';">' + x.email + '</span></div>').join("");
 
   // SECTION MAP
-  const sectionContent = s.sections.filter(x => x.on).map(x => ({ macro, tradeIdeas: trade, flows: flow, macroEstimates: mEst, corporate: corp, research, topMovers, tweets, bcra, events, keyEvents, chart })[x.key] || "").join("");
+  const sectionMap = { macro, tradeIdeas: trade, flows: flow, macroEstimates: mEst, corporate: corp, research, topMovers, tweets, bcra, events, keyEvents, chart };
+  const enabledSections = s.sections.filter(x => x.on);
+
+  // Build Table of Contents
+  const tocBlock = '<tr><td style="padding:20px 40px 4px;"><div style="font-size:10px;font-weight:700;color:' + DS.navy + ';text-transform:uppercase;letter-spacing:2px;margin-bottom:10px;">In This Issue</div>' + enabledSections.map((sec, i) => '<a href="#sec-' + sec.key + '" style="display:inline-block;font-size:12px;color:' + DS.accent + ';text-decoration:none;margin-right:6px;margin-bottom:4px;">' + SEC_LABELS[sec.key] + (i < enabledSections.length - 1 ? ' <span style="color:' + DS.textMuted + ';">&middot;</span>' : '') + '</a>').join("") + '</td></tr>';
+
+  // Build compact summaries (1-line per section)
+  const compactSummaries = {
+    macro: s.macroBlocks.length ? s.macroBlocks.map(b => b.title).join(", ") : "",
+    tradeIdeas: s.equityPicks.filter(p => p.ticker).map(p => p.ticker).join(", ") + (s.fiIdeas.filter(f => f.idea).length ? " + " + s.fiIdeas.filter(f => f.idea).length + " FI ideas" : ""),
+    flows: "EQ: Buy " + (s.eqBuyer || "...").substring(0, 30) + " | FI: Buy " + (s.fiBuyer || "...").substring(0, 30),
+    macroEstimates: s.macroRows.length + " metrics, " + s.macroCols.join("/"),
+    corporate: s.corpBlocks.map(c => (c.tickers || []).join("/")).filter(Boolean).join(", "),
+    research: (s.researchReports || []).filter(r => r.title).map(r => r.title).join(", "),
+    topMovers: topMoversGainers.map(m => m.ticker + " +" + m.chgPct + "%").concat(topMoversLosers.map(m => m.ticker + " " + m.chgPct + "%")).join(", "),
+    tweets: s.tweets?.length ? s.tweets.length + " posts" : "",
+    bcra: s.bcraData ? Object.keys(s.bcraData).length + " indicators" : "",
+    events: s.events?.length ? s.events.length + " events" : "",
+    keyEvents: s.keyEvents?.length ? s.keyEvents.length + " events" : "",
+    chart: s.chartImage?.title || "Chart attached",
+  };
+
+  const compactBlock = enabledSections.map(sec => {
+    const summary = compactSummaries[sec.key];
+    if (!summary) return "";
+    return '<tr><td style="padding:4px 40px;"><div style="display:flex;padding:8px 0;border-bottom:1px solid ' + DS.borderLight + ';"><span style="font-size:11px;font-weight:700;color:' + DS.navy + ';text-transform:uppercase;letter-spacing:1px;min-width:140px;">' + SEC_LABELS[sec.key] + '</span><span style="font-size:12.5px;color:' + DS.textLight + ';margin-left:12px;">' + summary + '</span></div></td></tr>';
+  }).join("");
+
+  let sectionContent;
+  if (mode === "compact") {
+    sectionContent = '<tr><td style="padding:20px 40px 4px;"><div style="font-size:10px;font-weight:700;color:' + DS.navy + ';text-transform:uppercase;letter-spacing:2px;margin-bottom:6px;">Summary</div></td></tr>' + compactBlock;
+  } else if (mode === "toc") {
+    sectionContent = tocBlock + enabledSections.map(x => sectionMap[x.key] || "").join("");
+  } else {
+    sectionContent = enabledSections.map(x => sectionMap[x.key] || "").join("");
+  }
 
   // FULL TEMPLATE
   return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Argentina Daily</title></head><body style="margin:0;padding:0;background:#f4f5f7;font-family:\'Segoe UI\',Calibri,Arial,Helvetica,sans-serif;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f4f5f7;"><tr><td align="center" style="padding:24px 10px;"><table role="presentation" width="' + DS.maxW + '" cellpadding="0" cellspacing="0" border="0" style="max-width:' + DS.maxW + 'px;width:100%;background:#fff;border:1px solid ' + DS.borderLight + ';">'
