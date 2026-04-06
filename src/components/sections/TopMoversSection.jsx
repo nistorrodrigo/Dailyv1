@@ -4,7 +4,7 @@ import useDailyStore from "../../store/useDailyStore";
 import { Card, X, DashBtn } from "../ui";
 import { BRAND } from "../../constants/brand";
 
-const is = { padding: "6px 8px", borderRadius: 4, border: "1px solid #d0d5dd", fontSize: 12, boxSizing: "border-box" };
+const is = { padding: "6px 8px", borderRadius: 4, border: "1px solid var(--border-input)", fontSize: 12, boxSizing: "border-box" };
 
 export default function TopMoversSection() {
     const { sections, topMovers, cclRate } = useDailyStore(useShallow((s) => ({ sections: s.sections, topMovers: s.topMovers, cclRate: s.cclRate })));
@@ -68,14 +68,14 @@ export default function TopMoversSection() {
           disabled={fetching}
           style={{
             padding: "6px 16px", borderRadius: 6, border: "none",
-            background: BRAND.navy, color: "#fff", fontSize: 12,
+            background: BRAND.navy, color: "var(--bg-card)", fontSize: 12,
             fontWeight: 600, cursor: fetching ? "wait" : "pointer",
           }}
         >
           {fetching ? "Fetching..." : "Fetch CCL"}
         </button>
         {cclRate && (
-          <span style={{ fontSize: 12, color: "#555" }}>
+          <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>
             CCL: {typeof cclRate === "object" ? JSON.stringify(cclRate) : cclRate}
           </span>
         )}

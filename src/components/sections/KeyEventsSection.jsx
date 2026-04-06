@@ -3,7 +3,7 @@ import useDailyStore from "../../store/useDailyStore";
 import { Card, X, DashBtn } from "../ui";
 import { BRAND } from "../../constants/brand";
 
-const is = { padding: "6px 8px", borderRadius: 4, border: "1px solid #d0d5dd", fontSize: 12, boxSizing: "border-box" };
+const is = { padding: "6px 8px", borderRadius: 4, border: "1px solid var(--border-input)", fontSize: 12, boxSizing: "border-box" };
 
 export default function KeyEventsSection() {
     const { sections, keyEvents } = useDailyStore(useShallow((s) => ({ sections: s.sections, keyEvents: s.keyEvents })));

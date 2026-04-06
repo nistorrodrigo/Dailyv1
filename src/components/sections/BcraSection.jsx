@@ -35,7 +35,7 @@ export default function BcraSection() {
           disabled={fetching}
           style={{
             padding: "8px 20px", borderRadius: 6, border: "none",
-            background: BRAND.navy, color: "#fff", fontSize: 12,
+            background: BRAND.navy, color: "var(--bg-card)", fontSize: 12,
             fontWeight: 600, cursor: fetching ? "wait" : "pointer",
           }}
         >
@@ -84,13 +84,13 @@ export default function BcraSection() {
       )}
 
       {bcraData && !Array.isArray(bcraData) && (
-        <div style={{ fontSize: 12, color: "#666", marginTop: 8 }}>
+        <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 8 }}>
           Data loaded. Format: {typeof bcraData}
         </div>
       )}
 
       {!bcraData && (
-        <div style={{ fontSize: 12, color: "#999", fontStyle: "italic" }}>
+        <div style={{ fontSize: 12, color: "var(--text-muted)", fontStyle: "italic" }}>
           No data loaded. Click "Fetch BCRA Data" to populate.
         </div>
       )}

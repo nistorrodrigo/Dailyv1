@@ -41,6 +41,10 @@ export default async function handler(req, res) {
         from: { email: fromEmail, name: "Latin Securities Daily" },
         subject,
         content: [{ type: "text/html", value: html }],
+        tracking_settings: {
+          open_tracking: { enable: true },
+          click_tracking: { enable: true },
+        },
       }),
     });
 

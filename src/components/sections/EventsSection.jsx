@@ -3,8 +3,8 @@ import useDailyStore from "../../store/useDailyStore";
 import { Card, Inp, X, DashBtn } from "../ui";
 import { BRAND } from "../../constants/brand";
 
-const is = { padding: "6px 8px", borderRadius: 4, border: "1px solid #d0d5dd", fontSize: 12, boxSizing: "border-box" };
-const ss = { ...is, background: "#fff" };
+const is = { padding: "6px 8px", borderRadius: 4, border: "1px solid var(--border-input)", fontSize: 12, boxSizing: "border-box" };
+const ss = { ...is, background: "var(--bg-card)" };
 
 const EVENT_TYPES = ["Data Release", "Earnings", "Fed", "Other"];
 
@@ -29,7 +29,7 @@ export default function EventsSection() {
               <Inp label="Title" value={ev.title} onChange={(v) => updateEvent(i, "title", v)} />
             </div>
             <div style={{ width: 140 }}>
-              <label style={{ fontSize: 11, fontWeight: 600, color: "#555", textTransform: "uppercase", letterSpacing: 0.5, display: "block", marginBottom: 4 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: 0.5, display: "block", marginBottom: 4 }}>
                 Type
               </label>
               <select
@@ -43,7 +43,7 @@ export default function EventsSection() {
               </select>
             </div>
             <div style={{ width: 140 }}>
-              <label style={{ fontSize: 11, fontWeight: 600, color: "#555", textTransform: "uppercase", letterSpacing: 0.5, display: "block", marginBottom: 4 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: 0.5, display: "block", marginBottom: 4 }}>
                 Date
               </label>
               <input
@@ -57,7 +57,7 @@ export default function EventsSection() {
 
           <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
             <div style={{ flex: 1 }}>
-              <label style={{ fontSize: 11, fontWeight: 600, color: "#555", textTransform: "uppercase", letterSpacing: 0.5, display: "block", marginBottom: 4 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: 0.5, display: "block", marginBottom: 4 }}>
                 Time (ET)
               </label>
               <input
@@ -68,7 +68,7 @@ export default function EventsSection() {
               />
             </div>
             <div style={{ flex: 1 }}>
-              <label style={{ fontSize: 11, fontWeight: 600, color: "#555", textTransform: "uppercase", letterSpacing: 0.5, display: "block", marginBottom: 4 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: 0.5, display: "block", marginBottom: 4 }}>
                 Time (BUE)
               </label>
               <input
@@ -79,7 +79,7 @@ export default function EventsSection() {
               />
             </div>
             <div style={{ flex: 1 }}>
-              <label style={{ fontSize: 11, fontWeight: 600, color: "#555", textTransform: "uppercase", letterSpacing: 0.5, display: "block", marginBottom: 4 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: 0.5, display: "block", marginBottom: 4 }}>
                 Time (LON)
               </label>
               <input

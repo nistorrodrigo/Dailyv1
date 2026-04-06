@@ -4,8 +4,8 @@ import { Card, Inp, X, DashBtn } from "../ui";
 import { BRAND } from "../../constants/brand";
 import { rc, rb } from "../../utils/ratings";
 
-const is = { padding: "6px 8px", borderRadius: 4, border: "1px solid #d0d5dd", fontSize: 12, boxSizing: "border-box" };
-const ss = { ...is, background: "#fff" };
+const is = { padding: "6px 8px", borderRadius: 4, border: "1px solid var(--border-input)", fontSize: 12, boxSizing: "border-box" };
+const ss = { ...is, background: "var(--bg-card)" };
 
 export default function CorporateSection() {
     const { sections, corpBlocks, analysts } = useDailyStore(useShallow((s) => ({ sections: s.sections, corpBlocks: s.corpBlocks, analysts: s.analysts })));
@@ -32,7 +32,7 @@ export default function CorporateSection() {
 
             {/* Analyst selector */}
             <div style={{ marginBottom: 10 }}>
-              <label style={{ fontSize: 11, fontWeight: 600, color: "#555", textTransform: "uppercase", letterSpacing: 0.5, display: "block", marginBottom: 4 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: 0.5, display: "block", marginBottom: 4 }}>
                 Analyst
               </label>
               <select
@@ -49,7 +49,7 @@ export default function CorporateSection() {
 
             {/* Ticker multi-select */}
             <div style={{ marginBottom: 10 }}>
-              <label style={{ fontSize: 11, fontWeight: 600, color: "#555", textTransform: "uppercase", letterSpacing: 0.5, display: "block", marginBottom: 4 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: 0.5, display: "block", marginBottom: 4 }}>
                 Tickers
               </label>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
@@ -65,8 +65,8 @@ export default function CorporateSection() {
                       style={{
                         padding: "3px 10px", borderRadius: 12, fontSize: 11, fontWeight: 600,
                         border: active ? `1px solid ${BRAND.blue}` : "1px solid #d0d5dd",
-                        background: active ? BRAND.lightBg : "#fff",
-                        color: active ? BRAND.blue : "#666",
+                        background: active ? BRAND.lightBg : "var(--bg-card)",
+                        color: active ? BRAND.blue : "var(--text-secondary)",
                         cursor: "pointer",
                       }}
                     >

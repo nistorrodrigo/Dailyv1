@@ -5,8 +5,8 @@ import { BRAND } from "../../constants/brand";
 import { rc, rb } from "../../utils/ratings";
 import { calcUpside, fmtUpside, upsideColor } from "../../utils/prices";
 
-const is = { padding: "6px 8px", borderRadius: 4, border: "1px solid #d0d5dd", fontSize: 12, boxSizing: "border-box" };
-const ss = { ...is, background: "#fff" };
+const is = { padding: "6px 8px", borderRadius: 4, border: "1px solid var(--border-input)", fontSize: 12, boxSizing: "border-box" };
+const ss = { ...is, background: "var(--bg-card)" };
 
 export default function TradeIdeasSection() {
     const { sections, equityPicks, fiIdeas, analysts } = useDailyStore(useShallow((s) => ({ sections: s.sections, equityPicks: s.equityPicks, fiIdeas: s.fiIdeas, analysts: s.analysts })));
@@ -66,7 +66,7 @@ export default function TradeIdeasSection() {
                     {cov.rating}
                   </span>
                   {cov.tp && (
-                    <span style={{ fontSize: 10, color: "#666" }}>TP {cov.tp}</span>
+                    <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>TP {cov.tp}</span>
                   )}
                   {cov.tp && cov.last && (
                     <span style={{ fontSize: 10, fontWeight: 600, color: upsideColor(cov.tp, cov.last) }}>

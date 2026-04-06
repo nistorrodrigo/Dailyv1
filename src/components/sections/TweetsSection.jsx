@@ -3,8 +3,8 @@ import useDailyStore from "../../store/useDailyStore";
 import { Card, X, DashBtn } from "../ui";
 import { BRAND } from "../../constants/brand";
 
-const is = { padding: "6px 8px", borderRadius: 4, border: "1px solid #d0d5dd", fontSize: 12, boxSizing: "border-box" };
-const ss = { ...is, background: "#fff" };
+const is = { padding: "6px 8px", borderRadius: 4, border: "1px solid var(--border-input)", fontSize: 12, boxSizing: "border-box" };
+const ss = { ...is, background: "var(--bg-card)" };
 
 const SENTIMENTS = ["Bullish", "Bearish", "Neutral"];
 const IMPACT_TYPES = ["Market", "Sector", "Stock"];
@@ -31,7 +31,7 @@ export default function TweetsSection() {
           </div>
 
           <div style={{ marginBottom: 8 }}>
-            <label style={{ fontSize: 11, fontWeight: 600, color: "#555", textTransform: "uppercase", letterSpacing: 0.5, display: "block", marginBottom: 4 }}>
+            <label style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: 0.5, display: "block", marginBottom: 4 }}>
               Content
             </label>
             <textarea
@@ -45,7 +45,7 @@ export default function TweetsSection() {
 
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" }}>
             <div style={{ flex: 1, minWidth: 160 }}>
-              <label style={{ fontSize: 11, fontWeight: 600, color: "#555", textTransform: "uppercase", letterSpacing: 0.5, display: "block", marginBottom: 4 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: 0.5, display: "block", marginBottom: 4 }}>
                 Link
               </label>
               <input
@@ -56,7 +56,7 @@ export default function TweetsSection() {
               />
             </div>
             <div style={{ width: 90 }}>
-              <label style={{ fontSize: 11, fontWeight: 600, color: "#555", textTransform: "uppercase", letterSpacing: 0.5, display: "block", marginBottom: 4 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: 0.5, display: "block", marginBottom: 4 }}>
                 Time
               </label>
               <input
@@ -67,7 +67,7 @@ export default function TweetsSection() {
               />
             </div>
             <div style={{ width: 110 }}>
-              <label style={{ fontSize: 11, fontWeight: 600, color: "#555", textTransform: "uppercase", letterSpacing: 0.5, display: "block", marginBottom: 4 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: 0.5, display: "block", marginBottom: 4 }}>
                 Sentiment
               </label>
               <select
@@ -92,7 +92,7 @@ export default function TweetsSection() {
 
           <div style={{ display: "flex", gap: 8, marginTop: 8, alignItems: "flex-end" }}>
             <div style={{ width: 120 }}>
-              <label style={{ fontSize: 11, fontWeight: 600, color: "#555", textTransform: "uppercase", letterSpacing: 0.5, display: "block", marginBottom: 4 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: 0.5, display: "block", marginBottom: 4 }}>
                 Impact Type
               </label>
               <select
@@ -106,7 +106,7 @@ export default function TweetsSection() {
               </select>
             </div>
             <div style={{ flex: 1 }}>
-              <label style={{ fontSize: 11, fontWeight: 600, color: "#555", textTransform: "uppercase", letterSpacing: 0.5, display: "block", marginBottom: 4 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: 0.5, display: "block", marginBottom: 4 }}>
                 Impact Value
               </label>
               <input

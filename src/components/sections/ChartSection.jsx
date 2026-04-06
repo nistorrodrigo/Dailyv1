@@ -42,7 +42,7 @@ export default function ChartSection() {
   return (
     <Card title="Chart of the Day" color={BRAND.navy}>
       <div style={{ marginBottom: 12 }}>
-        <label style={{ fontSize: 11, fontWeight: 600, color: "#555", textTransform: "uppercase", letterSpacing: 0.5, display: "block", marginBottom: 4 }}>
+        <label style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: 0.5, display: "block", marginBottom: 4 }}>
           Upload Image
         </label>
         <input

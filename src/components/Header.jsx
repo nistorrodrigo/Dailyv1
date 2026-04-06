@@ -12,6 +12,7 @@ import DuplicateYesterdayBtn from "./DuplicateYesterdayBtn";
 import DiffPanel from "./DiffPanel";
 import SchedulePanel from "./SchedulePanel";
 import { logout } from "./LoginGate";
+import PresenceIndicator from "./PresenceIndicator";
 
 function timeAgo(ts) {
   if (!ts) return "";
@@ -61,6 +62,7 @@ export default function Header() {
           </span>
         </div>
         <div className="header-buttons" style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          <PresenceIndicator />
           {(saveStatus === "saved" || saveStatus === "idle") && lastSavedAt && (
             <span className="save-indicator" style={{ fontSize: 10, color: BRAND.green, fontWeight: 600, letterSpacing: 0.5 }}>
               {"\u2713"} Saved {timeAgo(lastSavedAt)}

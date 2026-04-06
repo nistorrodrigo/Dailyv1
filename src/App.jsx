@@ -4,6 +4,7 @@ import Header from "./components/Header";
 import EditorTab from "./components/sections/EditorTab";
 import AnalystsTab from "./components/sections/AnalystsTab";
 import PreviewTab from "./components/sections/PreviewTab";
+import DashboardTab from "./components/sections/DashboardTab";
 
 const tabCls = (active) =>
   `px-5 py-2.5 cursor-pointer text-[13px] font-bold tracking-wide uppercase border-none transition-all duration-200 ${
@@ -24,10 +25,12 @@ export default function App() {
         <button onClick={() => setTab("edit")} className={tabCls(tab === "edit")}>Editor</button>
         <button onClick={() => setTab("analysts")} className={tabCls(tab === "analysts")}>Analysts</button>
         <button onClick={() => setTab("preview")} className={tabCls(tab === "preview")}>Preview</button>
+        <button onClick={() => setTab("dashboard")} className={tabCls(tab === "dashboard")}>Dashboard</button>
       </div>
       {tab === "edit" && <EditorTab />}
       {tab === "analysts" && <AnalystsTab />}
       {tab === "preview" && <PreviewTab />}
+      {tab === "dashboard" && <DashboardTab />}
     </div>
   );
 }

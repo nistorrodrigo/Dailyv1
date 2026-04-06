@@ -1,0 +1,12 @@
+{
+  "name": "LS Daily Builder",
+  "short_name": "Daily",
+  "description": "Argentina Daily Report Builder — Latin Securities",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#000039",
+  "theme_color": "#000039",
+  "icons": [
+    { "src": "/logo.png", "sizes": "400x108", "type": "image/png" }
+  ]
+}
