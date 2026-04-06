@@ -281,7 +281,7 @@ const useDailyStore = create<DailyStore>()(
         addEvent: () =>
           set((s) => ({
             events: [...s.events, {
-              title: "", type: "Data Release" as const, date: "", timeET: "", timeBUE: "", timeLON: "",
+              title: "", type: "Webinar" as const, date: "", timeET: "", timeBUE: "", timeLON: "",
               description: "", link: "",
             }],
           })),

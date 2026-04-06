@@ -89,7 +89,7 @@ export interface Tweet {
 
 export interface DailyEvent {
   title: string;
-  type: "Data Release" | "Earnings" | "Fed" | "Other";
+  type: "Webinar" | "Conference" | "Corporate Access" | "Roadshow" | "Earnings Call" | "Investor Day" | "Other";
   date: string;
   timeET: string;
   timeBUE: string;

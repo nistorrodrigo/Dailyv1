@@ -7,7 +7,7 @@ import { BRAND } from "../../constants/brand";
 const is: React.CSSProperties = { padding: "6px 8px", borderRadius: 4, border: "1px solid var(--border-input)", fontSize: 12, boxSizing: "border-box" };
 const ss: React.CSSProperties = { ...is, background: "var(--bg-card)" };
 
-const EVENT_TYPES = ["Data Release", "Earnings", "Fed", "Other"];
+const EVENT_TYPES = ["Webinar", "Conference", "Corporate Access", "Roadshow", "Earnings Call", "Investor Day", "Other"];
 
 export default function EventsSection() {
     const { sections, events } = useDailyStore(useShallow((s) => ({ sections: s.sections, events: s.events })));
@@ -18,7 +18,7 @@ export default function EventsSection() {
   if (!sections.find((x) => x.key === "events")?.on) return null;
 
   return (
-    <Card title="Events" color={BRAND.blue}>
+    <Card title="Corporate Access & Events" color={BRAND.blue}>
       {events.map((ev, i) => (
         <div key={i} style={{ marginBottom: 14, padding: 12, background: "#f8f9fa", borderRadius: 6, position: "relative" }}>
           <div style={{ position: "absolute", top: 8, right: 8 }}>

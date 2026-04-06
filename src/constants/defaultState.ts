@@ -26,7 +26,7 @@ export const DEFAULT_STATE: DailyState & { flows: { global: string; local: strin
     { key: "topMovers", label: "Top Movers", on: false },
     { key: "tweets", label: "Tweets / Market Noise", on: false },
     { key: "bcra", label: "BCRA Dashboard", on: false },
-    { key: "events", label: "Events", on: false },
+    { key: "events", label: "Corporate Access & Events", on: false },
     { key: "keyEvents", label: "Key Events Calendar", on: false },
     { key: "chart", label: "Chart of the Day", on: false },
   ],
