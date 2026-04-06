@@ -1,13 +1,20 @@
 import { saveDaily, loadDaily } from "./dailyApi";
 import { supabase } from "./supabase";
 import useUIStore from "../store/useUIStore";
+import type { DailyState, UIState } from "../types";
 
-let debounceTimer = null;
+interface StoreApi<T> {
+  getState: () => T;
+  setState: (partial: Partial<T>) => void;
+  subscribe: (listener: () => void) => () => void;
+}
 
-export function setupSupabaseSync(dataStore) {
+let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+export function setupSupabaseSync(dataStore: StoreApi<DailyState>): void {
   if (!supabase) return;
 
-  const setSaveStatus = (status) => useUIStore.getState().setSaveStatus(status);
+  const setSaveStatus = (status: UIState["saveStatus"]): void => useUIStore.getState().setSaveStatus(status);
 
   // Load from Supabase on init
   const date = dataStore.getState().date;

@@ -3,7 +3,14 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { BRAND } from "../../constants/brand";
 
-function wrapSelection(textareaRef, before, after) {
+interface MarkdownEditorProps {
+  value: string;
+  onChange: (v: string) => void;
+  rows?: number;
+  placeholder?: string;
+}
+
+function wrapSelection(textareaRef: React.RefObject<HTMLTextAreaElement | null>, before: string, after: string) {
   const ta = textareaRef.current;
   if (!ta) return null;
   const start = ta.selectionStart;
@@ -14,7 +21,7 @@ function wrapSelection(textareaRef, before, after) {
   return { newText, cursorPos: start + before.length + selected.length + after.length };
 }
 
-export default function MarkdownEditor({ value, onChange, rows = 4, placeholder }) {
+export default function MarkdownEditor({ value, onChange, rows = 4, placeholder }: MarkdownEditorProps) {
   const [showPreview, setShowPreview] = useState(false);
   const textareaRef = useRef(null);
 

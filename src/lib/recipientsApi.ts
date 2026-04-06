@@ -1,6 +1,13 @@
 import { supabase } from "./supabase";
 
-export async function listRecipients() {
+export interface Recipient {
+  id: string;
+  email: string;
+  name: string;
+  active: boolean;
+}
+
+export async function listRecipients(): Promise<Recipient[]> {
   if (!supabase) return [];
   const { data, error } = await supabase
     .from("recipients")
@@ -10,7 +17,7 @@ export async function listRecipients() {
   return data || [];
 }
 
-export async function addRecipient(email, name = "") {
+export async function addRecipient(email: string, name: string = ""): Promise<Recipient | null> {
   if (!supabase) return null;
   const { data, error } = await supabase
     .from("recipients")
@@ -21,7 +28,7 @@ export async function addRecipient(email, name = "") {
   return data;
 }
 
-export async function toggleRecipient(id, active) {
+export async function toggleRecipient(id: string, active: boolean): Promise<void> {
   if (!supabase) return;
   const { error } = await supabase
     .from("recipients")
@@ -30,7 +37,7 @@ export async function toggleRecipient(id, active) {
   if (error) throw error;
 }
 
-export async function removeRecipient(id) {
+export async function removeRecipient(id: string): Promise<void> {
   if (!supabase) return;
   const { error } = await supabase.from("recipients").delete().eq("id", id);
   if (error) throw error;

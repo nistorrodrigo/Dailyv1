@@ -140,7 +140,7 @@ export interface DailyState {
 }
 
 export interface UIState {
-  tab: "edit" | "analysts" | "preview";
+  tab: "edit" | "analysts" | "preview" | "dashboard";
   previewMode: "html" | "bbg";
   copiedLabel: string;
   saveStatus: "idle" | "saving" | "saved" | "error";

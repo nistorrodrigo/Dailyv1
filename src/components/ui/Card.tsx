@@ -1,7 +1,15 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { BRAND } from "../../constants/brand";
 
-export const Card = ({ title, children, color = BRAND.blue, collapsible = true, defaultOpen = true }) => {
+interface CardProps {
+  title: string;
+  children: React.ReactNode;
+  color?: string;
+  collapsible?: boolean;
+  defaultOpen?: boolean;
+}
+
+export const Card = ({ title, children, color = BRAND.blue, collapsible = true, defaultOpen = true }: CardProps) => {
   const [open, setOpen] = useState(defaultOpen);
 
   return (

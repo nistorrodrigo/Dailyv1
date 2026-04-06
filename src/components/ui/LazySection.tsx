@@ -1,6 +1,11 @@
-import { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 
-export default function LazySection({ children, minHeight = 80 }) {
+interface LazySectionProps {
+  children: React.ReactNode;
+  minHeight?: number;
+}
+
+export default function LazySection({ children, minHeight = 80 }: LazySectionProps) {
   const [visible, setVisible] = useState(false);
   const ref = useRef(null);
 

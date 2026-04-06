@@ -1,6 +1,12 @@
 import { BRAND } from "../../constants/brand";
 
-export const Toggle = ({ checked, onChange, label }) => (
+interface ToggleProps {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  label: string;
+}
+
+export const Toggle = ({ checked, onChange, label }: ToggleProps) => (
   <label className="flex items-center gap-2.5 cursor-pointer select-none">
     <div
       onClick={() => onChange(!checked)}
