@@ -11,8 +11,19 @@ export default function SchedulePanel({ open, onClose }) {
   useEffect(() => {
     if (!open) return;
     setLoading(true);
+    setResult(null);
     fetch("/api/schedule").then(r => r.json()).then(data => {
-      if (data.ok) setSchedule(data.schedule);
+      if (data.ok) {
+        const s = data.schedule;
+        // If last scheduled date already passed, reset to today
+        const today = new Date().toISOString().split("T")[0];
+        if (s.scheduled_date && s.scheduled_date < today) {
+          s.enabled = false;
+          s.scheduled_date = today;
+        }
+        if (!s.scheduled_date) s.scheduled_date = today;
+        setSchedule(s);
+      }
     }).finally(() => setLoading(false));
   }, [open]);
 
@@ -23,17 +34,39 @@ export default function SchedulePanel({ open, onClose }) {
   };
 
   const handleSave = async () => {
+    if (!schedule.sendgrid_list_id && !(schedule.recipient_emails?.length)) {
+      setResult({ type: "error", message: "Select a SendGrid list first" });
+      return;
+    }
     setSaving(true);
     setResult(null);
     try {
       const resp = await fetch("/api/schedule", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(schedule),
+        body: JSON.stringify({ ...schedule, enabled: true }),
       });
       const data = await resp.json();
       if (!data.ok) throw new Error(data.error);
-      setResult({ type: "success", message: "Schedule saved!" });
+      setSchedule({ ...schedule, enabled: true });
+      setResult({ type: "success", message: "Scheduled! Email will be sent on " + schedule.scheduled_date + " at " + schedule.send_time + " BUE" });
+    } catch (err) {
+      setResult({ type: "error", message: err.message });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCancel = async () => {
+    setSaving(true);
+    try {
+      await fetch("/api/schedule", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...schedule, enabled: false }),
+      });
+      setSchedule({ ...schedule, enabled: false });
+      setResult({ type: "success", message: "Scheduled send cancelled" });
     } catch (err) {
       setResult({ type: "error", message: err.message });
     } finally {
@@ -43,36 +76,57 @@ export default function SchedulePanel({ open, onClose }) {
 
   if (!open) return null;
 
+  const today = new Date().toISOString().split("T")[0];
+
   return (
     <div className="fixed top-0 right-0 bottom-0 w-[400px] bg-[var(--bg-card)] shadow-[var(--shadow-panel)] z-[1000] flex flex-col">
       <div className="flex justify-between items-center px-5 py-4" style={{ background: BRAND.navy }}>
-        <span className="text-white text-sm font-bold uppercase tracking-wider">Scheduled Send</span>
-        <button onClick={onClose} className="bg-transparent border-none text-sky text-xl cursor-pointer">{"\u00D7"}</button>
+        <span className="text-white text-sm font-bold uppercase tracking-wider">Schedule Send</span>
+        <button onClick={onClose} className="bg-transparent border-none text-[var(--color-sky)] text-xl cursor-pointer">{"\u00D7"}</button>
       </div>
       <div className="flex-1 overflow-auto p-4">
         {loading && <p className="text-sm text-[var(--text-muted)] text-center py-4">Loading...</p>}
         {schedule && (
           <>
-            {/* Enable toggle */}
-            <div className="flex items-center justify-between mb-4 p-3 rounded-md bg-[var(--bg-card-alt)] border border-[var(--border-light)]">
-              <div>
-                <div className="text-sm font-bold text-[var(--text-primary)]">Auto-send enabled</div>
-                <div className="text-[11px] text-[var(--text-muted)]">Send daily automatically at scheduled time</div>
+            {/* Status */}
+            {schedule.enabled && (
+              <div className="mb-4 p-3 rounded-md border border-green-300 bg-green-50">
+                <div className="text-sm font-bold text-green-700">Scheduled</div>
+                <div className="text-xs text-green-600 mt-1">
+                  Will send on {schedule.scheduled_date} at {schedule.send_time} BUE
+                  {schedule.sendgrid_list_name ? " to " + schedule.sendgrid_list_name : ""}
+                </div>
+                <button
+                  onClick={handleCancel}
+                  disabled={saving}
+                  className="mt-2 px-3 py-1.5 rounded text-xs font-bold border border-red-300 bg-transparent text-red-500 cursor-pointer"
+                >
+                  Cancel Scheduled Send
+                </button>
               </div>
-              <button
-                onClick={() => setSchedule({ ...schedule, enabled: !schedule.enabled })}
-                className="relative w-12 h-6 rounded-full cursor-pointer border-none"
-                style={{ background: schedule.enabled ? BRAND.blue : "#c8cdd3" }}
-              >
-                <div className="absolute top-[3px] w-[18px] h-[18px] rounded-full bg-white shadow-sm transition-[left] duration-200"
-                  style={{ left: schedule.enabled ? 26 : 3 }} />
-              </button>
+            )}
+
+            {/* Date */}
+            <div className="mb-4">
+              <label className="block mb-1 text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide">
+                Send Date
+              </label>
+              <input
+                type="date"
+                value={schedule.scheduled_date || today}
+                min={today}
+                onChange={(e) => setSchedule({ ...schedule, scheduled_date: e.target.value })}
+                className="themed-input w-full px-3 py-2 rounded-md border border-[var(--border-input)] text-sm bg-[var(--bg-input)] text-[var(--text-primary)]"
+              />
+              <div className="text-[10px] text-[var(--text-muted)] mt-1">
+                One-time send. After sending, the schedule is automatically disabled.
+              </div>
             </div>
 
             {/* Time */}
             <div className="mb-4">
               <label className="block mb-1 text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide">
-                Send Time
+                Send Time (Buenos Aires)
               </label>
               <input
                 type="time"
@@ -80,15 +134,12 @@ export default function SchedulePanel({ open, onClose }) {
                 onChange={(e) => setSchedule({ ...schedule, send_time: e.target.value })}
                 className="themed-input w-full px-3 py-2 rounded-md border border-[var(--border-input)] text-sm bg-[var(--bg-input)] text-[var(--text-primary)]"
               />
-              <div className="text-[10px] text-[var(--text-muted)] mt-1">
-                Timezone: Buenos Aires (UTC-3). Cron checks every 15min between 7-9 AM weekdays.
-              </div>
             </div>
 
             {/* SendGrid list */}
             <div className="mb-4">
               <label className="block mb-1 text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide">
-                SendGrid List
+                Send To (SendGrid List)
               </label>
               {schedule.sendgrid_list_name && (
                 <div className="mb-2 px-3 py-2 rounded-md bg-[var(--bg-card-alt)] border border-[var(--border-light)] text-sm text-[var(--text-primary)] flex items-center justify-between">
@@ -99,24 +150,21 @@ export default function SchedulePanel({ open, onClose }) {
                   >{"\u00D7"}</button>
                 </div>
               )}
-              {sgLists.length === 0 ? (
+              {!schedule.sendgrid_list_name && sgLists.length === 0 && (
                 <button
                   onClick={loadLists}
                   className="px-3 py-1.5 rounded-md border border-[var(--border-input)] bg-transparent text-[var(--text-secondary)] text-[11px] font-semibold cursor-pointer"
                 >
                   Load SendGrid Lists
                 </button>
-              ) : (
+              )}
+              {sgLists.length > 0 && !schedule.sendgrid_list_name && (
                 <div className="flex gap-1.5 flex-wrap">
                   {sgLists.map(list => (
                     <button
                       key={list.id}
                       onClick={() => setSchedule({ ...schedule, sendgrid_list_id: list.id, sendgrid_list_name: list.name })}
-                      className={`px-2.5 py-1.5 rounded text-[10px] font-bold border cursor-pointer ${
-                        schedule.sendgrid_list_id === list.id
-                          ? "border-blue-500 text-blue-500 bg-blue-50"
-                          : "border-[var(--border-input)] text-[var(--text-primary)] bg-transparent"
-                      }`}
+                      className="px-2.5 py-1.5 rounded text-[10px] font-bold border border-[var(--border-input)] bg-transparent text-[var(--text-primary)] cursor-pointer hover:bg-[var(--bg-hover)]"
                     >
                       {list.name} ({list.count})
                     </button>
@@ -125,7 +173,7 @@ export default function SchedulePanel({ open, onClose }) {
               )}
             </div>
 
-            {/* Last sent info */}
+            {/* Last sent */}
             {schedule.last_sent_at && (
               <div className="mb-4 p-3 rounded-md bg-[var(--bg-card-alt)] border border-[var(--border-light)]">
                 <div className="text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-1">Last Sent</div>
@@ -145,17 +193,19 @@ export default function SchedulePanel({ open, onClose }) {
         )}
       </div>
 
-      {/* Save button */}
-      <div className="p-4 border-t border-[var(--border-light)]">
-        <button
-          onClick={handleSave}
-          disabled={saving || !schedule}
-          className="w-full py-3 rounded-md border-none text-white text-sm font-bold cursor-pointer uppercase disabled:opacity-50"
-          style={{ background: saving ? "#999" : BRAND.blue }}
-        >
-          {saving ? "Saving..." : "Save Schedule"}
-        </button>
-      </div>
+      {/* Schedule button */}
+      {schedule && !schedule.enabled && (
+        <div className="p-4 border-t border-[var(--border-light)]">
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="w-full py-3 rounded-md border-none text-white text-sm font-bold cursor-pointer uppercase disabled:opacity-50"
+            style={{ background: saving ? "#999" : BRAND.blue }}
+          >
+            {saving ? "Saving..." : "Schedule One-Time Send"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
