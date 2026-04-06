@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import useDailyStore from "../../store/useDailyStore";
 import { Card, Inp, X, DashBtn } from "../ui";
+import SortableList from "../ui/SortableList";
 import MarkdownEditor from "../ui/MarkdownEditor";
 import { BRAND } from "../../constants/brand";
 
@@ -17,6 +18,7 @@ export default function MacroSection() {
   })));
   const updateListItem = useDailyStore((s) => s.updateListItem);
   const addListItem = useDailyStore((s) => s.addListItem);
+  const reorderList = useDailyStore((s) => s.reorderList);
   const removeListItem = useDailyStore((s) => s.removeListItem);
   const setField = useDailyStore((s) => s.setField);
 

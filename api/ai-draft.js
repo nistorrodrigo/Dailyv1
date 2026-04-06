@@ -49,6 +49,23 @@ export default async function handler(req, res) {
 
   const modelConfig = MODELS[model] || MODELS.haiku;
 
+  // Fetch past dailies as few-shot examples
+  let pastDailiesContext = "";
+  try {
+    const { createClient } = await import("@supabase/supabase-js");
+    const sb = createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY);
+    const { data: pastDailies } = await sb.from("dailies").select("date, state").order("date", { ascending: false }).limit(3);
+    if (pastDailies?.length) {
+      pastDailiesContext = "\n\nHere are the last " + pastDailies.length + " dailies for style reference:\n" +
+        pastDailies.map(d => {
+          const st = d.state;
+          const macros = (st.macroBlocks || []).filter(b => b.body).map(b => `  ${b.title}: ${b.body.substring(0, 150)}`).join("\n");
+          const summary = st.summaryBar ? `  Summary: ${st.summaryBar}` : "";
+          return `--- ${d.date} ---\n${summary}\n${macros}`;
+        }).join("\n");
+    }
+  } catch (e) { /* skip if Supabase unavailable */ }
+
   // Fetch Argentina news headlines if requested
   let newsContext = "";
   if (includeNews) {
@@ -82,7 +99,7 @@ export default async function handler(req, res) {
       : "";
 
     userPrompt = `Today is ${date}. Generate a COMPLETE Argentina Daily report.
-${context ? `\nContext/notes:\n${context}` : ""}${newsContext}${tickerList}
+${context ? `\nContext/notes:\n${context}` : ""}${newsContext}${pastDailiesContext}${tickerList}
 
 Return a JSON object with these fields:
 {
@@ -103,7 +120,7 @@ Return ONLY the JSON object, no markdown, no explanation.`;
 
     userPrompt = `Today is ${date}. Generate 2-3 macro blocks for today's Argentina Daily report.
 
-${context ? `Context/notes from the analyst:\n${context}\n` : ""}${newsContext}
+${context ? `Context/notes from the analyst:\n${context}\n` : ""}${newsContext}${pastDailiesContext}
 ${existingBlocks?.length ? `Existing blocks to improve or complement (don't repeat these):\n${existingBlocks.map(b => `- ${b.title}: ${b.body}`).join("\n")}\n` : ""}
 
 Return a JSON array of blocks. Each block has: title (string, UPPERCASE), body (string), lsPick (string or empty).
