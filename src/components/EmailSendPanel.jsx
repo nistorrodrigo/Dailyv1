@@ -16,6 +16,7 @@ export default function EmailSendPanel({ open, onClose }) {
   const [subject, setSubject] = useState("");
   const [pin, setPin] = useState("");
   const [pinError, setPinError] = useState("");
+  const [sendResult, setSendResult] = useState(null); // { type: "success"|"error", message }
 
   useEffect(() => {
     if (open) {
@@ -77,14 +78,13 @@ export default function EmailSendPanel({ open, onClose }) {
       });
       const data = await resp.json();
       if (!data.ok) throw new Error(data.error);
-      alert(`Email sent to ${data.sent} recipient(s)!`);
+      setSendResult({ type: "success", message: `\u2713 Email sent to ${data.sent} recipient(s)!` });
       setPin("");
-      onClose();
     } catch (err) {
       if (err.message.includes("Invalid PIN")) {
         setPinError("Invalid PIN. Try again.");
       } else {
-        alert("Send failed: " + err.message);
+        setSendResult({ type: "error", message: `Send failed: ${err.message}` });
       }
     } finally {
       setSending(false);
@@ -165,6 +165,22 @@ export default function EmailSendPanel({ open, onClose }) {
         </div>
       </div>
       <div style={{ padding: 16, borderTop: "1px solid var(--border-light)" }}>
+        {sendResult && (
+          <div
+            className="mb-3 p-3 rounded-md text-sm font-semibold flex items-center justify-between"
+            style={{
+              background: sendResult.type === "success" ? "rgba(172,212,132,0.15)" : "rgba(231,76,60,0.15)",
+              color: sendResult.type === "success" ? "#27864a" : "#e74c3c",
+              border: `1px solid ${sendResult.type === "success" ? "rgba(172,212,132,0.3)" : "rgba(231,76,60,0.3)"}`,
+            }}
+          >
+            <span>{sendResult.message}</span>
+            <button
+              onClick={() => setSendResult(null)}
+              className="bg-transparent border-none cursor-pointer text-inherit text-lg leading-none ml-2"
+            >{"\u00D7"}</button>
+          </div>
+        )}
         <div className="mb-3">
           <label className="block mb-1 text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide">
             Security PIN
@@ -196,10 +212,10 @@ export default function EmailSendPanel({ open, onClose }) {
                 body: JSON.stringify({ html, subject: `[TEST] ${subject.trim()}`, recipients: [testEmail], pin: pin.trim() }),
               }).then(r => r.json()).then(data => {
                 if (!data.ok) throw new Error(data.error);
-                alert(`Test email sent to ${testEmail}`);
+                setSendResult({ type: "success", message: `\u2713 Test email sent to ${testEmail}` });
               }).catch(err => {
                 if (err.message?.includes("Invalid PIN")) setPinError("Invalid PIN");
-                else alert("Test failed: " + err.message);
+                else setSendResult({ type: "error", message: `Test failed: ${err.message}` });
               }).finally(() => setSending(false));
             }}
             disabled={sending || !pin.trim()}
