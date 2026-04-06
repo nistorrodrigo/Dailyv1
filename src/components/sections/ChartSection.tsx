@@ -8,11 +8,11 @@ export default function ChartSection() {
     const { sections, chartImage } = useDailyStore(useShallow((s) => ({ sections: s.sections, chartImage: s.chartImage })));
     const setChartImage = useDailyStore((s) => s.setChartImage);
   const setField = useDailyStore((s) => s.setField);
-  const fileRef = useRef();
+  const fileRef = useRef<HTMLInputElement>(null);
 
   if (!sections.find((x) => x.key === "chart")?.on) return null;
 
-  const handleFile = (e) => {
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     // Compress image to max 680px width (email width) for smaller base64
@@ -23,13 +23,14 @@ export default function ChartSection() {
       if (w > MAX_W) { h = Math.round(h * (MAX_W / w)); w = MAX_W; }
       const canvas = document.createElement("canvas");
       canvas.width = w; canvas.height = h;
-      canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+      canvas.getContext("2d")!.drawImage(img, 0, 0, w, h);
       const compressed = canvas.toDataURL("image/jpeg", 0.85);
       const sizeKB = Math.round(compressed.length * 0.75 / 1024);
       setChartImage({
-        ...(chartImage || {}),
         base64: compressed,
         data: compressed,
+        title: chartImage?.title || "",
+        caption: chartImage?.caption || "",
         fileName: file.name,
         sizeKB,
       });
@@ -37,7 +38,7 @@ export default function ChartSection() {
     img.src = URL.createObjectURL(file);
   };
 
-  const img = chartImage || {};
+  const img = chartImage || ({} as Partial<import("../../types").ChartImage>);
 
   return (
     <Card title="Chart of the Day" color={BRAND.navy}>
@@ -69,13 +70,13 @@ export default function ChartSection() {
       <Inp
         label="Title"
         value={img.title || ""}
-        onChange={(v) => setChartImage({ ...img, title: v })}
+        onChange={(v) => setChartImage({ ...chartImage!, title: v })}
         placeholder="Chart title"
       />
       <Inp
         label="Caption"
         value={img.caption || ""}
-        onChange={(v) => setChartImage({ ...img, caption: v })}
+        onChange={(v) => setChartImage({ ...chartImage!, caption: v })}
         placeholder="Source / description"
       />
 

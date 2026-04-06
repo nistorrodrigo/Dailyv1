@@ -1,7 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import './theme.css'
-import App from './App.jsx'
+import App from './App'
 import ErrorBoundary from './components/ErrorBoundary'
 import LoginGate from './components/LoginGate'
 import { inject } from '@vercel/analytics'
@@ -19,7 +19,7 @@ if (localStorage.getItem("ls-dark-mode") === "1") {
   document.documentElement.setAttribute("data-theme", "dark");
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(
+ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <ErrorBoundary>
       <LoginGate>

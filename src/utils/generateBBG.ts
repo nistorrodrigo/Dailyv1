@@ -1,11 +1,12 @@
 import { formatDate, fmtEventDate, fmtTime } from "./dates";
 import { resolveCorporateBlock } from "./ratings";
 import { fmtUpside } from "./prices";
+import type { DailyState } from "../types";
 
-export function generateBBG(s) {
-  let L = [`🇦🇷 LATIN SECURITIES – Argentina Daily – ${formatDate(s.date)}`];
+export function generateBBG(s: DailyState): string {
+  const L: string[] = [`🇦🇷 LATIN SECURITIES – Argentina Daily – ${formatDate(s.date)}`];
   if (s.summaryBar) L.push("", s.summaryBar); L.push("", "---");
-  const bbgSec = {
+  const bbgSec: Record<string, () => void> = {
     macro: () => { L.push("", "MACRO / POLITICAL", ""); s.macroBlocks.forEach(b => { L.push(b.title); if (b.body) L.push(b.body); if (b.lsPick) L.push("", `LS pick: ${b.lsPick}`); L.push(""); }); L.push("---"); },
     tradeIdeas: () => { L.push("", "TRADE IDEAS", "", "EQUITY — Research Top Picks:"); s.equityPicks.filter(p=>p.ticker).forEach(p => { L.push(`  ${p.ticker}${p.reason ? ` — ${p.reason}` : ""}`); }); L.push("", "FIXED INCOME:"); s.fiIdeas.filter(f=>f.idea).forEach(f => L.push(`- ${f.idea}${f.reason ? ` — ${f.reason}` : ""}`)); L.push("", "---"); },
     flows: () => { L.push("", "LS TRADING DESK FLOWS", "", `EQUITIES: Buyer ${s.eqBuyer} · Seller ${s.eqSeller}`, `FIXED INCOME: Net buyer ${s.fiBuyer} · Net seller ${s.fiSeller}`, "", "---"); },

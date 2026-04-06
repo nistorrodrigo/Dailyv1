@@ -1,10 +1,11 @@
+import React from "react";
 import useDailyStore from "../store/useDailyStore";
 import { loadDaily } from "../lib/dailyApi";
 import { supabase } from "../lib/supabase";
 import { DEFAULT_STATE } from "../constants/defaultState";
 
-export default function DuplicateYesterdayBtn() {
-  const handleDuplicate = async () => {
+export default function DuplicateYesterdayBtn(): React.ReactElement {
+  const handleDuplicate = async (): Promise<void> => {
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     const yDate = yesterday.toISOString().split("T")[0];
@@ -42,7 +43,7 @@ export default function DuplicateYesterdayBtn() {
         summaryBar: "",
       });
     } catch (err) {
-      alert("Failed to load yesterday: " + err.message);
+      alert("Failed to load yesterday: " + (err as Error).message);
     }
   };
 

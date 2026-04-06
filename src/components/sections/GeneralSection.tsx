@@ -17,7 +17,7 @@ const SHORTCUTS = [
 export default function GeneralSection() {
   const { date, summaryBar } = useDailyStore(useShallow((s) => ({ date: s.date, summaryBar: s.summaryBar })));
   const setField = useDailyStore((s) => s.setField);
-  const [showShortcuts, setShowShortcuts] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState<boolean>(false);
 
   return (
     <Card title="General" color={BRAND.navy}>

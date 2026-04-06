@@ -1,10 +1,10 @@
+import React, { useState } from "react";
 import { useShallow } from "zustand/react/shallow";
-import { useState } from "react";
 import useDailyStore from "../../store/useDailyStore";
 import { Card, X, DashBtn } from "../ui";
 import { BRAND } from "../../constants/brand";
 
-const is = { padding: "6px 8px", borderRadius: 4, border: "1px solid var(--border-input)", fontSize: 12, boxSizing: "border-box" };
+const is: React.CSSProperties = { padding: "6px 8px", borderRadius: 4, border: "1px solid var(--border-input)", fontSize: 12, boxSizing: "border-box" };
 
 export default function TopMoversSection() {
     const { sections, topMovers, cclRate } = useDailyStore(useShallow((s) => ({ sections: s.sections, topMovers: s.topMovers, cclRate: s.cclRate })));
@@ -12,7 +12,7 @@ export default function TopMoversSection() {
   const addMover = useDailyStore((s) => s.addMover);
   const removeMover = useDailyStore((s) => s.removeMover);
   const setField = useDailyStore((s) => s.setField);
-  const [fetching, setFetching] = useState(false);
+  const [fetching, setFetching] = useState<boolean>(false);
 
   if (!sections.find((x) => x.key === "topMovers")?.on) return null;
 
@@ -29,26 +29,26 @@ export default function TopMoversSection() {
     }
   };
 
-  const renderSide = (type, label, color, bgColor) => (
+  const renderSide = (type: "gainers" | "losers", label: string, color: string, bgColor: string) => (
     <div style={{ flex: 1 }}>
       <Card title={label} color={color}>
-        {topMovers[type].map((m, i) => (
+        {topMovers[type].map((m: { ticker: string; chgPct: string; comment: string }, i: number) => (
           <div key={i} style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 6 }}>
             <input
               value={m.ticker}
-              onChange={(e) => updateMover(type, i, "ticker", e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateMover(type, i, "ticker", e.target.value)}
               placeholder="Ticker"
               style={{ ...is, width: 80 }}
             />
             <input
               value={m.chgPct}
-              onChange={(e) => updateMover(type, i, "chgPct", e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateMover(type, i, "chgPct", e.target.value)}
               placeholder="%"
               style={{ ...is, width: 60, textAlign: "center" }}
             />
             <input
               value={m.comment}
-              onChange={(e) => updateMover(type, i, "comment", e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateMover(type, i, "comment", e.target.value)}
               placeholder="Comment"
               style={{ ...is, flex: 1 }}
             />

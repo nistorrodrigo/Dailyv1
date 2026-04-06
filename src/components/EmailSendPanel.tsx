@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { BRAND } from "../constants/brand";
 import { listRecipients, addRecipient, toggleRecipient, removeRecipient } from "../lib/recipientsApi";
 import { supabase } from "../lib/supabase";
@@ -6,22 +6,59 @@ import useDailyStore from "../store/useDailyStore";
 import { generateHTML } from "../utils/generateHTML";
 import { formatDate } from "../utils/dates";
 
-export default function EmailSendPanel({ open, onClose }) {
-  const [recipients, setRecipients] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [sending, setSending] = useState(false);
-  const [newEmail, setNewEmail] = useState("");
-  const [newName, setNewName] = useState("");
+interface EmailSendPanelProps {
+  open: boolean;
+  onClose: () => void;
+}
+
+interface Recipient {
+  id: string | number;
+  email: string;
+  name: string;
+  active: boolean;
+}
+
+interface SendGridList {
+  id: string;
+  name: string;
+  count: number;
+}
+
+interface SendGridContact {
+  email: string;
+  name: string;
+}
+
+interface EmailLog {
+  id: string;
+  daily_date: string;
+  recipients_count: number;
+  list_name?: string;
+  is_test: boolean;
+  sent_at: string;
+}
+
+interface SendResult {
+  type: "success" | "error";
+  message: string;
+}
+
+export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): React.ReactElement | null {
+  const [recipients, setRecipients] = useState<Recipient[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [sending, setSending] = useState<boolean>(false);
+  const [newEmail, setNewEmail] = useState<string>("");
+  const [newName, setNewName] = useState<string>("");
   const date = useDailyStore((s) => s.date);
-  const [subject, setSubject] = useState("");
-  const [pin, setPin] = useState("");
-  const [pinError, setPinError] = useState("");
-  const [sendResult, setSendResult] = useState(null);
-  const [sgLists, setSgLists] = useState([]);
-  const [selectedListName, setSelectedListName] = useState("");
-  const [emailLogs, setEmailLogs] = useState([]);
-  const [showLogs, setShowLogs] = useState(false);
-  const [sgLoading, setSgLoading] = useState(false); // { type: "success"|"error", message }
+  const [subject, setSubject] = useState<string>("");
+  const [pin, setPin] = useState<string>("");
+  const [pinError, setPinError] = useState<string>("");
+  const [sendResult, setSendResult] = useState<SendResult | null>(null);
+  const [sgLists, setSgLists] = useState<SendGridList[]>([]);
+  const [selectedListName, setSelectedListName] = useState<string>("");
+  const [emailLogs, setEmailLogs] = useState<EmailLog[]>([]);
+  const [showLogs, setShowLogs] = useState<boolean>(false);
+  const [sgLoading, setSgLoading] = useState<boolean>(false);
 
   useEffect(() => {
     if (open) {
@@ -35,14 +72,14 @@ export default function EmailSendPanel({ open, onClose }) {
 
   if (!open) return null;
 
-  const handleAdd = async () => {
+  const handleAdd = async (): Promise<void> => {
     if (!newEmail.trim()) return;
     if (supabase) {
       try {
         const r = await addRecipient(newEmail.trim(), newName.trim());
-        setRecipients((prev) => [...prev, r]);
+        if (r) setRecipients((prev) => [...prev, r]);
       } catch (err) {
-        alert("Failed to add: " + err.message);
+        alert("Failed to add: " + (err as Error).message);
       }
     } else {
       setRecipients((prev) => [...prev, { id: Date.now(), email: newEmail.trim(), name: newName.trim(), active: true }]);
@@ -51,21 +88,21 @@ export default function EmailSendPanel({ open, onClose }) {
     setNewName("");
   };
 
-  const handleToggle = async (id, active) => {
+  const handleToggle = async (id: string | number, active: boolean): Promise<void> => {
     setRecipients((prev) => prev.map((r) => (r.id === id ? { ...r, active } : r)));
     if (supabase) {
-      try { await toggleRecipient(id, active); } catch (err) { console.error(err); }
+      try { await toggleRecipient(String(id), active); } catch (err) { console.error(err); }
     }
   };
 
-  const handleRemove = async (id) => {
+  const handleRemove = async (id: string | number): Promise<void> => {
     setRecipients((prev) => prev.filter((r) => r.id !== id));
     if (supabase) {
-      try { await removeRecipient(id); } catch (err) { console.error(err); }
+      try { await removeRecipient(String(id)); } catch (err) { console.error(err); }
     }
   };
 
-  const handleSend = async () => {
+  const handleSend = async (): Promise<void> => {
     const activeRecipients = recipients.filter((r) => r.active).map((r) => r.email);
     if (!activeRecipients.length) return alert("No active recipients selected");
     if (!subject.trim()) return alert("Subject is required");
@@ -86,10 +123,10 @@ export default function EmailSendPanel({ open, onClose }) {
       setSendResult({ type: "success", message: `\u2713 Email sent to ${data.sent} recipient(s)!` });
       setPin("");
     } catch (err) {
-      if (err.message.includes("Invalid PIN")) {
+      if ((err as Error).message.includes("Invalid PIN")) {
         setPinError("Invalid PIN. Try again.");
       } else {
-        setSendResult({ type: "error", message: `Send failed: ${err.message}` });
+        setSendResult({ type: "error", message: `Send failed: ${(err as Error).message}` });
       }
     } finally {
       setSending(false);
@@ -144,7 +181,7 @@ export default function EmailSendPanel({ open, onClose }) {
                     if (data.ok) setSgLists(data.lists);
                     else throw new Error(data.error);
                   } catch (err) {
-                    setSendResult({ type: "error", message: "Failed to load lists: " + err.message });
+                    setSendResult({ type: "error", message: "Failed to load lists: " + (err as Error).message });
                   } finally {
                     setSgLoading(false);
                   }
@@ -165,13 +202,13 @@ export default function EmailSendPanel({ open, onClose }) {
                     const data = await resp.json();
                     if (!data.ok) throw new Error(data.error);
                     const newRecipients = data.contacts
-                      .filter((c) => !recipients.find((r) => r.email === c.email))
-                      .map((c) => ({ id: `sg${Date.now()}${Math.random()}`, email: c.email, name: c.name, active: true }));
+                      .filter((c: SendGridContact) => !recipients.find((r) => r.email === c.email))
+                      .map((c: SendGridContact) => ({ id: `sg${Date.now()}${Math.random()}`, email: c.email, name: c.name, active: true }));
                     setRecipients((prev) => [...prev, ...newRecipients]);
                     setSelectedListName(list.name);
                     setSendResult({ type: "success", message: `Imported ${newRecipients.length} contacts from "${list.name}"` });
                   } catch (err) {
-                    setSendResult({ type: "error", message: "Import failed: " + err.message });
+                    setSendResult({ type: "error", message: "Import failed: " + (err as Error).message });
                   } finally {
                     setSgLoading(false);
                   }
@@ -266,7 +303,6 @@ export default function EmailSendPanel({ open, onClose }) {
               if (!testEmail) return;
               setSending(true);
               setPinError("");
-              generateHTML(useDailyStore.getState()).then ? null : null;
               const html = generateHTML(useDailyStore.getState());
               fetch("/api/send-email", {
                 method: "POST",

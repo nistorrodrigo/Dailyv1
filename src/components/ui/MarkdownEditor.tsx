@@ -23,15 +23,15 @@ function wrapSelection(textareaRef: React.RefObject<HTMLTextAreaElement | null>,
 
 export default function MarkdownEditor({ value, onChange, rows = 4, placeholder }: MarkdownEditorProps) {
   const [showPreview, setShowPreview] = useState(false);
-  const textareaRef = useRef(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const applyFormat = (before, after) => {
+  const applyFormat = (before: string, after: string) => {
     const result = wrapSelection(textareaRef, before, after);
     if (result) {
       onChange(result.newText);
       setTimeout(() => {
-        textareaRef.current.focus();
-        textareaRef.current.setSelectionRange(result.cursorPos, result.cursorPos);
+        textareaRef.current?.focus();
+        textareaRef.current?.setSelectionRange(result.cursorPos, result.cursorPos);
       }, 0);
     }
   };

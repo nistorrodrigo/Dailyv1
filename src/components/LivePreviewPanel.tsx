@@ -1,13 +1,17 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { BRAND } from "../constants/brand";
 import useDailyStore from "../store/useDailyStore";
 import { generateHTML } from "../utils/generateHTML";
 
-export default function LivePreviewPanel({ children }) {
-  const [showPreview, setShowPreview] = useState(false);
-  const ref = useRef(null);
-  const [html, setHtml] = useState("");
-  const timerRef = useRef(null);
+interface LivePreviewPanelProps {
+  children: React.ReactNode;
+}
+
+export default function LivePreviewPanel({ children }: LivePreviewPanelProps): React.ReactElement {
+  const [showPreview, setShowPreview] = useState<boolean>(false);
+  const ref = useRef<HTMLIFrameElement | null>(null);
+  const [html, setHtml] = useState<string>("");
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Only subscribe and generate when preview is visible, debounced
   useEffect(() => {

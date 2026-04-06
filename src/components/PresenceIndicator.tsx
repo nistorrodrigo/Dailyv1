@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 
-export default function PresenceIndicator() {
-  const [users, setUsers] = useState([]);
+export default function PresenceIndicator(): React.ReactElement | null {
+  const [users, setUsers] = useState<string[]>([]);
 
   useEffect(() => {
     if (!supabase) return;
@@ -14,17 +14,17 @@ export default function PresenceIndicator() {
     channel
       .on("presence", { event: "sync" }, () => {
         const state = channel.presenceState();
-        const online = Object.values(state).flat().map((u) => u.email || "Anonymous");
+        const online = Object.values(state).flat().map((u: Record<string, string>) => u.email || "Anonymous");
         setUsers([...new Set(online)]);
       })
       .subscribe(async (status) => {
         if (status === "SUBSCRIBED") {
-          const { data } = await supabase.auth.getUser();
+          const { data } = await supabase!.auth.getUser();
           await channel.track({ email: data?.user?.email || "Anonymous", joined: new Date().toISOString() });
         }
       });
 
-    return () => { supabase.removeChannel(channel); };
+    return () => { supabase!.removeChannel(channel); };
   }, []);
 
   if (users.length <= 1) return null;

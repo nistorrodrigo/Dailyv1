@@ -1,10 +1,11 @@
+import React from "react";
 import { useShallow } from "zustand/react/shallow";
 import useDailyStore from "../../store/useDailyStore";
 import { Card, Inp, X, DashBtn } from "../ui";
 import { BRAND } from "../../constants/brand";
 
-const is = { padding: "6px 8px", borderRadius: 4, border: "1px solid var(--border-input)", fontSize: 12, boxSizing: "border-box" };
-const ss = { ...is, background: "var(--bg-card)" };
+const is: React.CSSProperties = { padding: "6px 8px", borderRadius: 4, border: "1px solid var(--border-input)", fontSize: 12, boxSizing: "border-box" };
+const ss: React.CSSProperties = { ...is, background: "var(--bg-card)" };
 
 const REPORT_TYPES = ["Macro", "Weekly", "Strategy", "Sector", "Special"];
 
@@ -30,7 +31,7 @@ export default function ResearchSection() {
             </label>
             <select
               value={r.type}
-              onChange={(e) => updateListItem("researchReports", r.id, "type", e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => updateListItem("researchReports", r.id, "type", e.target.value)}
               style={{ ...ss, width: "100%" }}
             >
               {REPORT_TYPES.map((t) => (

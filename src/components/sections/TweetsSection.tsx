@@ -1,17 +1,18 @@
+import React from "react";
 import { useShallow } from "zustand/react/shallow";
 import useDailyStore from "../../store/useDailyStore";
 import { Card, X, DashBtn } from "../ui";
 import { BRAND } from "../../constants/brand";
 
-const is = { padding: "6px 8px", borderRadius: 4, border: "1px solid var(--border-input)", fontSize: 12, boxSizing: "border-box" };
-const ss = { ...is, background: "var(--bg-card)" };
+const is: React.CSSProperties = { padding: "6px 8px", borderRadius: 4, border: "1px solid var(--border-input)", fontSize: 12, boxSizing: "border-box" };
+const ss: React.CSSProperties = { ...is, background: "var(--bg-card)" };
 
 const SENTIMENTS = ["Bullish", "Bearish", "Neutral"];
 const IMPACT_TYPES = ["Market", "Sector", "Stock"];
 
-const sentimentColor = (s) =>
+const sentimentColor = (s: string): string =>
   s === "Bullish" ? "#27864a" : s === "Bearish" ? "#c0392b" : "#888";
-const sentimentBg = (s) =>
+const sentimentBg = (s: string): string =>
   s === "Bullish" ? "#e8f5e9" : s === "Bearish" ? "#fbe9e7" : "#f0f0f0";
 
 export default function TweetsSection() {
@@ -24,7 +25,7 @@ export default function TweetsSection() {
 
   return (
     <Card title="Tweets / Market Noise" color={BRAND.navy}>
-      {tweets.map((tw, i) => (
+      {tweets.map((tw: { content: string; link: string; time: string; sentiment: string; impactType: string; impactValue: string }, i: number) => (
         <div key={i} style={{ marginBottom: 14, padding: 12, background: "#f8f9fa", borderRadius: 6, position: "relative" }}>
           <div style={{ position: "absolute", top: 8, right: 8 }}>
             <X onClick={() => removeTweet(i)} />
@@ -36,7 +37,7 @@ export default function TweetsSection() {
             </label>
             <textarea
               value={tw.content}
-              onChange={(e) => updateTweet(i, "content", e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => updateTweet(i, "content", e.target.value)}
               rows={2}
               placeholder="Tweet / post content..."
               style={{ ...is, width: "100%", resize: "vertical", fontFamily: "'Segoe UI',sans-serif" }}
@@ -50,7 +51,7 @@ export default function TweetsSection() {
               </label>
               <input
                 value={tw.link}
-                onChange={(e) => updateTweet(i, "link", e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateTweet(i, "link", e.target.value)}
                 placeholder="https://..."
                 style={{ ...is, width: "100%" }}
               />
@@ -61,7 +62,7 @@ export default function TweetsSection() {
               </label>
               <input
                 value={tw.time}
-                onChange={(e) => updateTweet(i, "time", e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateTweet(i, "time", e.target.value)}
                 placeholder="HH:MM"
                 style={{ ...is, width: "100%" }}
               />
@@ -72,7 +73,7 @@ export default function TweetsSection() {
               </label>
               <select
                 value={tw.sentiment}
-                onChange={(e) => updateTweet(i, "sentiment", e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => updateTweet(i, "sentiment", e.target.value)}
                 style={{ ...ss, width: "100%" }}
               >
                 {SENTIMENTS.map((s) => (
@@ -97,7 +98,7 @@ export default function TweetsSection() {
               </label>
               <select
                 value={tw.impactType}
-                onChange={(e) => updateTweet(i, "impactType", e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => updateTweet(i, "impactType", e.target.value)}
                 style={{ ...ss, width: "100%" }}
               >
                 {IMPACT_TYPES.map((t) => (
@@ -111,7 +112,7 @@ export default function TweetsSection() {
               </label>
               <input
                 value={tw.impactValue}
-                onChange={(e) => updateTweet(i, "impactValue", e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateTweet(i, "impactValue", e.target.value)}
                 placeholder="e.g. VIST, Financials, S&P"
                 style={{ ...is, width: "100%" }}
               />

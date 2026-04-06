@@ -1,0 +1,11 @@
+src/__tests__/utils.test.ts(95,49): error TS2345: Argument of type '{ id: string; name: string; title: string; coverage: { ticker: string; rating: string; tp: string; last: string; }[]; }[]' is not assignable to parameter of type 'Analyst[]'.
+  Type '{ id: string; name: string; title: string; coverage: { ticker: string; rating: string; tp: string; last: string; }[]; }' is not assignable to type 'Analyst'.
+    Types of property 'coverage' are incompatible.
+      Type '{ ticker: string; rating: string; tp: string; last: string; }[]' is not assignable to type 'CoverageItem[]'.
+        Type '{ ticker: string; rating: string; tp: string; last: string; }' is not assignable to type 'CoverageItem'.
+          Types of property 'rating' are incompatible.
+            Type 'string' is not assignable to type '"Overweight" | "Neutral" | "Underweight" | "NR" | "UR"'.
+src/components/TemplatesPanel.tsx(39,42): error TS2345: Argument of type '{ sections: Section[]; }' is not assignable to parameter of type 'DailyState'.
+  Type '{ sections: Section[]; }' is missing the following properties from type 'DailyState': date, summaryBar, macroBlocks, equityPicks, and 22 more.
+src/components/ui/MarkdownEditor.tsx(33,30): error TS2339: Property 'focus' does not exist on type 'never'.
+src/components/ui/MarkdownEditor.tsx(34,30): error TS2339: Property 'setSelectionRange' does not exist on type 'never'.

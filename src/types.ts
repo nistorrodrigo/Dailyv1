@@ -105,8 +105,11 @@ export interface KeyEvent {
 
 export interface ChartImage {
   base64: string;
+  data?: string;
   title: string;
   caption: string;
+  fileName?: string;
+  sizeKB?: number;
 }
 
 export interface DailyState {

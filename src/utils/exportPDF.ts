@@ -3,7 +3,7 @@ import { getLogos } from "../constants/logos";
 import useDailyStore from "../store/useDailyStore";
 import { formatDate } from "./dates";
 
-export async function exportPDF() {
+export async function exportPDF(): Promise<void> {
   // Ensure logos are loaded before generating
   await getLogos();
 

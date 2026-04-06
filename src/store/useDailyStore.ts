@@ -20,7 +20,7 @@ import type {
   Section,
 } from "../types";
 
-type ListField = "macroBlocks" | "corpBlocks" | "researchReports" | "signatures";
+type ListField = "macroBlocks" | "corpBlocks" | "researchReports" | "signatures" | "analysts";
 type MoverType = "gainers" | "losers";
 
 interface DailyActions {
@@ -28,8 +28,8 @@ interface DailyActions {
   resetState: () => void;
   newDaily: () => void;
 
-  updateListItem: (field: ListField, id: string, key: string, value: string) => void;
-  addListItem: (field: ListField, item: MacroBlock | CorpBlock | ResearchReport | Signature) => void;
+  updateListItem: (field: ListField, id: string, key: string, value: string | string[]) => void;
+  addListItem: (field: ListField, item: MacroBlock | CorpBlock | ResearchReport | Signature | Analyst) => void;
   removeListItem: (field: ListField, id: string) => void;
 
   updateCoverage: (analystId: string, coverageIndex: number, key: string, value: string) => void;

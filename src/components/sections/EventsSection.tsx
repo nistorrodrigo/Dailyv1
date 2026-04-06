@@ -1,10 +1,11 @@
+import React from "react";
 import { useShallow } from "zustand/react/shallow";
 import useDailyStore from "../../store/useDailyStore";
 import { Card, Inp, X, DashBtn } from "../ui";
 import { BRAND } from "../../constants/brand";
 
-const is = { padding: "6px 8px", borderRadius: 4, border: "1px solid var(--border-input)", fontSize: 12, boxSizing: "border-box" };
-const ss = { ...is, background: "var(--bg-card)" };
+const is: React.CSSProperties = { padding: "6px 8px", borderRadius: 4, border: "1px solid var(--border-input)", fontSize: 12, boxSizing: "border-box" };
+const ss: React.CSSProperties = { ...is, background: "var(--bg-card)" };
 
 const EVENT_TYPES = ["Data Release", "Earnings", "Fed", "Other"];
 
@@ -34,7 +35,7 @@ export default function EventsSection() {
               </label>
               <select
                 value={ev.type}
-                onChange={(e) => updateEvent(i, "type", e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => updateEvent(i, "type", e.target.value)}
                 style={{ ...ss, width: "100%" }}
               >
                 {EVENT_TYPES.map((t) => (
@@ -49,7 +50,7 @@ export default function EventsSection() {
               <input
                 type="date"
                 value={ev.date}
-                onChange={(e) => updateEvent(i, "date", e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateEvent(i, "date", e.target.value)}
                 style={{ ...is, width: "100%" }}
               />
             </div>
@@ -62,7 +63,7 @@ export default function EventsSection() {
               </label>
               <input
                 value={ev.timeET}
-                onChange={(e) => updateEvent(i, "timeET", e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateEvent(i, "timeET", e.target.value)}
                 placeholder="HH:MM"
                 style={{ ...is, width: "100%" }}
               />
@@ -73,7 +74,7 @@ export default function EventsSection() {
               </label>
               <input
                 value={ev.timeBUE}
-                onChange={(e) => updateEvent(i, "timeBUE", e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateEvent(i, "timeBUE", e.target.value)}
                 placeholder="HH:MM"
                 style={{ ...is, width: "100%" }}
               />
@@ -84,7 +85,7 @@ export default function EventsSection() {
               </label>
               <input
                 value={ev.timeLON}
-                onChange={(e) => updateEvent(i, "timeLON", e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateEvent(i, "timeLON", e.target.value)}
                 placeholder="HH:MM"
                 style={{ ...is, width: "100%" }}
               />

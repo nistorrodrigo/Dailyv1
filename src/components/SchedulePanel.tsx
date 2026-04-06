@@ -1,12 +1,39 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { BRAND } from "../constants/brand";
 
-export default function SchedulePanel({ open, onClose }) {
-  const [schedule, setSchedule] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [sgLists, setSgLists] = useState([]);
-  const [result, setResult] = useState(null);
+interface SchedulePanelProps {
+  open: boolean;
+  onClose: () => void;
+}
+
+interface ScheduleObject {
+  enabled: boolean;
+  scheduled_date: string;
+  send_time: string;
+  sendgrid_list_id: string | null;
+  sendgrid_list_name: string | null;
+  recipient_emails?: string[];
+  last_sent_at?: string;
+  last_sent_date?: string;
+}
+
+interface SendGridList {
+  id: string;
+  name: string;
+  count: number;
+}
+
+interface ResultMessage {
+  type: "success" | "error";
+  message: string;
+}
+
+export default function SchedulePanel({ open, onClose }: SchedulePanelProps): React.ReactElement | null {
+  const [schedule, setSchedule] = useState<ScheduleObject | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [saving, setSaving] = useState<boolean>(false);
+  const [sgLists, setSgLists] = useState<SendGridList[]>([]);
+  const [result, setResult] = useState<ResultMessage | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -27,14 +54,14 @@ export default function SchedulePanel({ open, onClose }) {
     }).finally(() => setLoading(false));
   }, [open]);
 
-  const loadLists = async () => {
+  const loadLists = async (): Promise<void> => {
     const resp = await fetch("/api/sendgrid-lists");
     const data = await resp.json();
     if (data.ok) setSgLists(data.lists);
   };
 
-  const handleSave = async () => {
-    if (!schedule.sendgrid_list_id && !(schedule.recipient_emails?.length)) {
+  const handleSave = async (): Promise<void> => {
+    if (!schedule?.sendgrid_list_id && !(schedule?.recipient_emails?.length)) {
       setResult({ type: "error", message: "Select a SendGrid list first" });
       return;
     }
@@ -48,16 +75,16 @@ export default function SchedulePanel({ open, onClose }) {
       });
       const data = await resp.json();
       if (!data.ok) throw new Error(data.error);
-      setSchedule({ ...schedule, enabled: true });
-      setResult({ type: "success", message: "Scheduled! Email will be sent on " + schedule.scheduled_date + " at " + schedule.send_time + " BUE" });
+      setSchedule({ ...schedule!, enabled: true });
+      setResult({ type: "success", message: "Scheduled! Email will be sent on " + schedule!.scheduled_date + " at " + schedule!.send_time + " BUE" });
     } catch (err) {
-      setResult({ type: "error", message: err.message });
+      setResult({ type: "error", message: (err as Error).message });
     } finally {
       setSaving(false);
     }
   };
 
-  const handleCancel = async () => {
+  const handleCancel = async (): Promise<void> => {
     setSaving(true);
     try {
       await fetch("/api/schedule", {
@@ -65,10 +92,10 @@ export default function SchedulePanel({ open, onClose }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...schedule, enabled: false }),
       });
-      setSchedule({ ...schedule, enabled: false });
+      setSchedule({ ...schedule!, enabled: false });
       setResult({ type: "success", message: "Scheduled send cancelled" });
     } catch (err) {
-      setResult({ type: "error", message: err.message });
+      setResult({ type: "error", message: (err as Error).message });
     } finally {
       setSaving(false);
     }

@@ -1,19 +1,26 @@
 import { useState, useEffect } from "react";
 import { BRAND } from "../../constants/brand";
 
-const StatCard = ({ label, value, color = BRAND.navy }) => (
+const StatCard = ({ label, value, color = BRAND.navy }: { label: string; value: string | number; color?: string }) => (
   <div className="p-4 rounded-lg border border-[var(--border-light)] bg-[var(--bg-card)] flex-1 min-w-[120px]">
     <div className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider mb-1">{label}</div>
     <div className="text-2xl font-light" style={{ color }}>{value}</div>
   </div>
 );
 
+interface AnalyticsData {
+  ok: boolean;
+  stats: { totalDailies: number; totalEmails: number; emailsMonth: number; testsMonth: number; totalRecipients: number };
+  last7: { date: string; count: number }[];
+  recentEmails: { id: string; daily_date: string; subject: string; recipients_count: number; is_test: boolean; list_name?: string; sent_at: string }[];
+}
+
 export default function DashboardTab() {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<AnalyticsData | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    fetch("/api/analytics").then(r => r.json()).then(d => {
+    fetch("/api/analytics").then((r: Response) => r.json()).then((d: AnalyticsData) => {
       if (d.ok) setData(d);
     }).finally(() => setLoading(false));
   }, []);

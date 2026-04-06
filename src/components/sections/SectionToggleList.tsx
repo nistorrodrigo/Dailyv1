@@ -1,11 +1,12 @@
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import useDailyStore from "../../store/useDailyStore";
 import { Card, Toggle } from "../ui";
 import { BRAND } from "../../constants/brand";
+import type { Section } from "../../types";
 
-function SortableItem({ sec }) {
+function SortableItem({ sec }: { sec: Section }) {
   const toggleSection = useDailyStore((s) => s.toggleSection);
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: sec.key });
 
@@ -51,7 +52,7 @@ export default function SectionToggleList() {
     useSensor(KeyboardSensor)
   );
 
-  const handleDragEnd = (event) => {
+  const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
     const oldIndex = sections.findIndex((s) => s.key === active.id);

@@ -4,6 +4,7 @@ import { formatDate, fmtEventDate, fmtTime } from "./dates";
 import { rc, rb, resolveCorporateBlock } from "./ratings";
 import { fmtUpside, upsideColor, calcUpside } from "./prices";
 import { nl2br } from "./text";
+import type { DailyState } from "../types";
 
 const DS = {
   maxW: 640,
@@ -19,14 +20,14 @@ const DS = {
   green: "#1a7a3a",
   red: "#c0392b",
   greenBg: "#edf7ed",
-};
+} as const;
 
-function secHdr(title, id) {
+function secHdr(title: string, id?: string): string {
   return '<tr><td style="padding:28px 40px 0;" id="sec-' + (id || title) + '"><div style="font-size:11px;font-weight:700;color:' + DS.navy + ';text-transform:uppercase;letter-spacing:2px;padding-bottom:8px;border-bottom:2px solid ' + DS.navy + ';margin-bottom:16px;">' + title + '</div></td></tr>';
 }
 
 // Section label map for TOC
-const SEC_LABELS = {
+const SEC_LABELS: Record<string, string> = {
   macro: "Macro / Political", tradeIdeas: "Trade Ideas", flows: "LS Trading Desk Flows",
   macroEstimates: "Macro Estimates", corporate: "Corporate", research: "Research Reports",
   topMovers: "Top Movers", tweets: "Market Noise", bcra: "BCRA Dashboard",
@@ -34,9 +35,9 @@ const SEC_LABELS = {
 };
 
 // mode: "full" (default) | "toc" (with table of contents) | "compact" (summary only)
-export function generateHTML(s, mode = "full") {
-  const logo = getLogoOrigB64();
-  const logoW = getLogoWhiteB64();
+export function generateHTML(s: DailyState, mode: string = "full"): string {
+  const logo: string = getLogoOrigB64();
+  const logoW: string = getLogoWhiteB64();
   const allTickers = s.analysts.flatMap(a => a.coverage.map(c => ({ ticker: c.ticker, rating: c.rating, tp: c.tp, last: c.last || "", analyst: a.name })));
 
   // MACRO
@@ -61,8 +62,8 @@ export function generateHTML(s, mode = "full") {
   const research = s.sections.find(x => x.key === "research")?.on && s.researchReports?.length ? secHdr("Research Reports") + '<tr><td style="padding:0 40px 8px;">' + (s.researchReports || []).filter(r => r.title).map(r => '<div style="margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid ' + DS.borderLight + ';"><div style="margin-bottom:3px;"><span style="font-size:10px;font-weight:700;color:' + DS.accent + ';text-transform:uppercase;letter-spacing:1px;">' + r.type + '</span></div><div style="font-size:13.5px;font-weight:700;color:' + DS.navy + ';margin-bottom:2px;">' + r.title + '</div>' + (r.author ? '<div style="font-size:11.5px;color:' + DS.textMuted + ';font-style:italic;margin-bottom:4px;">' + r.author + '</div>' : '') + (r.body ? '<div style="font-size:13px;line-height:1.6;color:' + DS.text + ';">' + nl2br(r.body) + '</div>' : '') + (r.link ? '<a href="' + r.link + '" style="font-size:12px;color:' + DS.accent + ';text-decoration:none;">Read report &#8594;</a>' : '') + '</div>').join("") + '</td></tr>' : "";
 
   // TOP MOVERS
-  const topMoversGainers = s.topMovers?.gainers?.filter(m => m.ticker) || [];
-  const topMoversLosers = s.topMovers?.losers?.filter(m => m.ticker) || [];
+  const topMoversGainers: typeof s.topMovers.gainers = s.topMovers?.gainers?.filter(m => m.ticker) || [];
+  const topMoversLosers: typeof s.topMovers.losers = s.topMovers?.losers?.filter(m => m.ticker) || [];
   const topMovers = s.sections.find(x => x.key === "topMovers")?.on && (topMoversGainers.length || topMoversLosers.length) ? secHdr("Top Movers") + '<tr><td style="padding:0 40px 8px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid ' + DS.border + ';"><tr style="background:' + DS.bgAlt + ';"><td style="padding:7px 12px;font-size:11px;font-weight:700;color:' + DS.navy + ';border-bottom:1px solid ' + DS.border + ';">Ticker</td><td style="padding:7px 12px;font-size:11px;font-weight:700;color:' + DS.navy + ';text-align:right;border-bottom:1px solid ' + DS.border + ';">Chg</td><td style="padding:7px 12px;font-size:11px;font-weight:700;color:' + DS.navy + ';border-bottom:1px solid ' + DS.border + ';">Comment</td></tr>' + topMoversGainers.map((m, i) => '<tr style="background:' + (i % 2 === 0 ? "#fff" : DS.bgAlt) + ';"><td style="padding:6px 12px;font-size:12.5px;font-weight:600;color:' + DS.text + ';border-bottom:1px solid ' + DS.borderLight + ';">' + m.ticker + '</td><td style="padding:6px 12px;font-size:12.5px;font-weight:700;color:' + DS.green + ';text-align:right;border-bottom:1px solid ' + DS.borderLight + ';">+' + m.chgPct + '%</td><td style="padding:6px 12px;font-size:12px;color:' + DS.textLight + ';border-bottom:1px solid ' + DS.borderLight + ';">' + (m.comment || "") + '</td></tr>').join("") + topMoversLosers.map((m, i) => '<tr style="background:' + (i % 2 === 0 ? "#fff" : DS.bgAlt) + ';"><td style="padding:6px 12px;font-size:12.5px;font-weight:600;color:' + DS.text + ';border-bottom:1px solid ' + DS.borderLight + ';">' + m.ticker + '</td><td style="padding:6px 12px;font-size:12.5px;font-weight:700;color:' + DS.red + ';text-align:right;border-bottom:1px solid ' + DS.borderLight + ';">' + m.chgPct + '%</td><td style="padding:6px 12px;font-size:12px;color:' + DS.textLight + ';border-bottom:1px solid ' + DS.borderLight + ';">' + (m.comment || "") + '</td></tr>').join("") + '</table></td></tr>' : "";
 
   // TWEETS
@@ -84,7 +85,7 @@ export function generateHTML(s, mode = "full") {
   const sig = s.signatures.map(x => '<div style="margin-bottom:6px;"><span style="font-size:13px;font-weight:600;color:' + DS.navy + ';">' + x.name + '</span><span style="font-size:12px;color:' + DS.textLight + ';margin-left:6px;">' + x.role + '</span><br><span style="font-size:12px;color:' + DS.accent + ';">' + x.email + '</span></div>').join("");
 
   // SECTION MAP
-  const sectionMap = { macro, tradeIdeas: trade, flows: flow, macroEstimates: mEst, corporate: corp, research, topMovers, tweets, bcra, events, keyEvents, chart };
+  const sectionMap: Record<string, string> = { macro, tradeIdeas: trade, flows: flow, macroEstimates: mEst, corporate: corp, research, topMovers, tweets, bcra, events, keyEvents, chart };
   const enabledSections = s.sections.filter(x => x.on);
 
   // Build Table of Contents
@@ -107,12 +108,12 @@ export function generateHTML(s, mode = "full") {
   };
 
   const compactBlock = enabledSections.map(sec => {
-    const summary = compactSummaries[sec.key];
+    const summary = compactSummaries[sec.key as keyof typeof compactSummaries];
     if (!summary) return "";
     return '<tr><td style="padding:4px 40px;"><div style="display:flex;padding:8px 0;border-bottom:1px solid ' + DS.borderLight + ';"><span style="font-size:11px;font-weight:700;color:' + DS.navy + ';text-transform:uppercase;letter-spacing:1px;min-width:140px;">' + SEC_LABELS[sec.key] + '</span><span style="font-size:12.5px;color:' + DS.textLight + ';margin-left:12px;">' + summary + '</span></div></td></tr>';
   }).join("");
 
-  let sectionContent;
+  let sectionContent: string;
   if (mode === "compact") {
     sectionContent = '<tr><td style="padding:20px 40px 4px;"><div style="font-size:10px;font-weight:700;color:' + DS.navy + ';text-transform:uppercase;letter-spacing:2px;margin-bottom:6px;">Summary</div></td></tr>' + compactBlock;
   } else if (mode === "toc") {

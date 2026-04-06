@@ -7,13 +7,13 @@ import { generateHTML } from "../../utils/generateHTML";
 import { generateBBG } from "../../utils/generateBBG";
 
 export default function PreviewTab() {
-  const ref = useRef(null);
+  const ref = useRef<HTMLIFrameElement>(null);
   const { previewMode, copiedLabel } = useUIStore(useShallow((s) => ({ previewMode: s.previewMode, copiedLabel: s.copiedLabel })));
   const setPreviewMode = useUIStore((s) => s.setPreviewMode);
   const copyToClipboard = useUIStore((s) => s.copyToClipboard);
 
-  const [html, setHtml] = useState("");
-  const [bbg, setBbg] = useState("");
+  const [html, setHtml] = useState<string>("");
+  const [bbg, setBbg] = useState<string>("");
 
   useEffect(() => {
     const state = useDailyStore.getState();
@@ -39,7 +39,7 @@ export default function PreviewTab() {
         {["html", "bbg"].map((m) => (
           <button
             key={m}
-            onClick={() => setPreviewMode(m)}
+            onClick={() => setPreviewMode(m as "html" | "bbg")}
             style={{
               padding: "8px 20px", borderRadius: 6, border: "none",
               cursor: "pointer", fontSize: 12, fontWeight: 700,

@@ -1,9 +1,10 @@
+import React from "react";
 import { useShallow } from "zustand/react/shallow";
 import useDailyStore from "../../store/useDailyStore";
 import { Card, Inp, X, DashBtn } from "../ui";
 import { BRAND } from "../../constants/brand";
 
-const is = { padding: "6px 8px", borderRadius: 4, border: "1px solid var(--border-input)", fontSize: 12, boxSizing: "border-box" };
+const is: React.CSSProperties = { padding: "6px 8px", borderRadius: 4, border: "1px solid var(--border-input)", fontSize: 12, boxSizing: "border-box" };
 
 export default function MacroEstimatesSection() {
     const { sections, macroSource, macroCols, macroRows } = useDailyStore(useShallow((s) => ({ sections: s.sections, macroSource: s.macroSource, macroCols: s.macroCols, macroRows: s.macroRows })));
@@ -40,12 +41,12 @@ export default function MacroEstimatesSection() {
             </tr>
           </thead>
           <tbody>
-            {macroRows.map((row, i) => (
+            {macroRows.map((row: { label: string; vals: Record<string, string> }, i: number) => (
               <tr key={i}>
                 <td style={{ padding: 4 }}>
                   <input
                     value={row.label}
-                    onChange={(e) => updateMacroRow(i, "label", e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateMacroRow(i, "label", e.target.value)}
                     placeholder="Metric name"
                     style={{ ...is, width: "100%" }}
                   />
@@ -54,7 +55,7 @@ export default function MacroEstimatesSection() {
                   <td key={col} style={{ padding: 4 }}>
                     <input
                       value={row.vals[col] || ""}
-                      onChange={(e) => updateMacroRowValue(i, col, e.target.value)}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateMacroRowValue(i, col, e.target.value)}
                       style={{ ...is, width: "100%", textAlign: "center" }}
                     />
                   </td>

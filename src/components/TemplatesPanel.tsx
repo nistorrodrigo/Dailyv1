@@ -1,13 +1,26 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { BRAND } from "../constants/brand";
 import { listTemplates, saveTemplate, deleteTemplate } from "../lib/templatesApi";
 import { supabase } from "../lib/supabase";
 import useDailyStore from "../store/useDailyStore";
+import type { Section, DailyState } from "../types";
 
-export default function TemplatesPanel({ open, onClose }) {
-  const [templates, setTemplates] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [newName, setNewName] = useState("");
+interface TemplatesPanelProps {
+  open: boolean;
+  onClose: () => void;
+}
+
+interface TemplateItem {
+  id: string;
+  name: string;
+  created_at: string;
+  state: { sections?: Section[] };
+}
+
+export default function TemplatesPanel({ open, onClose }: TemplatesPanelProps): React.ReactElement | null {
+  const [templates, setTemplates] = useState<TemplateItem[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [newName, setNewName] = useState<string>("");
 
   useEffect(() => {
     if (open && supabase) {
@@ -18,21 +31,21 @@ export default function TemplatesPanel({ open, onClose }) {
 
   if (!open) return null;
 
-  const handleSave = async () => {
+  const handleSave = async (): Promise<void> => {
     if (!newName.trim()) return alert("Enter a template name");
     try {
-      const { tab, previewMode, copiedLabel, saveStatus, ...stateToSave } = useDailyStore.getState();
-      const sectionsConfig = stateToSave.sections;
-      await saveTemplate(newName.trim(), { sections: sectionsConfig });
+      const fullState = useDailyStore.getState();
+      const sectionsConfig = fullState.sections;
+      await saveTemplate(newName.trim(), { sections: sectionsConfig } as DailyState);
       setNewName("");
       const updated = await listTemplates();
       setTemplates(updated);
     } catch (err) {
-      alert("Failed to save: " + err.message);
+      alert("Failed to save: " + (err as Error).message);
     }
   };
 
-  const handleLoad = (template) => {
+  const handleLoad = (template: TemplateItem): void => {
     if (!window.confirm(`Load template "${template.name}"? This will update section toggles.`)) return;
     const current = useDailyStore.getState();
     if (template.state.sections) {
@@ -41,13 +54,13 @@ export default function TemplatesPanel({ open, onClose }) {
     onClose();
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (id: string): Promise<void> => {
     if (!window.confirm("Delete this template?")) return;
     try {
       await deleteTemplate(id);
       setTemplates((t) => t.filter((x) => x.id !== id));
     } catch (err) {
-      alert("Failed to delete: " + err.message);
+      alert("Failed to delete: " + (err as Error).message);
     }
   };
 

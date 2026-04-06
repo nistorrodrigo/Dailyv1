@@ -1,12 +1,25 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { BRAND } from "../constants/brand";
 import { listDailies, loadDaily, deleteDaily } from "../lib/dailyApi";
 import { supabase } from "../lib/supabase";
 import useDailyStore from "../store/useDailyStore";
+import type { DailyState } from "../types";
 
-export default function HistoryPanel({ open, onClose }) {
-  const [dailies, setDailies] = useState([]);
-  const [loading, setLoading] = useState(false);
+interface HistoryPanelProps {
+  open: boolean;
+  onClose: () => void;
+}
+
+interface DailyListItem {
+  id: string;
+  date: string;
+  updated_at: string;
+  state?: DailyState;
+}
+
+export default function HistoryPanel({ open, onClose }: HistoryPanelProps): React.ReactElement | null {
+  const [dailies, setDailies] = useState<DailyListItem[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
 
   useEffect(() => {
     if (open && supabase) {
@@ -17,7 +30,7 @@ export default function HistoryPanel({ open, onClose }) {
 
   if (!open) return null;
 
-  const handleLoad = async (date) => {
+  const handleLoad = async (date: string): Promise<void> => {
     if (!window.confirm(`Load daily from ${date}? Current unsaved changes will be lost.`)) return;
     try {
       const daily = await loadDaily(date);
@@ -26,11 +39,11 @@ export default function HistoryPanel({ open, onClose }) {
         onClose();
       }
     } catch (err) {
-      alert("Failed to load: " + err.message);
+      alert("Failed to load: " + (err as Error).message);
     }
   };
 
-  const handleDuplicate = async (sourceDate) => {
+  const handleDuplicate = async (sourceDate: string): Promise<void> => {
     const today = new Date().toISOString().split("T")[0];
     if (!window.confirm(`Duplicate daily from ${sourceDate} as today's (${today})?`)) return;
     try {
@@ -46,17 +59,17 @@ export default function HistoryPanel({ open, onClose }) {
         onClose();
       }
     } catch (err) {
-      alert("Failed to duplicate: " + err.message);
+      alert("Failed to duplicate: " + (err as Error).message);
     }
   };
 
-  const handleDelete = async (id, date) => {
+  const handleDelete = async (id: string, date: string): Promise<void> => {
     if (!window.confirm(`Delete daily from ${date}? This cannot be undone.`)) return;
     try {
       await deleteDaily(id);
       setDailies((d) => d.filter((x) => x.id !== id));
     } catch (err) {
-      alert("Failed to delete: " + err.message);
+      alert("Failed to delete: " + (err as Error).message);
     }
   };
 

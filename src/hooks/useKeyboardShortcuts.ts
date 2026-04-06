@@ -4,10 +4,10 @@ import useUIStore from "../store/useUIStore";
 import { generateHTML } from "../utils/generateHTML";
 import { generateBBG } from "../utils/generateBBG";
 
-export default function useKeyboardShortcuts() {
+export default function useKeyboardShortcuts(): void {
   useEffect(() => {
-    const handler = (e) => {
-      const isCtrl = e.ctrlKey || e.metaKey;
+    const handler = (e: KeyboardEvent): void => {
+      const isCtrl: boolean = e.ctrlKey || e.metaKey;
       if (!isCtrl) return;
 
       switch (e.key.toLowerCase()) {
@@ -20,7 +20,7 @@ export default function useKeyboardShortcuts() {
         }
         case "b": {
           // Only if not focused on an input
-          if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+          if ((e.target as HTMLElement)?.tagName === "INPUT" || (e.target as HTMLElement)?.tagName === "TEXTAREA") return;
           e.preventDefault();
           const state = useDailyStore.getState();
           const bbg = generateBBG(state);
@@ -28,20 +28,20 @@ export default function useKeyboardShortcuts() {
           break;
         }
         case "n": {
-          if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+          if ((e.target as HTMLElement)?.tagName === "INPUT" || (e.target as HTMLElement)?.tagName === "TEXTAREA") return;
           e.preventDefault();
           useDailyStore.getState().newDaily();
           break;
         }
         case "p": {
-          if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+          if ((e.target as HTMLElement)?.tagName === "INPUT" || (e.target as HTMLElement)?.tagName === "TEXTAREA") return;
           e.preventDefault();
           const ui = useUIStore.getState();
           ui.setTab(ui.tab === "preview" ? "edit" : "preview");
           break;
         }
         case "z": {
-          if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+          if ((e.target as HTMLElement)?.tagName === "INPUT" || (e.target as HTMLElement)?.tagName === "TEXTAREA") return;
           e.preventDefault();
           if (e.shiftKey) {
             useDailyStore.temporal.getState().redo();
@@ -51,7 +51,7 @@ export default function useKeyboardShortcuts() {
           break;
         }
         case "d": {
-          if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+          if ((e.target as HTMLElement)?.tagName === "INPUT" || (e.target as HTMLElement)?.tagName === "TEXTAREA") return;
           e.preventDefault();
           useUIStore.getState().toggleDarkMode();
           break;

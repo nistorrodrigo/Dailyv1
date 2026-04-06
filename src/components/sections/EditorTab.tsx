@@ -17,7 +17,7 @@ import LivePreviewPanel from "../LivePreviewPanel";
 import LazySection from "../ui/LazySection";
 import useDailyStore from "../../store/useDailyStore";
 
-const SECTION_COMPONENTS = {
+const SECTION_COMPONENTS: Record<string, React.ComponentType> = {
   macro: MacroSection,
   tradeIdeas: TradeIdeasSection,
   flows: FlowsSection,

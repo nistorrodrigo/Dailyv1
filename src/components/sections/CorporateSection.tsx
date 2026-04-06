@@ -1,11 +1,12 @@
+import React from "react";
 import { useShallow } from "zustand/react/shallow";
 import useDailyStore from "../../store/useDailyStore";
 import { Card, Inp, X, DashBtn } from "../ui";
 import { BRAND } from "../../constants/brand";
 import { rc, rb } from "../../utils/ratings";
 
-const is = { padding: "6px 8px", borderRadius: 4, border: "1px solid var(--border-input)", fontSize: 12, boxSizing: "border-box" };
-const ss = { ...is, background: "var(--bg-card)" };
+const is: React.CSSProperties = { padding: "6px 8px", borderRadius: 4, border: "1px solid var(--border-input)", fontSize: 12, boxSizing: "border-box" };
+const ss: React.CSSProperties = { ...is, background: "var(--bg-card)" };
 
 export default function CorporateSection() {
     const { sections, corpBlocks, analysts } = useDailyStore(useShallow((s) => ({ sections: s.sections, corpBlocks: s.corpBlocks, analysts: s.analysts })));
@@ -37,7 +38,7 @@ export default function CorporateSection() {
               </label>
               <select
                 value={b.analystId || ""}
-                onChange={(e) => updateListItem("corpBlocks", b.id, "analystId", e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => updateListItem("corpBlocks", b.id, "analystId", e.target.value)}
                 style={{ ...ss, width: "100%" }}
               >
                 <option value="">Select analyst</option>

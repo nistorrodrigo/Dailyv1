@@ -1,17 +1,24 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { BRAND, LOGO_WHITE_URL } from "../constants/brand";
 import { supabase } from "../lib/supabase";
+import type { Session } from "@supabase/supabase-js";
 
 const ALLOWED_DOMAIN = "latinsecurities.ar";
 
-export default function LoginGate({ children }) {
-  const [session, setSession] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [mode, setMode] = useState("login"); // "login" | "signup" | "check-email"
-  const [submitting, setSubmitting] = useState(false);
+interface LoginGateProps {
+  children: React.ReactNode;
+}
+
+type AuthMode = "login" | "signup" | "check-email";
+
+export default function LoginGate({ children }: LoginGateProps): React.ReactElement | null {
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [email, setEmail] = useState<string>("");
+  const [password, setPassword] = useState<string>("");
+  const [error, setError] = useState<string>("");
+  const [mode, setMode] = useState<AuthMode>("login");
+  const [submitting, setSubmitting] = useState<boolean>(false);
 
   useEffect(() => {
     if (!supabase) { setLoading(false); return; }
@@ -29,16 +36,16 @@ export default function LoginGate({ children }) {
   }, []);
 
   // If no Supabase configured, skip auth
-  if (!supabase) return children;
+  if (!supabase) return children as React.ReactElement;
   if (loading) return null;
-  if (session) return children;
+  if (session) return children as React.ReactElement;
 
-  const validateDomain = (email) => {
+  const validateDomain = (email: string): boolean => {
     const domain = email.split("@")[1]?.toLowerCase();
     return domain === ALLOWED_DOMAIN;
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (): Promise<void> => {
     setError("");
     if (!email.trim() || !password.trim()) { setError("Email and password required"); return; }
     if (!validateDomain(email)) { setError(`Only @${ALLOWED_DOMAIN} emails allowed`); return; }
@@ -47,7 +54,7 @@ export default function LoginGate({ children }) {
     setSubmitting(true);
     try {
       if (mode === "signup") {
-        const { error: err } = await supabase.auth.signUp({
+        const { error: err } = await supabase!.auth.signUp({
           email: email.trim(),
           password,
           options: { emailRedirectTo: window.location.origin },
@@ -56,18 +63,18 @@ export default function LoginGate({ children }) {
         setError("");
         setMode("check-email");
       } else {
-        const { error: err } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+        const { error: err } = await supabase!.auth.signInWithPassword({ email: email.trim(), password });
         if (err) throw err;
       }
     } catch (err) {
-      setError(err.message || "Authentication failed");
+      setError((err as Error).message || "Authentication failed");
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
+  const handleLogout = async (): Promise<void> => {
+    await supabase!.auth.signOut();
     setSession(null);
   };
 
@@ -171,7 +178,7 @@ export default function LoginGate({ children }) {
 }
 
 // Export logout for use in Header
-export async function logout() {
+export async function logout(): Promise<void> {
   if (supabase) await supabase.auth.signOut();
   window.location.reload();
 }

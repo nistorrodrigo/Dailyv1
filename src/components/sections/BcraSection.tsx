@@ -8,7 +8,7 @@ export default function BcraSection() {
     const { sections, bcraData, bcraHiddenRows } = useDailyStore(useShallow((s) => ({ sections: s.sections, bcraData: s.bcraData, bcraHiddenRows: s.bcraHiddenRows })));
       const setBcraData = useDailyStore((s) => s.setBcraData);
   const toggleBcraRow = useDailyStore((s) => s.toggleBcraRow);
-  const [fetching, setFetching] = useState(false);
+  const [fetching, setFetching] = useState<boolean>(false);
 
   if (!sections.find((x) => x.key === "bcra")?.on) return null;
 
@@ -25,7 +25,7 @@ export default function BcraSection() {
     }
   };
 
-  const rows = bcraData && Array.isArray(bcraData) ? bcraData : [];
+  const rows: Record<string, string>[] = bcraData && Array.isArray(bcraData) ? bcraData : [];
 
   return (
     <Card title="BCRA Dashboard" color={BRAND.navy}>
@@ -57,7 +57,7 @@ export default function BcraSection() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((row, i) => {
+              {rows.map((row: Record<string, string>, i: number) => {
                 const key = row.idVariable || row.descripcion || String(i);
                 const hidden = bcraHiddenRows[key];
                 return (
@@ -70,7 +70,7 @@ export default function BcraSection() {
                         style={{ cursor: "pointer" }}
                       />
                     </td>
-                    {Object.values(row).map((val, j) => (
+                    {Object.values(row).map((val: string, j: number) => (
                       <td key={j} style={{ padding: "4px 8px", borderBottom: "1px solid #eee", whiteSpace: "nowrap" }}>
                         {val}
                       </td>

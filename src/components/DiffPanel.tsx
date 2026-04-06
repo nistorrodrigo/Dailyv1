@@ -1,15 +1,34 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { BRAND } from "../constants/brand";
 import { loadDaily, listDailies } from "../lib/dailyApi";
 import { supabase } from "../lib/supabase";
 import useDailyStore from "../store/useDailyStore";
 
-function diffField(label, current, previous) {
+interface DiffPanelProps {
+  open: boolean;
+  onClose: () => void;
+}
+
+interface DailyListItem {
+  id: string;
+  date: string;
+}
+
+interface FieldDiff {
+  label: string;
+  current?: string;
+  previous?: string;
+  added?: number;
+  removed?: number;
+  changed?: number;
+}
+
+function diffField(label: string, current: string, previous: string): FieldDiff | null {
   if (current === previous) return null;
   return { label, current: current || "(empty)", previous: previous || "(empty)" };
 }
 
-function diffArrayField(label, current, previous, key = "id") {
+function diffArrayField(label: string, current: Record<string, unknown>[], previous: Record<string, unknown>[], key: string = "id"): FieldDiff | null {
   const added = current.filter((c) => !previous.find((p) => p[key] === c[key]));
   const removed = previous.filter((p) => !current.find((c) => c[key] === p[key]));
   const changed = current.filter((c) => {
@@ -20,11 +39,11 @@ function diffArrayField(label, current, previous, key = "id") {
   return { label, added: added.length, removed: removed.length, changed: changed.length };
 }
 
-export default function DiffPanel({ open, onClose }) {
-  const [dailies, setDailies] = useState([]);
-  const [compareDate, setCompareDate] = useState("");
-  const [diffs, setDiffs] = useState(null);
-  const [loading, setLoading] = useState(false);
+export default function DiffPanel({ open, onClose }: DiffPanelProps): React.ReactElement | null {
+  const [dailies, setDailies] = useState<DailyListItem[]>([]);
+  const [compareDate, setCompareDate] = useState<string>("");
+  const [diffs, setDiffs] = useState<FieldDiff[] | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
 
   useEffect(() => {
     if (open && supabase) {
@@ -32,7 +51,7 @@ export default function DiffPanel({ open, onClose }) {
     }
   }, [open]);
 
-  const handleCompare = async () => {
+  const handleCompare = async (): Promise<void> => {
     if (!compareDate) return;
     setLoading(true);
     try {
@@ -48,11 +67,11 @@ export default function DiffPanel({ open, onClose }) {
         diffField("FI Buyer", current.fiBuyer, ps.fiBuyer),
         diffField("FI Seller", current.fiSeller, ps.fiSeller),
         diffField("Macro Source", current.macroSource, ps.macroSource),
-        diffArrayField("Macro Blocks", current.macroBlocks || [], ps.macroBlocks || []),
-        diffArrayField("Equity Picks", current.equityPicks || [], ps.equityPicks || [], "ticker"),
-        diffArrayField("FI Ideas", current.fiIdeas || [], ps.fiIdeas || [], "idea"),
-        diffArrayField("Corp Blocks", current.corpBlocks || [], ps.corpBlocks || []),
-        diffArrayField("Research Reports", current.researchReports || [], ps.researchReports || []),
+        diffArrayField("Macro Blocks", (current.macroBlocks || []) as unknown as Record<string, unknown>[], (ps.macroBlocks || []) as unknown as Record<string, unknown>[]),
+        diffArrayField("Equity Picks", (current.equityPicks || []) as unknown as Record<string, unknown>[], (ps.equityPicks || []) as unknown as Record<string, unknown>[], "ticker"),
+        diffArrayField("FI Ideas", (current.fiIdeas || []) as unknown as Record<string, unknown>[], (ps.fiIdeas || []) as unknown as Record<string, unknown>[], "idea"),
+        diffArrayField("Corp Blocks", (current.corpBlocks || []) as unknown as Record<string, unknown>[], (ps.corpBlocks || []) as unknown as Record<string, unknown>[]),
+        diffArrayField("Research Reports", (current.researchReports || []) as unknown as Record<string, unknown>[], (ps.researchReports || []) as unknown as Record<string, unknown>[]),
       ].filter(Boolean);
 
       // Check section toggles
@@ -65,9 +84,9 @@ export default function DiffPanel({ open, onClose }) {
         })
         .filter(Boolean);
 
-      setDiffs([...results, ...sectionDiffs]);
+      setDiffs([...results, ...sectionDiffs] as FieldDiff[]);
     } catch (err) {
-      alert("Compare failed: " + err.message);
+      alert("Compare failed: " + (err as Error).message);
     } finally {
       setLoading(false);
     }
@@ -123,8 +142,8 @@ export default function DiffPanel({ open, onClose }) {
                     {d.added !== undefined && (
                       <div className="text-xs text-[var(--text-secondary)]">
                         {d.added > 0 && <span className="text-green-500">+{d.added} added </span>}
-                        {d.removed > 0 && <span className="text-red-500">-{d.removed} removed </span>}
-                        {d.changed > 0 && <span className="text-amber-500">~{d.changed} changed</span>}
+                        {(d.removed ?? 0) > 0 && <span className="text-red-500">-{d.removed} removed </span>}
+                        {(d.changed ?? 0) > 0 && <span className="text-amber-500">~{d.changed} changed</span>}
                       </div>
                     )}
                   </div>

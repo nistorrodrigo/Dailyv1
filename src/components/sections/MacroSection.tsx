@@ -20,12 +20,12 @@ export default function MacroSection() {
   const removeListItem = useDailyStore((s) => s.removeListItem);
   const setField = useDailyStore((s) => s.setField);
 
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiContext, setAiContext] = useState("");
-  const [showAiInput, setShowAiInput] = useState(false);
-  const [aiModel, setAiModel] = useState("haiku");
-  const [aiMode, setAiMode] = useState("macro"); // "macro" | "full"
-  const [includeNews, setIncludeNews] = useState(true);
+  const [aiLoading, setAiLoading] = useState<boolean>(false);
+  const [aiContext, setAiContext] = useState<string>("");
+  const [showAiInput, setShowAiInput] = useState<boolean>(false);
+  const [aiModel, setAiModel] = useState<string>("haiku");
+  const [aiMode, setAiMode] = useState<"macro" | "full">("macro");
+  const [includeNews, setIncludeNews] = useState<boolean>(true);
 
   if (!sections.find((x) => x.key === "macro")?.on) return null;
 
@@ -55,7 +55,7 @@ export default function MacroSection() {
         // Apply full daily draft
         if (d.summaryBar) setField("summaryBar", d.summaryBar);
         if (d.macroBlocks?.length) {
-          const newBlocks = d.macroBlocks.map((b, i) => ({
+          const newBlocks = d.macroBlocks.map((b: Record<string, string>, i: number) => ({
             id: `ai${Date.now()}${i}`, title: b.title || "", body: b.body || "", lsPick: b.lsPick || "",
           }));
           setField("macroBlocks", [...macroBlocks, ...newBlocks]);
@@ -67,7 +67,7 @@ export default function MacroSection() {
         if (d.fiBuyer) setField("fiBuyer", d.fiBuyer);
         if (d.fiSeller) setField("fiSeller", d.fiSeller);
       } else if (data.blocks) {
-        const newBlocks = data.blocks.map((b, i) => ({
+        const newBlocks = data.blocks.map((b: Record<string, string>, i: number) => ({
           id: `ai${Date.now()}${i}`, title: b.title || "AI DRAFT", body: b.body || "", lsPick: b.lsPick || "",
         }));
         setField("macroBlocks", [...macroBlocks, ...newBlocks]);
@@ -78,8 +78,8 @@ export default function MacroSection() {
 
       const tokens = data.usage ? data.usage.input + data.usage.output : 0;
       alert(`${aiMode === "full" ? "Full daily" : "Macro blocks"} drafted with ${data.model} (${tokens} tokens)`);
-    } catch (err) {
-      alert("AI Draft failed: " + err.message);
+    } catch (err: unknown) {
+      alert("AI Draft failed: " + (err instanceof Error ? err.message : String(err)));
     } finally {
       setAiLoading(false);
     }
@@ -191,7 +191,7 @@ export default function MacroSection() {
           </label>
           <textarea
             value={aiContext}
-            onChange={(e) => setAiContext(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setAiContext(e.target.value)}
             rows={3}
             placeholder={aiMode === "full"
               ? "E.g. 'Risk-on day, BCRA bought $200mn, inflation 2.1%, banks rallying on earnings...'"

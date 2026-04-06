@@ -1,15 +1,15 @@
-import { useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import useDailyStore from "../../store/useDailyStore";
 import { Card, X } from "../ui";
 import { BRAND } from "../../constants/brand";
 import { rc } from "../../utils/ratings";
 
-const is = { padding: "6px 8px", borderRadius: 4, border: "1px solid var(--border-input)", fontSize: 12, boxSizing: "border-box" };
-const ss = { ...is, background: "var(--bg-input)" };
+const is: React.CSSProperties = { padding: "6px 8px", borderRadius: 4, border: "1px solid var(--border-input)", fontSize: 12, boxSizing: "border-box" };
+const ss: React.CSSProperties = { ...is, background: "var(--bg-input)" };
 
 export default function AnalystsTab() {
   const analysts = useDailyStore((s) => s.analysts);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState<string>("");
   const updateListItem = useDailyStore((s) => s.updateListItem);
   const addListItem = useDailyStore((s) => s.addListItem);
   const removeListItem = useDailyStore((s) => s.removeListItem);
@@ -34,17 +34,17 @@ export default function AnalystsTab() {
         ),
       })));
       alert(`Updated prices for ${Object.keys(priceMap).length}/${unique.length} tickers`);
-    } catch (err) {
-      alert("Price fetch failed: " + err.message + "\nEnter prices manually in the Last column.");
+    } catch (err: unknown) {
+      alert("Price fetch failed: " + (err instanceof Error ? err.message : String(err)) + "\nEnter prices manually in the Last column.");
     }
   };
 
-  const handleFileUpload = async (e) => {
-    const file = e.target.files[0];
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
     if (!file) return;
-    const processRows = (rows) => {
-      const grouped = {};
-      rows.forEach((r) => {
+    const processRows = (rows: { analyst: string; ticker: string; rating: string; tp: string }[]) => {
+      const grouped: Record<string, { name: string; title: string; coverage: { ticker: string; rating: string; tp: string }[] }> = {};
+      rows.forEach((r: { analyst: string; ticker: string; rating: string; tp: string }) => {
         if (!r.analyst || !r.ticker) return;
         if (!grouped[r.analyst]) grouped[r.analyst] = { name: r.analyst, title: "", coverage: [] };
         const tpVal = (!r.tp || r.tp === "-" || r.tp === "0")
@@ -61,7 +61,7 @@ export default function AnalystsTab() {
           tp: tpVal === "US$NaN" ? "" : tpVal,
         });
       });
-      const newAnalysts = Object.values(grouped).map((a, i) => ({ id: `imp${Date.now()}${i}`, ...a }));
+      const newAnalysts = Object.values(grouped).map((a: { name: string; title: string; coverage: { ticker: string; rating: string; tp: string }[] }, i: number) => ({ id: `imp${Date.now()}${i}`, ...a })) as import("../../types").Analyst[];
       if (newAnalysts.length === 0) { alert("No valid data found. Check file format."); return; }
       if (window.confirm(`Found ${newAnalysts.length} analyst(s) with ${rows.length} tickers. Replace current database?`)) {
         setField("analysts", newAnalysts);
@@ -71,19 +71,20 @@ export default function AnalystsTab() {
       alert(`Imported ${newAnalysts.length} analyst(s)`);
     };
     if (file.name.match(/\.xlsx?$/i)) {
-      const XLSX = await import("https://cdn.sheetjs.com/xlsx-0.20.3/package/xlsx.mjs");
+      // @ts-ignore - dynamic CDN import
+      const XLSX = await import(/* @vite-ignore */ "https://cdn.sheetjs.com/xlsx-0.20.3/package/xlsx.mjs");
       const buf = await file.arrayBuffer();
       const wb = XLSX.read(buf);
       const ws = wb.Sheets[wb.SheetNames[0]];
-      const json = XLSX.utils.sheet_to_json(ws, { header: 1 });
-      let hIdx = json.findIndex((r) => r.some((c) => String(c || "").toLowerCase().includes("analyst")) && r.some((c) => String(c || "").toLowerCase().includes("ticker")));
+      const json: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1 });
+      let hIdx = json.findIndex((r: any[]) => r.some((c: any) => String(c || "").toLowerCase().includes("analyst")) && r.some((c: any) => String(c || "").toLowerCase().includes("ticker")));
       if (hIdx === -1) { alert("Could not find header row with 'Analyst Name' and 'Ticker'"); return; }
-      const hdr = json[hIdx].map((c) => String(c || "").toLowerCase().trim());
-      const aCol = hdr.findIndex((h) => h.includes("analyst"));
-      const tCol = hdr.findIndex((h) => h.includes("ticker"));
-      const rCol = hdr.findIndex((h) => h.includes("rating"));
-      const pCol = hdr.findIndex((h) => h.includes("target") || h.includes("tp") || h.includes("price"));
-      const rows = json.slice(hIdx + 1).filter((r) => r[aCol] && r[tCol]).map((r) => ({
+      const hdr = json[hIdx].map((c: any) => String(c || "").toLowerCase().trim());
+      const aCol = hdr.findIndex((h: string) => h.includes("analyst"));
+      const tCol = hdr.findIndex((h: string) => h.includes("ticker"));
+      const rCol = hdr.findIndex((h: string) => h.includes("rating"));
+      const pCol = hdr.findIndex((h: string) => h.includes("target") || h.includes("tp") || h.includes("price"));
+      const rows = json.slice(hIdx + 1).filter((r: any[]) => r[aCol] && r[tCol]).map((r: any[]) => ({
         analyst: String(r[aCol] || "").trim(),
         ticker: String(r[tCol] || "").trim(),
         rating: String(r[rCol !== -1 ? rCol : 99] || "NR").trim(),
@@ -92,15 +93,15 @@ export default function AnalystsTab() {
       processRows(rows);
     } else {
       const reader = new FileReader();
-      reader.onload = (ev) => {
-        const lines = ev.target.result.split("\n").map((l) => l.trim()).filter(Boolean);
+      reader.onload = (ev: ProgressEvent<FileReader>) => {
+        const lines = (ev.target?.result as string).split("\n").map((l: string) => l.trim()).filter(Boolean);
         const hdr = lines[0].toLowerCase();
         if (!hdr.includes("analyst") || !hdr.includes("ticker")) {
           alert("CSV must have columns: Analyst Name, Ticker, Rating, Target Price");
           return;
         }
-        const rows = lines.slice(1).map((l) => {
-          const c = l.split(",").map((x) => x.trim());
+        const rows = lines.slice(1).map((l: string) => {
+          const c = l.split(",").map((x: string) => x.trim());
           return { analyst: c[0], ticker: c[1] || "", rating: c[2] || "NR", tp: c[3] || "" };
         });
         processRows(rows);
@@ -139,7 +140,7 @@ export default function AnalystsTab() {
         <div className="mb-3">
           <input
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
             placeholder="Search analyst or ticker..."
             className="themed-input w-full px-2.5 py-2 rounded-md border border-[var(--border-input)] text-sm bg-[var(--bg-input)] text-[var(--text-primary)]"
           />
@@ -152,8 +153,8 @@ export default function AnalystsTab() {
           <div key={a.id} style={{ padding: 14, background: "var(--bg-card-alt)", borderRadius: 8, marginBottom: 14, border: "1px solid #eee" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
               <div style={{ display: "flex", gap: 8, flex: 1 }}>
-                <input value={a.name} onChange={(e) => updateListItem("analysts", a.id, "name", e.target.value)} placeholder="Name" style={{ ...is, fontWeight: 700, flex: 2 }} />
-                <input value={a.title} onChange={(e) => updateListItem("analysts", a.id, "title", e.target.value)} placeholder="Title" style={{ ...is, flex: 2 }} />
+                <input value={a.name} onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateListItem("analysts", a.id, "name", e.target.value)} placeholder="Name" style={{ ...is, fontWeight: 700, flex: 2 }} />
+                <input value={a.title} onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateListItem("analysts", a.id, "title", e.target.value)} placeholder="Title" style={{ ...is, flex: 2 }} />
               </div>
               <X onClick={() => removeListItem("analysts", a.id)} />
             </div>
@@ -169,13 +170,13 @@ export default function AnalystsTab() {
                 </tr>
               </thead>
               <tbody>
-                {a.coverage.map((cv, ci) => (
+                {a.coverage.map((cv: { ticker: string; rating: string; tp: string; last?: string }, ci: number) => (
                   <tr key={ci} style={{ background: ci % 2 === 0 ? "#fff" : "#f8fafc" }}>
                     <td style={{ padding: 3 }}>
-                      <input value={cv.ticker} onChange={(e) => updateCoverage(a.id, ci, "ticker", e.target.value.toUpperCase())} style={{ ...is, width: "100%", fontWeight: 700 }} />
+                      <input value={cv.ticker} onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateCoverage(a.id, ci, "ticker", e.target.value.toUpperCase())} style={{ ...is, width: "100%", fontWeight: 700 }} />
                     </td>
                     <td style={{ padding: 3 }}>
-                      <select value={cv.rating} onChange={(e) => updateCoverage(a.id, ci, "rating", e.target.value)} style={{ ...ss, width: "100%", color: rc(cv.rating), fontWeight: 600 }}>
+                      <select value={cv.rating} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => updateCoverage(a.id, ci, "rating", e.target.value)} style={{ ...ss, width: "100%", color: rc(cv.rating), fontWeight: 600 }}>
                         <option value="Overweight">Overweight</option>
                         <option value="Neutral">Neutral</option>
                         <option value="Underweight">Underweight</option>
@@ -184,10 +185,10 @@ export default function AnalystsTab() {
                       </select>
                     </td>
                     <td style={{ padding: 3 }}>
-                      <input value={cv.tp} onChange={(e) => updateCoverage(a.id, ci, "tp", e.target.value)} onBlur={(e) => { const v = e.target.value.replace(/[^0-9.]/g, ""); if (v) updateCoverage(a.id, ci, "tp", `US$${parseFloat(v).toFixed(2)}`); }} placeholder="US$0.00" style={{ ...is, width: "100%" }} />
+                      <input value={cv.tp} onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateCoverage(a.id, ci, "tp", e.target.value)} onBlur={(e: React.FocusEvent<HTMLInputElement>) => { const v = e.target.value.replace(/[^0-9.]/g, ""); if (v) updateCoverage(a.id, ci, "tp", `US$${parseFloat(v).toFixed(2)}`); }} placeholder="US$0.00" style={{ ...is, width: "100%" }} />
                     </td>
                     <td style={{ padding: 3 }}>
-                      <input value={cv.last || ""} onChange={(e) => updateCoverage(a.id, ci, "last", e.target.value)} onBlur={(e) => { const v = e.target.value.replace(/[^0-9.]/g, ""); if (v) updateCoverage(a.id, ci, "last", `US$${parseFloat(v).toFixed(2)}`); }} placeholder="US$0.00" style={{ ...is, width: "100%", color: "#666" }} />
+                      <input value={cv.last || ""} onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateCoverage(a.id, ci, "last", e.target.value)} onBlur={(e: React.FocusEvent<HTMLInputElement>) => { const v = e.target.value.replace(/[^0-9.]/g, ""); if (v) updateCoverage(a.id, ci, "last", `US$${parseFloat(v).toFixed(2)}`); }} placeholder="US$0.00" style={{ ...is, width: "100%", color: "#666" }} />
                     </td>
                     <td style={{ padding: 3, textAlign: "center" }}>
                       <X onClick={() => deleteCoverage(a.id, ci)} />

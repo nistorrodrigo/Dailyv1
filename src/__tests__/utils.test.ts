@@ -25,7 +25,7 @@ describe("dates", () => {
 
   it("fmtTime handles empty", () => {
     expect(fmtTime("")).toBe("");
-    expect(fmtTime(null)).toBe("");
+    expect(fmtTime(null as unknown as string)).toBe("");
   });
 });
 
@@ -34,7 +34,7 @@ describe("prices", () => {
     expect(parsePrice("US$68.00")).toBe(68);
     expect(parsePrice("$45.50")).toBe(45.5);
     expect(parsePrice("100")).toBe(100);
-    expect(parsePrice(null)).toBe(null);
+    expect(parsePrice(null as unknown as string)).toBe(null);
     expect(parsePrice("")).toBe(null);
   });
 
@@ -45,8 +45,8 @@ describe("prices", () => {
   });
 
   it("calcUpside returns null for missing values", () => {
-    expect(calcUpside(null, "US$50.00")).toBe(null);
-    expect(calcUpside("US$68.00", null)).toBe(null);
+    expect(calcUpside(null as unknown as string, "US$50.00")).toBe(null);
+    expect(calcUpside("US$68.00", null as unknown as string)).toBe(null);
     expect(calcUpside("US$68.00", "US$0.00")).toBe(null);
   });
 
@@ -88,10 +88,10 @@ describe("ratings", () => {
   it("resolveCorporateBlock resolves coverage", () => {
     const analysts = [
       { id: "a1", name: "John", title: "Analyst", coverage: [
-        { ticker: "VIST", rating: "Overweight", tp: "US$68.00", last: "US$50.00" },
+        { ticker: "VIST", rating: "Overweight" as const, tp: "US$68.00", last: "US$50.00" },
       ]},
     ];
-    const block = { analystId: "a1", tickers: ["VIST"], headline: "Test", body: "body", link: "" };
+    const block = { id: "b1", analystId: "a1", tickers: ["VIST"], headline: "Test", body: "body", link: "" };
     const result = resolveCorporateBlock(block, analysts);
     expect(result.analyst).toBe("John, Analyst");
     expect(result.covs[0].ticker).toBe("VIST");

@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { BRAND, LOGO_WHITE_URL } from "../constants/brand";
 import useDailyStore from "../store/useDailyStore";
@@ -14,7 +14,9 @@ import SchedulePanel from "./SchedulePanel";
 import { logout } from "./LoginGate";
 import PresenceIndicator from "./PresenceIndicator";
 
-function timeAgo(ts) {
+type PanelName = "history" | "templates" | "email" | "diff" | "schedule" | null;
+
+function timeAgo(ts: number): string {
   if (!ts) return "";
   const s = Math.floor((Date.now() - ts) / 1000);
   if (s < 5) return "just now";
@@ -24,7 +26,7 @@ function timeAgo(ts) {
   return `${Math.floor(m / 60)}h ago`;
 }
 
-const hBtn = (borderColor, textColor, bg = "transparent") => ({
+const hBtn = (borderColor: string, textColor: string, bg: string = "transparent"): React.CSSProperties => ({
   padding: "6px 14px", borderRadius: 6,
   border: bg === "transparent" ? `1px solid ${borderColor}` : "none",
   background: bg, color: textColor,
@@ -32,14 +34,14 @@ const hBtn = (borderColor, textColor, bg = "transparent") => ({
   textTransform: "uppercase", letterSpacing: 0.5, whiteSpace: "nowrap",
 });
 
-export default function Header() {
+export default function Header(): React.ReactElement {
   const { copiedLabel, saveStatus, darkMode, lastSavedAt } = useUIStore(useShallow((s) => ({ copiedLabel: s.copiedLabel, saveStatus: s.saveStatus, darkMode: s.darkMode, lastSavedAt: s.lastSavedAt })));
   const copyToClipboard = useUIStore((s) => s.copyToClipboard);
   const toggleDarkMode = useUIStore((s) => s.toggleDarkMode);
   const newDaily = useDailyStore((s) => s.newDaily);
-  const [openPanel, setOpenPanel] = useState(null); // "history" | "templates" | "email" | "diff" | null
+  const [openPanel, setOpenPanel] = useState<PanelName>(null);
 
-  const copyGenerated = useCallback((type) => {
+  const copyGenerated = useCallback((type: "html" | "bbg") => {
     const state = useDailyStore.getState();
     const text = type === "html" ? generateHTML(state) : generateBBG(state);
     copyToClipboard(text, type);

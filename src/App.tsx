@@ -1,12 +1,13 @@
 import useUIStore from "./store/useUIStore";
 import useKeyboardShortcuts from "./hooks/useKeyboardShortcuts";
+import type { UIState } from "./types";
 import Header from "./components/Header";
 import EditorTab from "./components/sections/EditorTab";
 import AnalystsTab from "./components/sections/AnalystsTab";
 import PreviewTab from "./components/sections/PreviewTab";
 import DashboardTab from "./components/sections/DashboardTab";
 
-const tabCls = (active) =>
+const tabCls = (active: boolean): string =>
   `px-5 py-2.5 cursor-pointer text-[13px] font-bold tracking-wide uppercase border-none transition-all duration-200 ${
     active
       ? "border-b-3 border-sky bg-navy text-white"
@@ -14,7 +15,7 @@ const tabCls = (active) =>
   }`;
 
 export default function App() {
-  const tab = useUIStore((s) => s.tab);
+  const tab: UIState["tab"] = useUIStore((s) => s.tab);
   const setTab = useUIStore((s) => s.setTab);
   useKeyboardShortcuts();
 
