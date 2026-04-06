@@ -16,7 +16,9 @@ export default function EmailSendPanel({ open, onClose }) {
   const [subject, setSubject] = useState("");
   const [pin, setPin] = useState("");
   const [pinError, setPinError] = useState("");
-  const [sendResult, setSendResult] = useState(null); // { type: "success"|"error", message }
+  const [sendResult, setSendResult] = useState(null);
+  const [sgLists, setSgLists] = useState([]);
+  const [sgLoading, setSgLoading] = useState(false); // { type: "success"|"error", message }
 
   useEffect(() => {
     if (open) {
@@ -123,8 +125,64 @@ export default function EmailSendPanel({ open, onClose }) {
           />
         </div>
 
+        {/* SendGrid Lists */}
         <div style={{ marginBottom: 16 }}>
-          <label style={{ fontSize: 11, fontWeight: 600, color: "#555", textTransform: "uppercase", display: "block", marginBottom: 4 }}>
+          <label className="block mb-1 text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide">
+            Import from SendGrid List
+          </label>
+          <div className="flex gap-1.5 flex-wrap">
+            {sgLists.length === 0 && (
+              <button
+                onClick={async () => {
+                  setSgLoading(true);
+                  try {
+                    const resp = await fetch("/api/sendgrid-lists");
+                    const data = await resp.json();
+                    if (data.ok) setSgLists(data.lists);
+                    else throw new Error(data.error);
+                  } catch (err) {
+                    setSendResult({ type: "error", message: "Failed to load lists: " + err.message });
+                  } finally {
+                    setSgLoading(false);
+                  }
+                }}
+                disabled={sgLoading}
+                className="px-3 py-1.5 rounded-md border border-[var(--border-input)] bg-transparent text-[var(--text-secondary)] text-[11px] font-semibold cursor-pointer"
+              >
+                {sgLoading ? "Loading..." : "Load SendGrid Lists"}
+              </button>
+            )}
+            {sgLists.map((list) => (
+              <button
+                key={list.id}
+                onClick={async () => {
+                  setSgLoading(true);
+                  try {
+                    const resp = await fetch(`/api/sendgrid-lists?listId=${list.id}`);
+                    const data = await resp.json();
+                    if (!data.ok) throw new Error(data.error);
+                    const newRecipients = data.contacts
+                      .filter((c) => !recipients.find((r) => r.email === c.email))
+                      .map((c) => ({ id: `sg${Date.now()}${Math.random()}`, email: c.email, name: c.name, active: true }));
+                    setRecipients((prev) => [...prev, ...newRecipients]);
+                    setSendResult({ type: "success", message: `Imported ${newRecipients.length} contacts from "${list.name}"` });
+                  } catch (err) {
+                    setSendResult({ type: "error", message: "Import failed: " + err.message });
+                  } finally {
+                    setSgLoading(false);
+                  }
+                }}
+                disabled={sgLoading}
+                className="px-2.5 py-1.5 rounded text-[10px] font-bold border border-[var(--border-input)] bg-transparent text-[var(--text-primary)] cursor-pointer hover:bg-[var(--bg-hover)]"
+              >
+                {list.name} ({list.count})
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", display: "block", marginBottom: 4 }}>
             Add Recipient
           </label>
           <div style={{ display: "flex", gap: 6 }}>
