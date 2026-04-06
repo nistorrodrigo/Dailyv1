@@ -81,7 +81,11 @@ export function generateHTML(s) {
   return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Argentina Daily</title></head><body style="margin:0;padding:0;background:#f4f5f7;font-family:\'Segoe UI\',Calibri,Arial,Helvetica,sans-serif;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f4f5f7;"><tr><td align="center" style="padding:24px 10px;"><table role="presentation" width="' + DS.maxW + '" cellpadding="0" cellspacing="0" border="0" style="max-width:' + DS.maxW + 'px;width:100%;background:#fff;border:1px solid ' + DS.borderLight + ';">'
 
     // HEADER
-    + '<tr><td style="background:' + DS.navy + ';padding:32px 40px 28px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td><img src="' + logoW + '" alt="Latin Securities" style="height:28px;display:block;" /></td><td style="text-align:right;"><div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:' + DS.sky + ';font-weight:600;">Sales &amp; Trading</div></td></tr></table><div style="margin-top:20px;font-size:22px;font-weight:300;color:#fff;letter-spacing:-0.3px;">Argentina Daily</div><div style="font-size:13px;color:rgba(255,255,255,0.6);margin-top:4px;font-weight:400;">' + formatDate(s.date) + '</div></td></tr>'
+    + '<tr><td style="background:' + DS.navy + ';padding:36px 40px 30px;">'
+    + '<img src="' + logoW + '" alt="Latin Securities" style="height:32px;display:block;margin-bottom:22px;" />'
+    + '<div style="font-size:24px;font-weight:300;color:#fff;letter-spacing:-0.3px;">Argentina Daily</div>'
+    + '<div style="margin-top:6px;"><span style="font-size:13px;color:rgba(255,255,255,0.55);font-weight:400;">' + formatDate(s.date) + '</span><span style="font-size:10px;color:' + DS.sky + ';font-weight:600;text-transform:uppercase;letter-spacing:1.5px;margin-left:16px;border:1px solid rgba(51,153,255,0.3);padding:3px 10px;border-radius:3px;">Sales &amp; Trading</span></div>'
+    + '</td></tr>'
 
     // ACCENT LINE
     + '<tr><td style="height:3px;background:linear-gradient(90deg,' + DS.sky + ',' + DS.accent + ');"></td></tr>'
@@ -93,7 +97,7 @@ export function generateHTML(s) {
     + sectionContent
 
     // SIGNATURE
-    + '<tr><td style="padding:24px 40px 0;border-top:1px solid ' + DS.border + ';"><img src="' + logo + '" alt="Latin Securities" style="height:24px;display:block;margin-bottom:12px;opacity:0.7;" />' + sig + '</td></tr>'
+    + '<tr><td style="padding:24px 40px 0;border-top:1px solid ' + DS.border + ';"><img src="' + logo + '" alt="Latin Securities" style="height:22px;display:block;margin-bottom:12px;opacity:0.6;" />' + sig + '</td></tr>'
 
     // FOOTER
     + '<tr><td style="padding:20px 40px 24px;"><div style="border-top:1px solid ' + DS.borderLight + ';padding-top:16px;"><div style="font-size:10px;font-weight:600;color:' + DS.textMuted + ';text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Latin Securities S.A.</div><div style="font-size:9.5px;color:' + DS.textMuted + ';line-height:1.6;">Arenales 707, 6th Floor \u00B7 Buenos Aires, Argentina \u00B7 <a href="https://www.latinsecurities.com.ar" style="color:' + DS.accent + ';text-decoration:none;">latinsecurities.com.ar</a></div><div style="font-size:9px;color:#b0b0b0;line-height:1.5;margin-top:10px;">This material has been prepared by Latin Securities S.A. for informational purposes only and does not constitute an offer, solicitation, or recommendation to buy or sell any financial instrument. Past performance is not indicative of future results. This communication is intended solely for the use of the addressee(s) and may contain privileged or confidential information. \u00A9 2026 Latin Securities S.A. All rights reserved.</div></div></td></tr>'
