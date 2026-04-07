@@ -3,6 +3,7 @@ import { useShallow } from "zustand/react/shallow";
 import useDailyStore from "../../store/useDailyStore";
 import { Card, Inp, X, DashBtn } from "../ui";
 import { BRAND } from "../../constants/brand";
+import { ImproveBtn, CopyPromptBtn } from "../ui/AIHelpers";
 import { rc, rb } from "../../utils/ratings";
 
 const is: React.CSSProperties = { padding: "6px 8px", borderRadius: 4, border: "1px solid var(--border-input)", fontSize: 12, boxSizing: "border-box" };
@@ -102,7 +103,14 @@ export default function CorporateSection() {
             )}
 
             <Inp label="Headline" value={b.headline} onChange={(v) => updateListItem("corpBlocks", b.id, "headline", v)} />
-            <Inp label="Body" value={b.body} onChange={(v) => updateListItem("corpBlocks", b.id, "body", v)} multi rows={4} />
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide">Body</label>
+              <div className="flex gap-1.5">
+                <ImproveBtn text={b.body} onImprove={(v) => updateListItem("corpBlocks", b.id, "body", v)} context={`corporate block: ${(b.tickers || []).join("/")} ${b.headline}`} />
+                <CopyPromptBtn section="Corporate" currentText={b.body} />
+              </div>
+            </div>
+            <Inp value={b.body} onChange={(v) => updateListItem("corpBlocks", b.id, "body", v)} multi rows={4} />
             <Inp label="Link" value={b.link} onChange={(v) => updateListItem("corpBlocks", b.id, "link", v)} placeholder="https://..." />
           </div>
         );

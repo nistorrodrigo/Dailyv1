@@ -4,6 +4,7 @@ import useDailyStore from "../../store/useDailyStore";
 import { Card, Inp, X, DashBtn } from "../ui";
 import SortableList from "../ui/SortableList";
 import MarkdownEditor from "../ui/MarkdownEditor";
+import { CopyPromptBtn, ImproveBtn } from "../ui/AIHelpers";
 import { BRAND } from "../../constants/brand";
 
 const AI_MODELS = [
@@ -103,7 +104,13 @@ export default function MacroSection() {
               </div>
               <Inp label="Title" value={b.title} onChange={(v) => updateListItem("macroBlocks", b.id, "title", v)} />
               <div className="mb-2.5">
-                <label className="block mb-1 text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide">Body</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide">Body</label>
+                  <div className="flex gap-1.5">
+                    <ImproveBtn text={b.body} onImprove={(v) => updateListItem("macroBlocks", b.id, "body", v)} context={b.title || "macro block"} />
+                    <CopyPromptBtn section="Macro / Political" currentText={b.body} />
+                  </div>
+                </div>
                 <MarkdownEditor value={b.body} onChange={(v) => updateListItem("macroBlocks", b.id, "body", v)} rows={4} />
               </div>
               <Inp label="LS Pick / Comment" value={b.lsPick} onChange={(v) => updateListItem("macroBlocks", b.id, "lsPick", v)} />
