@@ -92,7 +92,7 @@ function EmailTracking(): React.ReactElement {
   const [show, setShow] = useState(false);
 
   const loadTracking = async () => {
-    const resp = await fetch("/api/email-events");
+    const resp = await fetch("/api/analytics?type=email-events");
     const d = await resp.json();
     if (d.ok) setTracking(d);
     setShow(true);

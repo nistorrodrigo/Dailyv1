@@ -358,7 +358,7 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
           onClick={async () => {
             setShowLogs(!showLogs);
             if (!showLogs && emailLogs.length === 0) {
-              const resp = await fetch("/api/email-log");
+              const resp = await fetch("/api/analytics?type=email-log");
               const data = await resp.json();
               if (data.ok) setEmailLogs(data.logs);
             }
