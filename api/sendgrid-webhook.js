@@ -11,8 +11,13 @@ export default async function handler(req, res) {
   const events = req.body;
   if (!Array.isArray(events)) return res.status(400).json({ error: "Expected array" });
 
+  // Only process events from our daily emails (check subject contains "Argentina Daily")
   const rows = events
     .filter(e => ["open", "click", "delivered", "bounce", "dropped"].includes(e.event))
+    .filter(e => {
+      const subject = (e.subject || "").toLowerCase();
+      return subject.includes("argentina daily") || subject.includes("[test]");
+    })
     .map(e => ({
       event_type: e.event,
       email: e.email || "",
