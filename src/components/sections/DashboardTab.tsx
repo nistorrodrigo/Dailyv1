@@ -77,6 +77,81 @@ export default function DashboardTab() {
           </div>
         ))}
       </div>
+      {/* Email Tracking */}
+      <EmailTracking />
+    </div>
+  );
+}
+
+function EmailTracking(): React.ReactElement {
+  const [tracking, setTracking] = useState<{
+    stats: { totalOpens: number; uniqueOpens: number; totalClicks: number; totalDelivered: number; totalBounces: number };
+    topOpeners: { email: string; count: number }[];
+    recent: { id: string; event_type: string; email: string; subject: string; timestamp: string; url: string | null }[];
+  } | null>(null);
+  const [show, setShow] = useState(false);
+
+  const loadTracking = async () => {
+    const resp = await fetch("/api/email-events");
+    const d = await resp.json();
+    if (d.ok) setTracking(d);
+    setShow(true);
+  };
+
+  return (
+    <div className="p-4 rounded-lg border border-[var(--border-light)] bg-[var(--bg-card)] mt-5">
+      <div className="flex items-center justify-between mb-3">
+        <div className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Email Open Tracking</div>
+        <button onClick={loadTracking} className="text-[10px] font-semibold text-[var(--color-sky)] bg-transparent border-none cursor-pointer">
+          {show ? "Refresh" : "Load Tracking Data"}
+        </button>
+      </div>
+      {!show && <p className="text-xs text-[var(--text-muted)]">Click "Load Tracking Data" to see who opened your dailies.</p>}
+      {show && !tracking && <p className="text-xs text-[var(--text-muted)]">No tracking data yet. Data appears after SendGrid webhook is configured.</p>}
+      {show && tracking && (
+        <>
+          <div className="flex gap-3 flex-wrap mb-4">
+            <StatCard label="Delivered" value={tracking.stats.totalDelivered} color={BRAND.blue} />
+            <StatCard label="Opens" value={tracking.stats.totalOpens} color="#1a7a3a" />
+            <StatCard label="Unique Opens" value={tracking.stats.uniqueOpens} color={BRAND.teal} />
+            <StatCard label="Clicks" value={tracking.stats.totalClicks} color={BRAND.orange} />
+            <StatCard label="Bounces" value={tracking.stats.totalBounces} color="#c0392b" />
+          </div>
+
+          {tracking.topOpeners.length > 0 && (
+            <div className="mb-4">
+              <div className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider mb-2">Top Readers</div>
+              {tracking.topOpeners.map((o, i) => (
+                <div key={i} className="flex items-center gap-2 py-1 text-xs">
+                  <span className="w-5 h-5 rounded-full bg-[var(--color-sky)] flex items-center justify-center text-[8px] font-bold text-white flex-shrink-0">{i + 1}</span>
+                  <span className="text-[var(--text-primary)] flex-1 truncate">{o.email}</span>
+                  <span className="text-[var(--text-muted)]">{o.count} opens</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {tracking.recent.length > 0 && (
+            <div>
+              <div className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider mb-2">Recent Activity</div>
+              <div className="max-h-48 overflow-auto">
+                {tracking.recent.map((e) => (
+                  <div key={e.id} className="flex items-center gap-2 py-1.5 border-b border-[var(--border-light)] text-[11px]">
+                    <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${
+                      e.event_type === "open" ? "bg-green-100 text-green-700" :
+                      e.event_type === "click" ? "bg-blue-100 text-blue-700" :
+                      e.event_type === "delivered" ? "bg-gray-100 text-gray-600" :
+                      "bg-red-100 text-red-600"
+                    }`}>{e.event_type}</span>
+                    <span className="text-[var(--text-primary)] flex-1 truncate">{e.email}</span>
+                    <span className="text-[var(--text-muted)]">{new Date(e.timestamp).toLocaleString()}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }
