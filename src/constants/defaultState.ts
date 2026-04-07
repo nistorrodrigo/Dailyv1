@@ -17,17 +17,19 @@ export const DEFAULT_ANALYSTS: Analyst[] = [
 export const DEFAULT_STATE: DailyState & { flows: { global: string; local: string; positioning: string } } = {
   date: new Date().toISOString().split("T")[0],
   sections: [
+    { key: "snapshot", label: "Market Snapshot", on: true },
+    { key: "watchToday", label: "What to Watch Today", on: true },
     { key: "macro", label: "Macro / Political", on: true },
     { key: "tradeIdeas", label: "Trade Ideas", on: true },
-    { key: "flows", label: "LS Desk Flows", on: true },
-    { key: "macroEstimates", label: "Macro Estimates", on: true },
+    { key: "flows", label: "Market Color", on: true },
     { key: "corporate", label: "Corporate", on: true },
     { key: "research", label: "Research Reports", on: true },
     { key: "topMovers", label: "Top Movers", on: false },
-    { key: "tweets", label: "Tweets / Market Noise", on: false },
+    { key: "tweets", label: "Market Intelligence", on: false },
+    { key: "latam", label: "LatAm Context", on: false },
     { key: "bcra", label: "BCRA Dashboard", on: false },
-    { key: "events", label: "Corporate Access & Events", on: false },
-    { key: "keyEvents", label: "Key Events Calendar", on: false },
+    { key: "events", label: "Upcoming", on: false },
+    { key: "macroEstimates", label: "Macro Estimates", on: false },
     { key: "chart", label: "Chart of the Day", on: false },
   ],
   summaryBar: "",
@@ -72,6 +74,26 @@ export const DEFAULT_STATE: DailyState & { flows: { global: string; local: strin
     { id: "s1", name: "Rodrigo Nistor", role: "Institutional Sales", email: "rodrigo.nistor@latinsecurities.ar" },
   ],
   analysts: DEFAULT_ANALYSTS,
+
+  // Market Snapshot
+  snapshot: {
+    merval: "", mervalChg: "",
+    adrs: "", adrsChg: "",
+    sp500: "", sp500Chg: "",
+    ust10y: "",
+    dxy: "",
+    soja: "",
+    wti: "",
+    ccl: "", cclChg: "",
+    mep: "", mepChg: "",
+    blue: "",
+  },
+
+  // What to Watch Today
+  watchToday: [""],
+
+  // LatAm Context
+  latam: "",
 
   // New sections state
   topMovers: {

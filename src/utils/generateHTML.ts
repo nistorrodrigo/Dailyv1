@@ -28,10 +28,12 @@ function secHdr(title: string, id?: string): string {
 
 // Section label map for TOC
 const SEC_LABELS: Record<string, string> = {
-  macro: "Macro / Political", tradeIdeas: "Trade Ideas", flows: "LS Trading Desk Flows",
-  macroEstimates: "Macro Estimates", corporate: "Corporate", research: "Research Reports",
-  topMovers: "Top Movers", tweets: "Market Noise", bcra: "BCRA Dashboard",
-  events: "Corporate Access & Events", keyEvents: "Key Events Calendar", chart: "Chart of the Day",
+  snapshot: "Market Snapshot", watchToday: "What to Watch Today",
+  macro: "Macro / Political", tradeIdeas: "Trade Ideas", flows: "Market Color",
+  corporate: "Corporate", research: "Research Reports",
+  topMovers: "Top Movers", tweets: "Market Intelligence", latam: "LatAm Context",
+  bcra: "BCRA Dashboard", events: "Upcoming", macroEstimates: "Macro Estimates",
+  chart: "Chart of the Day",
 };
 
 // mode: "full" (default) | "toc" (with table of contents) | "compact" (summary only)
@@ -39,6 +41,22 @@ export function generateHTML(s: DailyState, mode: string = "full"): string {
   const logo: string = getLogoOrigB64();
   const logoW: string = getLogoWhiteB64();
   const allTickers = s.analysts.flatMap(a => a.coverage.map(c => ({ ticker: c.ticker, rating: c.rating, tp: c.tp, last: c.last || "", analyst: a.name })));
+
+  // SNAPSHOT
+  const snp = (s.snapshot || {}) as Record<string, string>;
+  const snpRows = [
+    ["Merval", snp.merval, snp.mervalChg], ["ADRs", snp.adrs, snp.adrsChg], ["S&P 500", snp.sp500, snp.sp500Chg],
+    ["UST 10Y", snp.ust10y, ""], ["DXY", snp.dxy, ""], ["Soja", snp.soja, ""], ["WTI", snp.wti, ""],
+    ["CCL", snp.ccl, snp.cclChg], ["MEP", snp.mep, snp.mepChg], ["Blue", snp.blue, ""],
+  ].filter(r => r[1]);
+  const snapshot = s.sections.find(x => x.key === "snapshot")?.on && snpRows.length ? secHdr("Market Snapshot") + '<tr><td style="padding:0 40px 8px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid ' + DS.border + ';">' + snpRows.map((r, i) => { const chgColor = (r[2] || "").startsWith("-") ? DS.red : DS.green; return '<tr style="background:' + (i % 2 === 0 ? "#fff" : DS.bgAlt) + ';"><td style="padding:5px 12px;font-size:12px;font-weight:600;color:' + DS.navy + ';border-bottom:1px solid ' + DS.borderLight + ';width:30%;">' + r[0] + '</td><td style="padding:5px 12px;font-size:13px;font-weight:700;color:' + DS.text + ';text-align:right;border-bottom:1px solid ' + DS.borderLight + ';">' + r[1] + '</td><td style="padding:5px 12px;font-size:12px;font-weight:700;color:' + chgColor + ';text-align:right;border-bottom:1px solid ' + DS.borderLight + ';width:20%;">' + (r[2] ? r[2] + '%' : '') + '</td></tr>'; }).join("") + '</table></td></tr>' : "";
+
+  // WHAT TO WATCH
+  const watchItems = (s.watchToday || []).filter((w: string) => w.trim());
+  const watchToday = s.sections.find(x => x.key === "watchToday")?.on && watchItems.length ? secHdr("What to Watch Today") + '<tr><td style="padding:0 40px 8px;">' + watchItems.map((w: string) => '<div style="padding:6px 0;font-size:13.5px;line-height:1.55;color:' + DS.text + ';"><span style="color:#e67e22;font-weight:700;margin-right:8px;">&#9656;</span>' + w + '</div>').join("") + '</td></tr>' : "";
+
+  // LATAM CONTEXT
+  const latam = s.sections.find(x => x.key === "latam")?.on && s.latam ? secHdr("LatAm Context") + '<tr><td style="padding:0 40px 8px;"><div style="font-size:13.5px;line-height:1.65;color:' + DS.text + ';text-align:justify;">' + nl2br(s.latam) + '</div></td></tr>' : "";
 
   // MACRO
   const macro = s.sections.find(x => x.key === "macro")?.on ? secHdr("Macro / Political") + '<tr><td style="padding:0 40px 8px;">' + s.macroBlocks.map(b => '<div style="margin-bottom:20px;"><div style="font-size:13px;font-weight:700;color:' + DS.navy + ';text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">' + b.title + '</div><div style="font-size:13.5px;line-height:1.65;color:' + DS.text + ';text-align:justify;">' + nl2br(b.body) + '</div>' + (b.lsPick ? '<div style="background:' + DS.greenBg + ';border-left:3px solid ' + DS.green + ';padding:10px 14px;margin-top:10px;font-size:13px;line-height:1.55;color:' + DS.green + ';"><span style="font-weight:700;">LS View:</span> ' + nl2br(b.lsPick) + '</div>' : '') + '</div>').join("") + '</td></tr>' : "";
@@ -95,7 +113,7 @@ export function generateHTML(s: DailyState, mode: string = "full"): string {
   const sig = s.signatures.map(x => '<div style="margin-bottom:6px;"><span style="font-size:13px;font-weight:600;color:' + DS.navy + ';">' + x.name + '</span><span style="font-size:12px;color:' + DS.textLight + ';margin-left:6px;">' + x.role + '</span><br><span style="font-size:12px;color:' + DS.accent + ';">' + x.email + '</span></div>').join("");
 
   // SECTION MAP
-  const sectionMap: Record<string, string> = { macro, tradeIdeas: trade, flows: flow, macroEstimates: mEst, corporate: corp, research, topMovers, tweets, bcra, events, keyEvents, chart };
+  const sectionMap: Record<string, string> = { snapshot, watchToday, macro, tradeIdeas: trade, flows: flow, corporate: corp, research, topMovers, tweets, latam, bcra, events, macroEstimates: mEst, chart };
   const enabledSections = s.sections.filter(x => x.on);
 
   // Build Table of Contents

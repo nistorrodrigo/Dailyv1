@@ -13,22 +13,27 @@ import BcraSection from "./BcraSection";
 import EventsSection from "./EventsSection";
 import KeyEventsSection from "./KeyEventsSection";
 import ChartSection from "./ChartSection";
+import SnapshotSection from "./SnapshotSection";
+import WatchTodaySection from "./WatchTodaySection";
+import LatAmSection from "./LatAmSection";
 import LivePreviewPanel from "../LivePreviewPanel";
 import LazySection from "../ui/LazySection";
 import useDailyStore from "../../store/useDailyStore";
 
 const SECTION_COMPONENTS: Record<string, React.ComponentType> = {
+  snapshot: SnapshotSection,
+  watchToday: WatchTodaySection,
   macro: MacroSection,
   tradeIdeas: TradeIdeasSection,
   flows: FlowsSection,
-  macroEstimates: MacroEstimatesSection,
   corporate: CorporateSection,
   research: ResearchSection,
   topMovers: TopMoversSection,
   tweets: TweetsSection,
+  latam: LatAmSection,
   bcra: BcraSection,
   events: EventsSection,
-  keyEvents: KeyEventsSection,
+  macroEstimates: MacroEstimatesSection,
   chart: ChartSection,
 };
 

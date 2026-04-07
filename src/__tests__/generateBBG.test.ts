@@ -5,69 +5,43 @@ import { DEFAULT_STATE } from "../constants/defaultState";
 describe("generateBBG", () => {
   it("generates header with date and flag", () => {
     const bbg = generateBBG(DEFAULT_STATE);
-    expect(bbg).toContain("LATIN SECURITIES");
-    expect(bbg).toContain("Argentina Daily");
-  });
-
-  it("includes enabled sections", () => {
-    const bbg = generateBBG(DEFAULT_STATE);
-    expect(bbg).toContain("MACRO / POLITICAL");
-    expect(bbg).toContain("TRADE IDEAS");
-    expect(bbg).toContain("LS TRADING DESK FLOWS");
-    expect(bbg).toContain("MACRO ESTIMATES");
-    expect(bbg).toContain("CORPORATE");
-  });
-
-  it("excludes disabled sections", () => {
-    const state = {
-      ...DEFAULT_STATE,
-      sections: DEFAULT_STATE.sections.map((s) =>
-        s.key === "macro" ? { ...s, on: false } : s
-      ),
-    };
-    const bbg = generateBBG(state);
-    expect(bbg).not.toContain("MACRO / POLITICAL");
-    expect(bbg).toContain("TRADE IDEAS");
-  });
-
-  it("includes equity picks with tickers", () => {
-    const bbg = generateBBG(DEFAULT_STATE);
-    expect(bbg).toContain("BBAR");
-    expect(bbg).toContain("VIST");
-  });
-
-  it("includes FI ideas", () => {
-    const bbg = generateBBG(DEFAULT_STATE);
-    expect(bbg).toContain("Long ARGENT 35/38");
-  });
-
-  it("includes macro blocks", () => {
-    const bbg = generateBBG(DEFAULT_STATE);
-    expect(bbg).toContain("TREASURY AUCTION RESULTS");
-    expect(bbg).toContain("FX / BCRA");
-  });
-
-  it("includes flows data", () => {
-    const bbg = generateBBG(DEFAULT_STATE);
-    expect(bbg).toContain("Buyer");
-    expect(bbg).toContain("Seller");
-  });
-
-  it("includes macro estimates", () => {
-    const bbg = generateBBG(DEFAULT_STATE);
-    expect(bbg).toContain("CPI");
-    expect(bbg).toContain("GDP growth");
-  });
-
-  it("does not include signatures in BBG output", () => {
-    const bbg = generateBBG(DEFAULT_STATE);
-    expect(bbg).not.toContain("Institutional Sales");
+    expect(bbg).toContain("LS DAILY");
+    expect(bbg).toContain("LS DAILY");
   });
 
   it("includes summary bar when set", () => {
     const state = { ...DEFAULT_STATE, summaryBar: "Market rallied on rate cut expectations" };
     const bbg = generateBBG(state);
     expect(bbg).toContain("Market rallied on rate cut expectations");
+  });
+
+  it("includes equity picks in compact format", () => {
+    const bbg = generateBBG(DEFAULT_STATE);
+    expect(bbg).toContain("TOP PICKS");
+    expect(bbg).toContain("BBAR");
+  });
+
+  it("includes FI ideas", () => {
+    const bbg = generateBBG(DEFAULT_STATE);
+    expect(bbg).toContain("FI:");
+    expect(bbg).toContain("ARGENT");
+  });
+
+  it("includes flows as buy/sell", () => {
+    const bbg = generateBBG(DEFAULT_STATE);
+    expect(bbg).toContain("BUY:");
+    expect(bbg).toContain("SELL:");
+  });
+
+  it("includes footer", () => {
+    const bbg = generateBBG(DEFAULT_STATE);
+    expect(bbg).toContain("LS Research");
+    expect(bbg).toContain("latinsecurities.com.ar");
+  });
+
+  it("does not include signatures", () => {
+    const bbg = generateBBG(DEFAULT_STATE);
+    expect(bbg).not.toContain("Institutional Sales");
   });
 
   it("handles empty state gracefully", () => {
@@ -81,21 +55,19 @@ describe("generateBBG", () => {
       macroRows: [],
     };
     const bbg = generateBBG(state);
-    expect(bbg).toContain("LATIN SECURITIES");
+    expect(bbg).toContain("LS DAILY");
   });
 
-  it("respects section order", () => {
-    const state = {
-      ...DEFAULT_STATE,
-      sections: [
-        { key: "flows", label: "LS Desk Flows", on: true },
-        { key: "macro", label: "Macro / Political", on: true },
-        ...DEFAULT_STATE.sections.filter((s) => s.key !== "flows" && s.key !== "macro"),
-      ],
-    };
+  it("includes watch items when set", () => {
+    const state = { ...DEFAULT_STATE, watchToday: ["BCRA auction at 11am"] };
     const bbg = generateBBG(state);
-    const flowsIdx = bbg.indexOf("LS TRADING DESK FLOWS");
-    const macroIdx = bbg.indexOf("MACRO / POLITICAL");
-    expect(flowsIdx).toBeLessThan(macroIdx);
+    expect(bbg).toContain("WHAT TO WATCH");
+    expect(bbg).toContain("BCRA auction");
+  });
+
+  it("is compact (under 40 lines)", () => {
+    const bbg = generateBBG(DEFAULT_STATE);
+    const lines = bbg.split("\n").length;
+    expect(lines).toBeLessThan(40);
   });
 });

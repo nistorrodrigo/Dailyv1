@@ -112,10 +112,26 @@ export interface ChartImage {
   sizeKB?: number;
 }
 
+export interface MarketSnapshot {
+  merval: string; mervalChg: string;
+  adrs: string; adrsChg: string;
+  sp500: string; sp500Chg: string;
+  ust10y: string;
+  dxy: string;
+  soja: string;
+  wti: string;
+  ccl: string; cclChg: string;
+  mep: string; mepChg: string;
+  blue: string;
+}
+
 export interface DailyState {
   date: string;
   sections: Section[];
   summaryBar: string;
+  snapshot: MarketSnapshot;
+  watchToday: string[];
+  latam: string;
   macroBlocks: MacroBlock[];
   equityPicks: EquityPick[];
   fiIdeas: FIIdea[];
