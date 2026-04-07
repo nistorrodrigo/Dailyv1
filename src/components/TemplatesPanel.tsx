@@ -68,7 +68,7 @@ export default function TemplatesPanel({ open, onClose }: TemplatesPanelProps): 
     <div style={{
       position: "fixed", top: 0, right: 0, bottom: 0, width: 360,
       background: "var(--bg-card)", boxShadow: "var(--shadow-panel)",
-      zIndex: 1000, display: "flex", flexDirection: "column",
+      zIndex: 1000, display: "flex", flexDirection: "column", animation: "slideInRight 0.2s ease",
     }}>
       <div style={{
         background: BRAND.navy, padding: "16px 20px",

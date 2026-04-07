@@ -91,19 +91,26 @@ export default function MacroSection() {
 
   return (
     <Card title="Macro / Political" color={BRAND.navy}>
-      {macroBlocks.map((b) => (
-        <div key={b.id} className="mb-4 p-3 rounded-md relative" style={{ background: "var(--bg-card-alt)" }}>
-          <div className="absolute top-2 right-2">
-            <X onClick={() => removeListItem("macroBlocks", b.id)} />
-          </div>
-          <Inp label="Title" value={b.title} onChange={(v) => updateListItem("macroBlocks", b.id, "title", v)} />
-          <div className="mb-2.5">
-            <label className="block mb-1 text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide">Body</label>
-            <MarkdownEditor value={b.body} onChange={(v) => updateListItem("macroBlocks", b.id, "body", v)} rows={4} />
-          </div>
-          <Inp label="LS Pick / Comment" value={b.lsPick} onChange={(v) => updateListItem("macroBlocks", b.id, "lsPick", v)} />
-        </div>
-      ))}
+      <SortableList
+        items={macroBlocks}
+        onReorder={(from, to) => reorderList("macroBlocks", from, to)}
+        renderItem={(item) => {
+          const b = macroBlocks.find((x) => x.id === item.id)!;
+          return (
+            <div className="mb-4 p-3 rounded-md relative" style={{ background: "var(--bg-card-alt)" }}>
+              <div className="absolute top-2 right-2">
+                <X onClick={() => removeListItem("macroBlocks", b.id)} />
+              </div>
+              <Inp label="Title" value={b.title} onChange={(v) => updateListItem("macroBlocks", b.id, "title", v)} />
+              <div className="mb-2.5">
+                <label className="block mb-1 text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide">Body</label>
+                <MarkdownEditor value={b.body} onChange={(v) => updateListItem("macroBlocks", b.id, "body", v)} rows={4} />
+              </div>
+              <Inp label="LS Pick / Comment" value={b.lsPick} onChange={(v) => updateListItem("macroBlocks", b.id, "lsPick", v)} />
+            </div>
+          );
+        }}
+      />
 
       <div className="flex gap-2 mb-2">
         <div className="flex-1">

@@ -30,11 +30,13 @@ export default function App() {
         <button onClick={() => setTab("preview")} className={tabCls(tab === "preview")}>Preview</button>
         <button onClick={() => setTab("dashboard")} className={tabCls(tab === "dashboard")}>Dashboard</button>
       </div>
-      {tab === "edit" && <EditorTab />}
-      {tab === "analysts" && <AnalystsTab />}
-      {tab === "ai" && <AIDraftTab />}
-      {tab === "preview" && <PreviewTab />}
-      {tab === "dashboard" && <DashboardTab />}
+      <div key={tab} className="page-enter">
+        {tab === "edit" && <EditorTab />}
+        {tab === "analysts" && <AnalystsTab />}
+        {tab === "ai" && <AIDraftTab />}
+        {tab === "preview" && <PreviewTab />}
+        {tab === "dashboard" && <DashboardTab />}
+      </div>
     </div>
   );
 }

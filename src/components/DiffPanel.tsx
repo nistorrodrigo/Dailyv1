@@ -95,7 +95,7 @@ export default function DiffPanel({ open, onClose }: DiffPanelProps): React.Reac
   if (!open) return null;
 
   return (
-    <div className="fixed top-0 right-0 bottom-0 w-[420px] bg-[var(--bg-card)] shadow-[var(--shadow-panel)] z-[1000] flex flex-col">
+    <div className="fixed top-0 right-0 bottom-0 w-[420px] bg-[var(--bg-card)] shadow-[var(--shadow-panel)] z-[1000] flex flex-col panel-slide">
       <div className="flex justify-between items-center px-5 py-4" style={{ background: BRAND.navy }}>
         <span className="text-white text-sm font-bold uppercase tracking-wider">Compare Dailies</span>
         <button onClick={onClose} className="bg-transparent border-none text-sky text-xl cursor-pointer">{"\u00D7"}</button>
