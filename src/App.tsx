@@ -7,6 +7,7 @@ import AnalystsTab from "./components/sections/AnalystsTab";
 import PreviewTab from "./components/sections/PreviewTab";
 import DashboardTab from "./components/sections/DashboardTab";
 import AIDraftTab from "./components/sections/AIDraftTab";
+import EmailEditorTab from "./components/sections/EmailEditorTab";
 
 const tabCls = (active: boolean): string =>
   `px-5 py-2.5 cursor-pointer text-[13px] font-bold tracking-wide uppercase border-none transition-all duration-200 ${
@@ -28,6 +29,7 @@ export default function App() {
         <button onClick={() => setTab("analysts")} className={tabCls(tab === "analysts")}>Analysts</button>
         <button onClick={() => setTab("ai")} className={tabCls(tab === "ai")}>AI Draft</button>
         <button onClick={() => setTab("preview")} className={tabCls(tab === "preview")}>Preview</button>
+        <button onClick={() => setTab("email-editor")} className={tabCls(tab === "email-editor")}>HTML Editor</button>
         <button onClick={() => setTab("dashboard")} className={tabCls(tab === "dashboard")}>Dashboard</button>
       </div>
       <div key={tab} className="page-enter">
@@ -35,6 +37,7 @@ export default function App() {
         {tab === "analysts" && <AnalystsTab />}
         {tab === "ai" && <AIDraftTab />}
         {tab === "preview" && <PreviewTab />}
+        {tab === "email-editor" && <EmailEditorTab />}
         {tab === "dashboard" && <DashboardTab />}
       </div>
     </div>

@@ -143,7 +143,7 @@ export interface DailyState {
 }
 
 export interface UIState {
-  tab: "edit" | "analysts" | "ai" | "preview" | "dashboard";
+  tab: "edit" | "analysts" | "ai" | "preview" | "email-editor" | "dashboard";
   previewMode: "html" | "bbg";
   copiedLabel: string;
   saveStatus: "idle" | "saving" | "saved" | "error";
