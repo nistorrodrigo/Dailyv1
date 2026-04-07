@@ -59,10 +59,9 @@ describe("generateBBG", () => {
     expect(bbg).toContain("GDP growth");
   });
 
-  it("includes signatures", () => {
+  it("does not include signatures in BBG output", () => {
     const bbg = generateBBG(DEFAULT_STATE);
-    expect(bbg).toContain("Rodrigo Nistor");
-    expect(bbg).toContain("Institutional Sales");
+    expect(bbg).not.toContain("Institutional Sales");
   });
 
   it("includes summary bar when set", () => {
