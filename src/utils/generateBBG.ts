@@ -21,5 +21,5 @@ export function generateBBG(s: DailyState): string {
     chart: () => { if (!s.chartImage?.base64) return; L.push("", "CHART OF THE DAY", ""); if (s.chartImage.title) L.push(s.chartImage.title); if (s.chartImage.caption) L.push(s.chartImage.caption); L.push("", "---"); },
   };
   s.sections.filter(x => x.on).forEach(x => bbgSec[x.key]?.());
-  L.push(""); s.signatures.forEach(x => { L.push(x.name, x.role, x.email, ""); }); return L.join("\n");
+  return L.join("\n");
 }
