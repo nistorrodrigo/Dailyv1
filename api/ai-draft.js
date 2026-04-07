@@ -1,7 +1,7 @@
 const MODELS = {
   haiku: { id: "claude-haiku-4-5-20251001", label: "Haiku 4.5", cost: "~$0.002" },
-  sonnet: { id: "claude-sonnet-4-6-20250514", label: "Sonnet 4.6", cost: "~$0.012" },
-  opus: { id: "claude-opus-4-6-20250514", label: "Opus 4.6", cost: "~$0.06" },
+  sonnet: { id: "claude-sonnet-4-6", label: "Sonnet 4.6", cost: "~$0.012" },
+  opus: { id: "claude-opus-4-6", label: "Opus 4.6", cost: "~$0.06" },
 };
 
 const SYSTEM_MACRO = `You are a senior Argentina macro analyst at Latin Securities, a Buenos Aires-based investment bank focused on Argentine equities and fixed income.
