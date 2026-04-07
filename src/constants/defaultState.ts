@@ -74,6 +74,7 @@ export const DEFAULT_STATE: DailyState & { flows: { global: string; local: strin
     { id: "s1", name: "Rodrigo Nistor", role: "Institutional Sales", email: "rodrigo.nistor@latinsecurities.ar" },
   ],
   analysts: DEFAULT_ANALYSTS,
+  disclaimer: "This material has been prepared by Latin Securities S.A. for informational purposes only and does not constitute an offer, solicitation, or recommendation to buy or sell any financial instrument. Past performance is not indicative of future results. This communication is intended solely for the use of the addressee(s) and may contain privileged or confidential information.",
 
   // Market Snapshot
   snapshot: {

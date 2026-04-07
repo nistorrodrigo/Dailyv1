@@ -148,6 +148,7 @@ export interface DailyState {
   researchReports: ResearchReport[];
   signatures: Signature[];
   analysts: Analyst[];
+  disclaimer: string;
   topMovers: TopMovers;
   cclRate: number | null;
   tweets: Tweet[];

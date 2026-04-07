@@ -116,7 +116,12 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
       const resp = await fetch("/api/send-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ html, subject: subject.trim(), recipients: activeRecipients, pin: pin.trim(), dailyDate: date, listName: selectedListName || null }),
+        body: JSON.stringify({
+          html, subject: subject.trim(), recipients: activeRecipients, pin: pin.trim(),
+          dailyDate: date, listName: selectedListName || null,
+          attachments: (window as Record<string, unknown>)._emailAttachment ? [(window as Record<string, unknown>)._emailAttachment] : undefined,
+          abTest: (document.getElementById("ab-subject") as HTMLInputElement)?.value ? { enabled: true, subjectB: (document.getElementById("ab-subject") as HTMLInputElement).value } : undefined,
+        }),
       });
       const data = await resp.json();
       if (!data.ok) throw new Error(data.error);
@@ -293,6 +298,48 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
           </div>
         )}
         <div className="mb-3">
+          {/* A/B Test */}
+          <div className="mb-3 p-3 rounded-md bg-[var(--bg-card-alt)] border border-[var(--border-light)]">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide">A/B Test Subject</span>
+              <button
+                onClick={() => setField("_abEnabled", !((window as Record<string, boolean>)._abEnabled))}
+                className="text-[10px] text-[var(--text-muted)] bg-transparent border-none cursor-pointer"
+                id="ab-toggle"
+              >
+                {document.getElementById("ab-subject") ? "Disable" : "Enable"}
+              </button>
+            </div>
+            <input
+              id="ab-subject"
+              placeholder="Variant B subject line (50% of recipients get this)"
+              className="themed-input w-full px-2.5 py-2 rounded-md border border-[var(--border-input)] text-[12px] bg-[var(--bg-input)] text-[var(--text-primary)]"
+            />
+            <div className="text-[9px] text-[var(--text-muted)] mt-1">Recipients split 50/50. Track opens per variant in Dashboard.</div>
+          </div>
+
+          {/* Attachments */}
+          <div className="mb-3 p-3 rounded-md bg-[var(--bg-card-alt)] border border-[var(--border-light)]">
+            <span className="text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide block mb-1">Attach PDF</span>
+            <input
+              type="file"
+              accept=".pdf"
+              id="email-attachment"
+              className="text-xs"
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = () => {
+                  const base64 = (reader.result as string).split(",")[1];
+                  (window as Record<string, unknown>)._emailAttachment = { content: base64, filename: file.name, type: file.type };
+                };
+                reader.readAsDataURL(file);
+              }}
+            />
+            <div className="text-[9px] text-[var(--text-muted)] mt-1">PDF will be attached to the email.</div>
+          </div>
+
           <label className="block mb-1 text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide">
             Security PIN
           </label>

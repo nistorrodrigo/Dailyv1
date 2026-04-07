@@ -13,7 +13,7 @@ export default async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
-  const { html, subject, recipients, pin, isTest, listName, dailyDate } = req.body;
+  const { html, subject, recipients, pin, isTest, listName, dailyDate, attachments, abTest } = req.body;
 
   // PIN verification
   const validPin = process.env.SEND_EMAIL_PIN;
@@ -29,23 +29,76 @@ export default async function handler(req, res) {
   if (!apiKey || !fromEmail) return res.status(500).json({ error: "SendGrid not configured." });
 
   try {
-    // Send the daily email
+    // Build SendGrid payload
+    const sgPayload = {
+      from: { email: fromEmail, name: "Latin Securities Daily" },
+      content: [{ type: "text/html", value: html }],
+      tracking_settings: {
+        open_tracking: { enable: true },
+        click_tracking: { enable: true },
+      },
+    };
+
+    // Add attachments if present (base64 encoded)
+    if (attachments?.length) {
+      sgPayload.attachments = attachments.map(a => ({
+        content: a.content, // base64
+        filename: a.filename,
+        type: a.type || "application/pdf",
+        disposition: "attachment",
+      }));
+    }
+
+    // A/B test: split recipients and send two versions
+    if (abTest?.enabled && abTest?.subjectB && recipients.length >= 4) {
+      const half = Math.floor(recipients.length / 2);
+      const groupA = recipients.slice(0, half);
+      const groupB = recipients.slice(half);
+
+      // Send variant A
+      await fetch("https://api.sendgrid.com/v3/mail/send", {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...sgPayload,
+          personalizations: [{ to: groupA.map(e => ({ email: e })) }],
+          subject: subject + " [A]",
+        }),
+      });
+
+      // Send variant B
+      await fetch("https://api.sendgrid.com/v3/mail/send", {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...sgPayload,
+          personalizations: [{ to: groupB.map(e => ({ email: e })) }],
+          subject: abTest.subjectB + " [B]",
+        }),
+      });
+
+      // Log both
+      if (supabase) {
+        await supabase.from("email_log").insert([
+          { daily_date: dailyDate, subject: subject + " [A]", recipients_count: groupA.length, list_name: listName, is_test: isTest, sent_by: fromEmail },
+          { daily_date: dailyDate, subject: abTest.subjectB + " [B]", recipients_count: groupB.length, list_name: listName, is_test: isTest, sent_by: fromEmail },
+        ]).then(() => {}).catch(() => {});
+      }
+
+      return res.status(200).json({ ok: true, sent: recipients.length, abTest: true, groupA: groupA.length, groupB: groupB.length });
+    }
+
+    // Normal send
+    sgPayload.personalizations = [{ to: recipients.map((email) => ({ email })) }];
+    sgPayload.subject = subject;
+
     const response = await fetch("https://api.sendgrid.com/v3/mail/send", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        personalizations: [{ to: recipients.map((email) => ({ email })) }],
-        from: { email: fromEmail, name: "Latin Securities Daily" },
-        subject,
-        content: [{ type: "text/html", value: html }],
-        tracking_settings: {
-          open_tracking: { enable: true },
-          click_tracking: { enable: true },
-        },
-      }),
+      body: JSON.stringify(sgPayload),
     });
 
     if (!response.ok) {

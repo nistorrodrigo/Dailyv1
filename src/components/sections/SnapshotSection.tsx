@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import useDailyStore from "../../store/useDailyStore";
 import { Card } from "../ui";
@@ -23,14 +23,55 @@ export default function SnapshotSection(): React.ReactElement | null {
   const { sections, snapshot } = useDailyStore(useShallow((s) => ({ sections: s.sections, snapshot: s.snapshot })));
   const setField = useDailyStore((s) => s.setField);
 
+  const [fetching, setFetching] = useState(false);
+
   if (!sections.find((x) => x.key === "snapshot")?.on) return null;
 
   const update = (key: string, value: string) => {
     setField("snapshot", { ...snapshot, [key]: value });
   };
 
+  const fetchSnapshot = async () => {
+    setFetching(true);
+    try {
+      const resp = await fetch("/api/snapshot");
+      const data = await resp.json();
+      if (!data.ok) throw new Error("Fetch failed");
+      const s = data.snapshot;
+      const newSnap = { ...snapshot };
+      const map: Record<string, [string, string | null]> = {
+        merval: ["merval", "mervalChg"], sp500: ["sp500", "sp500Chg"],
+        dxy: ["dxy", null], wti: ["wti", null], soja: ["soja", null],
+        ust10y: ["ust10y", null],
+        ccl: ["ccl", "cclChg"], mep: ["mep", "mepChg"], blue: ["blue", null],
+      };
+      for (const [apiKey, [stateKey, chgKey]] of Object.entries(map)) {
+        if (s[apiKey]) {
+          (newSnap as Record<string, string>)[stateKey] = s[apiKey].value;
+          if (chgKey && s[apiKey].chg) (newSnap as Record<string, string>)[chgKey] = s[apiKey].chg;
+        }
+      }
+      setField("snapshot", newSnap);
+      alert(`Updated ${Object.keys(s).length} prices`);
+    } catch (err) {
+      alert("Fetch failed: " + (err as Error).message);
+    } finally {
+      setFetching(false);
+    }
+  };
+
   return (
     <Card title="Market Snapshot" color={BRAND.navy}>
+      <div className="flex justify-end mb-3">
+        <button
+          onClick={fetchSnapshot}
+          disabled={fetching}
+          className="px-3 py-1.5 rounded-md border text-xs font-bold cursor-pointer disabled:opacity-50"
+          style={{ borderColor: BRAND.sky, color: BRAND.sky, background: "transparent" }}
+        >
+          {fetching ? "Fetching..." : "Auto-Fetch Prices"}
+        </button>
+      </div>
       <table style={{ width: "100%", borderCollapse: "collapse" }}>
         <thead>
           <tr style={{ background: "var(--bg-card-alt)" }}>
