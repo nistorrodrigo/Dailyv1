@@ -105,6 +105,14 @@ export default function Header(): React.ReactElement {
           <button onClick={() => copyGenerated("bbg")} style={hBtn(BRAND.green, BRAND.green)}>
             {copiedLabel === "bbg" ? "\u2713 Copied!" : "Copy BBG"}
           </button>
+          <button onClick={() => {
+            const state = useDailyStore.getState();
+            const bbg = generateBBG(state);
+            const url = "https://web.whatsapp.com/send?text=" + encodeURIComponent(bbg);
+            window.open(url, "_blank");
+          }} style={hBtn("#25D366", "#25D366")}>
+            WhatsApp
+          </button>
           <button onClick={() => setOpenPanel("email")} style={hBtn("none", "#fff", BRAND.blue)}>
             Send Email
           </button>
