@@ -13,8 +13,9 @@ import DiffPanel from "./DiffPanel";
 import SchedulePanel from "./SchedulePanel";
 import { logout } from "./LoginGate";
 import PresenceIndicator from "./PresenceIndicator";
+import AIReviewPanel from "./AIReviewPanel";
 
-type PanelName = "history" | "templates" | "email" | "diff" | "schedule" | null;
+type PanelName = "history" | "templates" | "email" | "diff" | "schedule" | "ai-review" | null;
 
 function timeAgo(ts: number): string {
   if (!ts) return "";
@@ -116,6 +117,9 @@ export default function Header(): React.ReactElement {
           <button onClick={() => setOpenPanel("email")} style={hBtn("none", "#fff", BRAND.blue)}>
             Send Email
           </button>
+          <button onClick={() => setOpenPanel("ai-review")} style={hBtn("#8b5cf6", "#8b5cf6")}>
+            AI Review
+          </button>
           <button onClick={() => import("../utils/exportPDF").then((m) => m.exportPDF())} style={hBtn("#e74c3c", "#e74c3c")}>
             PDF
           </button>
@@ -129,6 +133,7 @@ export default function Header(): React.ReactElement {
       <EmailSendPanel open={openPanel === "email"} onClose={() => setOpenPanel(null)} />
       <DiffPanel open={openPanel === "diff"} onClose={() => setOpenPanel(null)} />
       <SchedulePanel open={openPanel === "schedule"} onClose={() => setOpenPanel(null)} />
+      <AIReviewPanel open={openPanel === "ai-review"} onClose={() => setOpenPanel(null)} />
     </>
   );
 }

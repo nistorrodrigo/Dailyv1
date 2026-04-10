@@ -37,7 +37,8 @@ const SEC_LABELS: Record<string, string> = {
 };
 
 // mode: "full" (default) | "toc" (with table of contents) | "compact" (summary only)
-export function generateHTML(s: DailyState, mode: string = "full"): string {
+// template: "formal" (default) | "flash" | "executive"
+export function generateHTML(s: DailyState, mode: string = "full", template: string = "formal"): string {
   const logo: string = getLogoOrigB64();
   const logoW: string = getLogoWhiteB64();
   const allTickers = s.analysts.flatMap(a => a.coverage.map(c => ({ ticker: c.ticker, rating: c.rating, tp: c.tp, last: c.last || "", analyst: a.name })));
@@ -146,6 +147,14 @@ export function generateHTML(s: DailyState, mode: string = "full"): string {
     sectionContent = '<tr><td style="padding:20px 40px 4px;"><div style="font-size:10px;font-weight:700;color:' + DS.navy + ';text-transform:uppercase;letter-spacing:2px;margin-bottom:6px;">Summary</div></td></tr>' + compactBlock;
   } else if (mode === "toc") {
     sectionContent = tocBlock + enabledSections.map(x => sectionMap[x.key] || "").join("");
+  } else if (template === "flash") {
+    // Flash template: only snapshot, watch, macro (first block), and picks
+    const flashKeys = ["snapshot", "watchToday", "macro", "tradeIdeas"];
+    sectionContent = enabledSections.filter(x => flashKeys.includes(x.key)).map(x => sectionMap[x.key] || "").join("");
+  } else if (template === "executive") {
+    // Executive: summary bar + macro + trade ideas + corporate headlines only
+    const execKeys = ["macro", "tradeIdeas", "corporate"];
+    sectionContent = enabledSections.filter(x => execKeys.includes(x.key)).map(x => sectionMap[x.key] || "").join("");
   } else {
     sectionContent = enabledSections.map(x => sectionMap[x.key] || "").join("");
   }

@@ -14,24 +14,25 @@ export default function PreviewTab() {
 
   const [html, setHtml] = useState<string>("");
   const [bbg, setBbg] = useState<string>("");
+  const [emailTemplate, setEmailTemplate] = useState<string>("formal");
 
   useEffect(() => {
     const state = useDailyStore.getState();
-    setHtml(generateHTML(state));
+    setHtml(generateHTML(state, "full", emailTemplate));
     setBbg(generateBBG(state));
-  }, []);
+  }, [emailTemplate]);
 
   const handleCopy = useCallback(() => {
     const state = useDailyStore.getState();
-    const text = previewMode === "html" ? generateHTML(state) : generateBBG(state);
+    const text = previewMode === "html" ? generateHTML(state, "full", emailTemplate) : generateBBG(state);
     copyToClipboard(text, previewMode);
-  }, [previewMode, copyToClipboard]);
+  }, [previewMode, emailTemplate, copyToClipboard]);
 
   const handleRefresh = useCallback(() => {
     const state = useDailyStore.getState();
-    setHtml(generateHTML(state));
+    setHtml(generateHTML(state, "full", emailTemplate));
     setBbg(generateBBG(state));
-  }, []);
+  }, [emailTemplate]);
 
   return (
     <div style={{ maxWidth: 900, margin: "0 auto", padding: 20 }}>
@@ -61,6 +62,25 @@ export default function PreviewTab() {
         >
           Refresh
         </button>
+        {previewMode === "html" && (
+          <div className="flex gap-1 ml-2">
+            {[
+              { key: "formal", label: "Formal" },
+              { key: "flash", label: "Flash" },
+              { key: "executive", label: "Executive" },
+            ].map(t => (
+              <button
+                key={t.key}
+                onClick={() => setEmailTemplate(t.key)}
+                className={`px-2.5 py-1.5 rounded text-[10px] font-bold border-none cursor-pointer ${
+                  emailTemplate === t.key ? "bg-navy text-white" : "bg-[var(--bg-card-alt)] text-[var(--text-muted)]"
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+        )}
         <div style={{ flex: 1 }} />
         <button
           onClick={handleCopy}
