@@ -1,38 +1,71 @@
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Cache-Control", "s-maxage=300, stale-while-revalidate=600");
 
   const apiKey = process.env.SENDGRID_API_KEY;
   if (!apiKey) return res.status(500).json({ error: "SendGrid not configured" });
 
-  const { listId } = req.query;
+  const { listId, exportId } = req.query;
 
   try {
+    // Step 3: Check export status and get results
+    if (exportId) {
+      const resp = await fetch(`https://api.sendgrid.com/v3/marketing/contacts/exports/${exportId}`, {
+        headers: { "Authorization": `Bearer ${apiKey}` },
+      });
+      const data = await resp.json();
+
+      if (data.status === "ready" && data.urls?.length) {
+        // Download the CSV
+        const csvResp = await fetch(data.urls[0]);
+        const csvText = await csvResp.text();
+
+        // Parse CSV
+        const lines = csvText.split("\n").filter(l => l.trim());
+        if (lines.length < 2) return res.status(200).json({ ok: true, contacts: [], status: "ready" });
+
+        const headers = lines[0].split(",").map(h => h.trim().toLowerCase().replace(/"/g, ""));
+        const emailIdx = headers.indexOf("email");
+        const fnIdx = headers.indexOf("first_name");
+        const lnIdx = headers.indexOf("last_name");
+
+        const contacts = lines.slice(1).map(line => {
+          const cols = line.match(/("([^"]*)"|[^,]*)/g)?.map(c => c.replace(/^"|"$/g, "").trim()) || [];
+          return {
+            email: cols[emailIdx] || "",
+            name: [cols[fnIdx], cols[lnIdx]].filter(Boolean).join(" ") || "",
+          };
+        }).filter(c => c.email && c.email.includes("@"));
+
+        return res.status(200).json({ ok: true, contacts, total: contacts.length, status: "ready" });
+      }
+
+      return res.status(200).json({ ok: true, status: data.status || "pending", contacts: [] });
+    }
+
+    // Step 2: Start export for a specific list
     if (listId) {
-      // Fetch contacts from a specific list
-      const resp = await fetch(`https://api.sendgrid.com/v3/marketing/contacts/search`, {
+      const resp = await fetch("https://api.sendgrid.com/v3/marketing/contacts/exports", {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${apiKey}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          query: `CONTAINS(list_ids, '${listId}')`,
+          list_ids: [listId],
+          file_type: "csv",
         }),
       });
+
       if (!resp.ok) {
         const text = await resp.text();
         throw new Error(`SendGrid ${resp.status}: ${text}`);
       }
+
       const data = await resp.json();
-      const contacts = (data.result || []).map((c) => ({
-        email: c.email,
-        name: [c.first_name, c.last_name].filter(Boolean).join(" ") || "",
-      }));
-      return res.status(200).json({ ok: true, contacts });
+      return res.status(200).json({ ok: true, exportId: data.id, status: "pending" });
     }
 
-    // Fetch all lists
+    // Step 1: Fetch all lists
     const resp = await fetch("https://api.sendgrid.com/v3/marketing/lists?page_size=100", {
       headers: { "Authorization": `Bearer ${apiKey}` },
     });

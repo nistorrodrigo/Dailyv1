@@ -56,6 +56,17 @@ export default function ContactsPanel({ open, onClose }: ContactsPanelProps): Re
     }).finally(() => setListsLoading(false));
   }, [open]);
 
+  const [loadingMsg, setLoadingMsg] = useState("");
+
+  const processContacts = (rawContacts: { email: string; name: string }[]) => {
+    setContacts(rawContacts.map(c => ({
+      ...c,
+      selected: false,
+      domain: c.email.split("@")[1] || "",
+      firstLetter: (c.name || c.email).charAt(0).toUpperCase(),
+    })));
+  };
+
   const loadContacts = async (list: SGList) => {
     setSelectedList(list);
     setView("contacts");
@@ -65,15 +76,40 @@ export default function ContactsPanel({ open, onClose }: ContactsPanelProps): Re
     setDomainFilter("");
     setLetterFilter("");
     try {
-      const resp = await fetch(`/api/sendgrid-lists?listId=${list.id}`);
-      const data = await resp.json();
-      if (data.ok) {
-        setContacts(data.contacts.map((c: { email: string; name: string }) => ({
-          ...c,
-          selected: false,
-          domain: c.email.split("@")[1] || "",
-          firstLetter: (c.name || c.email).charAt(0).toUpperCase(),
-        })));
+      // Start export
+      setLoadingMsg("Starting export...");
+      const startResp = await fetch(`/api/sendgrid-lists?listId=${list.id}`);
+      const startData = await startResp.json();
+
+      if (!startData.ok) throw new Error(startData.error || "Export failed");
+
+      if (startData.exportId) {
+        // Poll for export completion
+        const exportId = startData.exportId;
+        let attempts = 0;
+        const maxAttempts = 30;
+
+        while (attempts < maxAttempts) {
+          setLoadingMsg(`Exporting ${list.count} contacts... (${attempts * 2}s)`);
+          await new Promise(r => setTimeout(r, 2000));
+
+          const pollResp = await fetch(`/api/sendgrid-lists?exportId=${exportId}`);
+          const pollData = await pollResp.json();
+
+          if (pollData.status === "ready" && pollData.contacts) {
+            processContacts(pollData.contacts);
+            setLoadingMsg("");
+            setLoading(false);
+            return;
+          } else if (pollData.status === "failure") {
+            throw new Error("Export failed");
+          }
+          attempts++;
+        }
+        throw new Error("Export timed out");
+      } else if (startData.contacts) {
+        // Direct response (small list)
+        processContacts(startData.contacts);
       }
     } catch { alert("Failed to load contacts"); }
     finally { setLoading(false); }
@@ -270,7 +306,7 @@ export default function ContactsPanel({ open, onClose }: ContactsPanelProps): Re
               <button onClick={() => toggleAll(false)} className="text-[10px] font-bold text-[var(--text-muted)] bg-transparent border-none cursor-pointer">Deselect</button>
             </div>
 
-            {loading && <p className="text-sm text-[var(--text-muted)] text-center py-4">Loading...</p>}
+            {loading && <p className="text-sm text-[var(--text-muted)] text-center py-4">{loadingMsg || "Loading..."}</p>}
 
             {/* Contact list */}
             <div className="max-h-[calc(100vh-480px)] overflow-auto">
