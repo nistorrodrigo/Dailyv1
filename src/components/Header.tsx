@@ -14,8 +14,9 @@ import SchedulePanel from "./SchedulePanel";
 import { logout } from "./LoginGate";
 import PresenceIndicator from "./PresenceIndicator";
 import AIReviewPanel from "./AIReviewPanel";
+import ContactsPanel from "./ContactsPanel";
 
-type PanelName = "history" | "templates" | "email" | "diff" | "schedule" | "ai-review" | null;
+type PanelName = "history" | "templates" | "email" | "diff" | "schedule" | "ai-review" | "contacts" | null;
 
 function timeAgo(ts: number): string {
   if (!ts) return "";
@@ -94,6 +95,7 @@ export default function Header(): React.ReactElement {
             {darkMode ? "\u2600" : "\u263E"}
           </button>
 
+          <button onClick={() => setOpenPanel("contacts")} style={hBtn("#2ecc71", "#2ecc71")}>Contacts</button>
           <button onClick={() => setOpenPanel("templates")} style={hBtn(BRAND.teal, BRAND.teal)}>Templates</button>
           <button onClick={() => setOpenPanel("history")} style={hBtn(BRAND.salmon, BRAND.salmon)}>History</button>
           <button onClick={() => setOpenPanel("diff")} style={hBtn("#9b59b6", "#9b59b6")}>Diff</button>
@@ -134,6 +136,7 @@ export default function Header(): React.ReactElement {
       <DiffPanel open={openPanel === "diff"} onClose={() => setOpenPanel(null)} />
       <SchedulePanel open={openPanel === "schedule"} onClose={() => setOpenPanel(null)} />
       <AIReviewPanel open={openPanel === "ai-review"} onClose={() => setOpenPanel(null)} />
+      <ContactsPanel open={openPanel === "contacts"} onClose={() => setOpenPanel(null)} />
     </>
   );
 }
