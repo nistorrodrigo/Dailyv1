@@ -41,6 +41,7 @@ export default function ContactsPanel({ open, onClose }: ContactsPanelProps): Re
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [search, setSearch] = useState("");
   const [domainFilter, setDomainFilter] = useState<string>("");
+  const [excludedDomains, setExcludedDomains] = useState<Set<string>>(new Set());
   const [letterFilter, setLetterFilter] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [listsLoading, setListsLoading] = useState(false);
@@ -122,9 +123,13 @@ export default function ContactsPanel({ open, onClose }: ContactsPanelProps): Re
     return Object.entries(d).sort((a, b) => b[1] - a[1]);
   }, [contacts]);
 
+  // Common personal domains for quick exclude
+  const PERSONAL_DOMAINS = ["gmail.com", "hotmail.com", "yahoo.com", "outlook.com", "live.com", "aol.com", "icloud.com", "mail.com", "protonmail.com", "ymail.com"];
+
   // Filter contacts
   const filtered = useMemo(() => {
     return contacts.filter(c => {
+      if (excludedDomains.has(c.domain)) return false;
       if (search) {
         const q = search.toLowerCase();
         if (!c.email.toLowerCase().includes(q) && !c.name.toLowerCase().includes(q)) return false;
@@ -133,7 +138,21 @@ export default function ContactsPanel({ open, onClose }: ContactsPanelProps): Re
       if (letterFilter && c.firstLetter !== letterFilter) return false;
       return true;
     });
-  }, [contacts, search, domainFilter, letterFilter]);
+  }, [contacts, search, domainFilter, letterFilter, excludedDomains]);
+
+  const toggleExcludeDomain = (domain: string) => {
+    setExcludedDomains(prev => {
+      const next = new Set(prev);
+      if (next.has(domain)) next.delete(domain); else next.add(domain);
+      return next;
+    });
+  };
+
+  const excludeAllPersonal = () => {
+    setExcludedDomains(new Set(PERSONAL_DOMAINS.filter(d => domains.some(([dom]) => dom === d))));
+  };
+
+  const clearExclusions = () => setExcludedDomains(new Set());
 
   if (!open) return null;
 
@@ -191,8 +210,8 @@ export default function ContactsPanel({ open, onClose }: ContactsPanelProps): Re
     saveSavedFilters(updated);
   };
 
-  const clearFilters = () => { setSearch(""); setDomainFilter(""); setLetterFilter(""); };
-  const hasFilters = search || domainFilter || letterFilter;
+  const clearFilters = () => { setSearch(""); setDomainFilter(""); setLetterFilter(""); setExcludedDomains(new Set()); };
+  const hasFilters = search || domainFilter || letterFilter || excludedDomains.size > 0;
 
   // Alphabet bar
   const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
@@ -266,6 +285,41 @@ export default function ContactsPanel({ open, onClose }: ContactsPanelProps): Re
               className="themed-input w-full px-2.5 py-2 rounded-md border border-[var(--border-input)] text-sm bg-[var(--bg-input)] text-[var(--text-primary)] mb-3" />
 
             {/* Domain filter */}
+            {/* Exclude domains */}
+            {domains.length > 1 && (
+              <div className="mb-3 p-3 rounded-md border border-[var(--border-light)] bg-[var(--bg-card-alt)]">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-[10px] font-bold text-red-500 uppercase tracking-wide">Exclude Domains</div>
+                  <div className="flex gap-1.5">
+                    <button onClick={excludeAllPersonal} className="text-[9px] font-bold text-red-500 bg-transparent border border-red-300 rounded px-2 py-0.5 cursor-pointer">
+                      Exclude Personal
+                    </button>
+                    {excludedDomains.size > 0 && (
+                      <button onClick={clearExclusions} className="text-[9px] font-bold text-[var(--text-muted)] bg-transparent border border-[var(--border-input)] rounded px-2 py-0.5 cursor-pointer">
+                        Clear ({excludedDomains.size})
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div className="flex gap-1 flex-wrap">
+                  {domains.filter(([d]) => PERSONAL_DOMAINS.includes(d) || excludedDomains.has(d)).map(([d, count]) => (
+                    <button key={d} onClick={() => toggleExcludeDomain(d)}
+                      className={`px-2 py-1 rounded text-[9px] font-bold border cursor-pointer ${
+                        excludedDomains.has(d) ? "bg-red-100 text-red-600 border-red-300 line-through" : "border-[var(--border-input)] text-[var(--text-muted)] bg-transparent"
+                      }`}>
+                      {d} ({count})
+                    </button>
+                  ))}
+                </div>
+                {excludedDomains.size > 0 && (
+                  <div className="text-[9px] text-red-500 mt-1.5 font-semibold">
+                    Excluding {contacts.filter(c => excludedDomains.has(c.domain)).length} contacts from {excludedDomains.size} domain{excludedDomains.size > 1 ? "s" : ""}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Filter by domain */}
             {domains.length > 1 && (
               <div className="mb-3">
                 <div className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wide mb-1">Filter by domain</div>
