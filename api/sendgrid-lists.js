@@ -2,7 +2,7 @@ export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
 
   const apiKey = process.env.SENDGRID_API_KEY;
-  if (!apiKey) return res.status(500).json({ error: "SendGrid not configured" });
+  if (!apiKey) return res.status(500).json({ ok: false, error: "SENDGRID_API_KEY env var is not set on the server" });
 
   const { listId, exportId } = req.query;
 

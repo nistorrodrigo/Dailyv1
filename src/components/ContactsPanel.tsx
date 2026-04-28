@@ -48,13 +48,39 @@ export default function ContactsPanel({ open, onClose }: ContactsPanelProps): Re
   const [savedFilters, setSavedFilters] = useState<SavedFilter[]>(loadSavedFilters());
   const [filterName, setFilterName] = useState("");
   const [view, setView] = useState<"lists" | "contacts" | "saved">("lists");
+  const [error, setError] = useState<string>("");
+
+  const fetchLists = async () => {
+    setListsLoading(true);
+    setError("");
+    try {
+      const resp = await fetch("/api/sendgrid-lists");
+      const text = await resp.text();
+      let data: { ok?: boolean; lists?: SGList[]; error?: string };
+      try {
+        data = JSON.parse(text);
+      } catch {
+        throw new Error(
+          resp.status === 404
+            ? "API route /api/sendgrid-lists not found — run with `vercel dev` (not `vite dev`) to serve serverless functions locally."
+            : `Non-JSON response (HTTP ${resp.status}). First 200 chars: ${text.slice(0, 200)}`
+        );
+      }
+      if (!resp.ok || !data.ok) {
+        throw new Error(data.error || `HTTP ${resp.status}`);
+      }
+      setLists(data.lists || []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+      console.error("[ContactsPanel] fetchLists failed:", err);
+    } finally {
+      setListsLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!open) return;
-    setListsLoading(true);
-    fetch("/api/sendgrid-lists").then(r => r.json()).then(data => {
-      if (data.ok) setLists(data.lists);
-    }).finally(() => setListsLoading(false));
+    fetchLists();
   }, [open]);
 
   const [loadingMsg, setLoadingMsg] = useState("");
@@ -76,13 +102,20 @@ export default function ContactsPanel({ open, onClose }: ContactsPanelProps): Re
     setSearch("");
     setDomainFilter("");
     setLetterFilter("");
+    setError("");
     try {
       // Start export
       setLoadingMsg("Starting export...");
       const startResp = await fetch(`/api/sendgrid-lists?listId=${list.id}`);
-      const startData = await startResp.json();
+      const startText = await startResp.text();
+      let startData: { ok?: boolean; exportId?: string; contacts?: { email: string; name: string }[]; error?: string };
+      try {
+        startData = JSON.parse(startText);
+      } catch {
+        throw new Error(`Non-JSON response (HTTP ${startResp.status}): ${startText.slice(0, 200)}`);
+      }
 
-      if (!startData.ok) throw new Error(startData.error || "Export failed");
+      if (!startResp.ok || !startData.ok) throw new Error(startData.error || `HTTP ${startResp.status}`);
 
       if (startData.exportId) {
         // Poll for export completion
@@ -103,17 +136,23 @@ export default function ContactsPanel({ open, onClose }: ContactsPanelProps): Re
             setLoading(false);
             return;
           } else if (pollData.status === "failure") {
-            throw new Error("Export failed");
+            throw new Error("SendGrid reported export failure");
           }
           attempts++;
         }
-        throw new Error("Export timed out");
+        throw new Error("Export timed out after 60s");
       } else if (startData.contacts) {
         // Direct response (small list)
         processContacts(startData.contacts);
       }
-    } catch { alert("Failed to load contacts"); }
-    finally { setLoading(false); }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(`Failed to load contacts: ${msg}`);
+      console.error("[ContactsPanel] loadContacts failed:", err);
+    } finally {
+      setLoading(false);
+      setLoadingMsg("");
+    }
   };
 
   // Extract unique domains for filter
@@ -248,6 +287,16 @@ export default function ContactsPanel({ open, onClose }: ContactsPanelProps): Re
             )}
 
             {listsLoading && <p className="text-sm text-[var(--text-muted)] text-center py-4">Loading lists...</p>}
+            {!listsLoading && error && (
+              <div className="mb-3 p-3 rounded-md border border-red-300 bg-red-50">
+                <div className="text-[11px] font-bold text-red-600 uppercase tracking-wide mb-1">Error fetching SendGrid lists</div>
+                <div className="text-xs text-red-700 break-words whitespace-pre-wrap">{error}</div>
+                <button onClick={fetchLists} className="mt-2 text-[10px] font-bold text-red-600 bg-white border border-red-300 rounded px-2 py-1 cursor-pointer">Retry</button>
+              </div>
+            )}
+            {!listsLoading && !error && lists.length === 0 && (
+              <p className="text-sm text-[var(--text-muted)] text-center py-4">No lists found.</p>
+            )}
             {lists.map(list => (
               <div key={list.id} onClick={() => loadContacts(list)}
                 className="flex items-center justify-between p-3 mb-2 rounded-md border border-[var(--border-light)] bg-[var(--bg-card-alt)] cursor-pointer hover:bg-[var(--bg-hover)]">
@@ -361,6 +410,13 @@ export default function ContactsPanel({ open, onClose }: ContactsPanelProps): Re
             </div>
 
             {loading && <p className="text-sm text-[var(--text-muted)] text-center py-4">{loadingMsg || "Loading..."}</p>}
+            {!loading && error && (
+              <div className="mb-3 p-3 rounded-md border border-red-300 bg-red-50">
+                <div className="text-[11px] font-bold text-red-600 uppercase tracking-wide mb-1">Error</div>
+                <div className="text-xs text-red-700 break-words whitespace-pre-wrap">{error}</div>
+                <button onClick={() => loadContacts(selectedList)} className="mt-2 text-[10px] font-bold text-red-600 bg-white border border-red-300 rounded px-2 py-1 cursor-pointer">Retry</button>
+              </div>
+            )}
 
             {/* Contact list */}
             <div className="max-h-[calc(100vh-480px)] overflow-auto">
