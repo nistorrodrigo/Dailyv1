@@ -215,10 +215,31 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
                 onClick={async () => {
                   setSgLoading(true);
                   try {
-                    const resp = await fetch(`/api/sendgrid-lists?listId=${list.id}`);
-                    const data = await resp.json();
-                    if (!data.ok) throw new Error(data.error);
-                    const newRecipients = data.contacts
+                    const startResp = await fetch(`/api/sendgrid-lists?listId=${list.id}`);
+                    const startData = await startResp.json();
+                    if (!startData.ok) throw new Error(startData.error || `HTTP ${startResp.status}`);
+
+                    let contacts: SendGridContact[] | undefined;
+                    if (startData.contacts) {
+                      contacts = startData.contacts;
+                    } else if (startData.exportId) {
+                      const exportId = startData.exportId;
+                      for (let attempts = 0; attempts < 30; attempts++) {
+                        await new Promise((r) => setTimeout(r, 2000));
+                        const pollResp = await fetch(`/api/sendgrid-lists?exportId=${exportId}`);
+                        const pollData = await pollResp.json();
+                        if (pollData.status === "ready" && pollData.contacts) {
+                          contacts = pollData.contacts;
+                          break;
+                        }
+                        if (pollData.status === "failure") throw new Error("SendGrid reported export failure");
+                      }
+                      if (!contacts) throw new Error("Export timed out after 60s");
+                    } else {
+                      throw new Error("Unexpected response: no contacts and no exportId");
+                    }
+
+                    const newRecipients = contacts
                       .filter((c: SendGridContact) => !recipients.find((r) => r.email === c.email))
                       .map((c: SendGridContact) => ({ id: `sg${Date.now()}${Math.random()}`, email: c.email, name: c.name, active: true }));
                     setRecipients((prev) => [...prev, ...newRecipients]);
