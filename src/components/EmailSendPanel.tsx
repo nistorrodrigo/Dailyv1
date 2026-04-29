@@ -8,6 +8,8 @@ import { generateHTML } from "../utils/generateHTML";
 import { formatDate } from "../utils/dates";
 import SendConfirmModal from "./SendConfirmModal";
 import RecipientList, { type Recipient } from "./RecipientList";
+import ABTestSubject from "./ABTestSubject";
+import AttachmentInput, { type EmailAttachment } from "./AttachmentInput";
 
 interface EmailSendPanelProps {
   open: boolean;
@@ -26,12 +28,6 @@ interface EmailLog {
 interface SendResult {
   type: "success" | "error";
   message: string;
-}
-
-interface EmailAttachment {
-  content: string;
-  filename: string;
-  type: string;
 }
 
 export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): React.ReactElement | null {
@@ -295,58 +291,17 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
           </div>
         )}
         <div className="mb-3">
-          {/* A/B Test */}
-          <div className="mb-3 p-3 rounded-md bg-[var(--bg-card-alt)] border border-[var(--border-light)]">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide">A/B Test Subject</span>
-              <button
-                onClick={() => setAbEnabled((v) => !v)}
-                className="text-[10px] text-[var(--text-muted)] bg-transparent border-none cursor-pointer"
-              >
-                {abEnabled ? "Disable" : "Enable"}
-              </button>
-            </div>
-            {abEnabled && (
-              <input
-                value={abSubjectB}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAbSubjectB(e.target.value)}
-                placeholder="Variant B subject line (50% of recipients get this)"
-                className="themed-input w-full px-2.5 py-2 rounded-md border border-[var(--border-input)] text-[12px] bg-[var(--bg-input)] text-[var(--text-primary)]"
-              />
-            )}
-            <div className="text-[9px] text-[var(--text-muted)] mt-1">Recipients split 50/50. Track opens per variant in Dashboard.</div>
-          </div>
+          <ABTestSubject
+            enabled={abEnabled}
+            onToggle={() => setAbEnabled((v) => !v)}
+            subjectB={abSubjectB}
+            onSubjectBChange={setAbSubjectB}
+          />
 
-          {/* Attachments */}
-          <div className="mb-3 p-3 rounded-md bg-[var(--bg-card-alt)] border border-[var(--border-light)]">
-            <span className="text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide block mb-1">Attach PDF</span>
-            <input
-              type="file"
-              accept=".pdf"
-              id="email-attachment"
-              className="text-xs"
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                const file = e.target.files?.[0];
-                if (!file) { setAttachment(null); return; }
-                const reader = new FileReader();
-                reader.onload = () => {
-                  const base64 = (reader.result as string).split(",")[1];
-                  setAttachment({ content: base64, filename: file.name, type: file.type });
-                };
-                reader.readAsDataURL(file);
-              }}
-            />
-            {attachment && (
-              <div className="text-[10px] text-[var(--text-secondary)] mt-1">
-                Attached: <strong>{attachment.filename}</strong>
-                <button
-                  onClick={() => { setAttachment(null); const inp = document.getElementById("email-attachment") as HTMLInputElement | null; if (inp) inp.value = ""; }}
-                  className="ml-2 text-red-500 bg-transparent border-none cursor-pointer"
-                >Remove</button>
-              </div>
-            )}
-            <div className="text-[9px] text-[var(--text-muted)] mt-1">PDF will be attached to the email.</div>
-          </div>
+          <AttachmentInput
+            attachment={attachment}
+            onChange={setAttachment}
+          />
 
           <label className="block mb-1 text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide">
             Security PIN
