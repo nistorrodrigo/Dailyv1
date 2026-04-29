@@ -166,10 +166,20 @@ describe("generateHTML", () => {
     expect(html).toContain('href="https://ft.com/a"');
   });
 
-  it("includes an unsubscribe link in the footer", () => {
+  it("includes an unsubscribe link in the footer with a substitution token", () => {
     const html = generateHTML(DEFAULT_STATE);
     expect(html).toContain("/api/unsubscribe");
     expect(html).toContain("Unsubscribe");
+    // The token is what api/send-email.js replaces per recipient.
+    expect(html).toContain("__LS_RECIPIENT_EMAIL__");
+  });
+
+  it("includes MSO conditional + Outlook-friendly meta tags", () => {
+    const html = generateHTML(DEFAULT_STATE);
+    expect(html).toContain('xmlns:o="urn:schemas-microsoft-com:office:office"');
+    expect(html).toContain("<o:PixelsPerInch>96</o:PixelsPerInch>");
+    expect(html).toContain('content="IE=edge"');
+    expect(html).toContain('content="light only"'); // color-scheme guard
   });
 
   it("ignores news links with empty URLs (defensive)", () => {

@@ -12,6 +12,17 @@ function hostOf(url: string): string {
 }
 
 /**
+ * Substitution token replaced per-recipient by SendGrid's `substitutions`
+ * map (see api/send-email.js). When sent via the /api/send-email path,
+ * each recipient's email is encoded into the URL so the unsubscribe form
+ * comes pre-filled. When the HTML is pasted directly into SendGrid's
+ * Code Editor (no per-recipient substitution), the token survives but
+ * /api/unsubscribe handles a literal `?email=__LS_RECIPIENT_EMAIL__`
+ * gracefully — it shows the form blank.
+ */
+export const UNSUBSCRIBE_EMAIL_TOKEN = "__LS_RECIPIENT_EMAIL__";
+
+/**
  * Public URL for the /api/unsubscribe endpoint. Resolves at runtime so the
  * link works whether the email is generated locally (`http://localhost:5173`)
  * or in production (`https://dailyv1.vercel.app`). Falls back to the prod
@@ -21,7 +32,7 @@ function unsubscribeUrl(): string {
   const origin = typeof window !== "undefined" && window.location?.origin
     ? window.location.origin
     : "https://dailyv1.vercel.app";
-  return origin + "/api/unsubscribe";
+  return `${origin}/api/unsubscribe?email=${UNSUBSCRIBE_EMAIL_TOKEN}`;
 }
 
 /** Tiny "Sources: <a> · <a>" footer for blocks that have news links. */
@@ -67,7 +78,30 @@ const SEC_LABELS: Record<string, string> = {
 
 // mode: "full" (default) | "toc" (with table of contents) | "compact" (summary only)
 // template: "formal" (default) | "flash" | "executive"
+//
+// Memoized: zustand emits a new state ref only when something changes, so a
+// WeakMap keyed on state lets multiple subscribers (Header, PreviewTab, the
+// send-confirmation modal, EmailSendPanel) read the same HTML for free.
+// We additionally key on `${mode}|${template}` since those args change the
+// output but state can be the same.
+const htmlCache: WeakMap<DailyState, Record<string, string>> = new WeakMap();
+
 export function generateHTML(s: DailyState, mode: string = "full", template: string = "formal"): string {
+  const variantKey = `${mode}|${template}`;
+  const variants = htmlCache.get(s);
+  if (variants && variants[variantKey] !== undefined) return variants[variantKey];
+
+  const result = generateHTMLImpl(s, mode, template);
+
+  if (variants) {
+    variants[variantKey] = result;
+  } else {
+    htmlCache.set(s, { [variantKey]: result });
+  }
+  return result;
+}
+
+function generateHTMLImpl(s: DailyState, mode: string = "full", template: string = "formal"): string {
   const logo: string = getLogoOrigB64();
   const logoW: string = getLogoWhiteB64();
   const allTickers = s.analysts.flatMap(a => a.coverage.map(c => ({ ticker: c.ticker, rating: c.rating, tp: c.tp, last: c.last || "", analyst: a.name })));
@@ -189,7 +223,14 @@ export function generateHTML(s: DailyState, mode: string = "full", template: str
   }
 
   // FULL TEMPLATE
-  return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Argentina Daily</title></head><body style="margin:0;padding:0;background:#f4f5f7;font-family:\'Segoe UI\',Calibri,Arial,Helvetica,sans-serif;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f4f5f7;"><tr><td align="center" style="padding:24px 10px;"><table role="presentation" width="' + DS.maxW + '" cellpadding="0" cellspacing="0" border="0" style="max-width:' + DS.maxW + 'px;width:100%;background:#fff;border:1px solid ' + DS.borderLight + ';">'
+  // MSO conditional: tells Outlook (Word renderer) to use 96 DPI, allow PNGs,
+  // and apply Arial-fallback for cells. The xmlns:v and xmlns:o on <html> are
+  // required for the v:* / o:* tags Outlook relies on. The color-scheme metas
+  // tell Apple Mail to NOT auto-invert this email's palette in dark mode (we
+  // already use a navy/white scheme that reads well on both).
+  return '<!DOCTYPE html><html xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="format-detection" content="telephone=no, date=no, address=no, email=no"><meta name="color-scheme" content="light only"><meta name="supported-color-schemes" content="light only"><title>Argentina Daily</title>'
+    + '<!--[if mso]><style type="text/css">table,td,div,h1,h2,p,a {font-family:Arial,Helvetica,sans-serif !important;} table {border-collapse:collapse !important;} img {border:0;line-height:100%;outline:none;text-decoration:none;-ms-interpolation-mode:bicubic;}</style><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch><o:AllowPNG/></o:OfficeDocumentSettings></xml><![endif]-->'
+    + '</head><body style="margin:0;padding:0;background:#f4f5f7;font-family:\'Segoe UI\',Calibri,Arial,Helvetica,sans-serif;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f4f5f7;"><tr><td align="center" style="padding:24px 10px;"><table role="presentation" width="' + DS.maxW + '" cellpadding="0" cellspacing="0" border="0" style="max-width:' + DS.maxW + 'px;width:100%;background:#fff;border:1px solid ' + DS.borderLight + ';">'
 
     // HEADER
     + '<tr><td style="background:' + DS.navy + ';padding:36px 40px 30px;">'

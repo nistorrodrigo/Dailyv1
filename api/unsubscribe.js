@@ -123,10 +123,16 @@ function errorPage(msg) {
   );
 }
 
+// If SendGrid didn't substitute (e.g. the HTML was pasted into Code Editor
+// instead of sent via the API), the token comes through literally and
+// shouldn't be pre-filled into the form.
+const SUBSTITUTION_TOKEN = "__LS_RECIPIENT_EMAIL__";
+
 export default async function handler(req, res) {
   if (req.method === "GET") {
     res.setHeader("Content-Type", "text/html; charset=utf-8");
-    const prefill = req.query?.email ? String(req.query.email) : "";
+    const raw = req.query?.email ? String(req.query.email) : "";
+    const prefill = raw === SUBSTITUTION_TOKEN ? "" : raw;
     return res.status(200).send(formPage(prefill));
   }
 

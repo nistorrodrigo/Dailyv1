@@ -5,6 +5,7 @@ import { fetchSendGridLists, fetchSendGridContacts, type SendGridList, type Send
 import { supabase } from "../lib/supabase";
 import useDailyStore from "../store/useDailyStore";
 import { generateHTML } from "../utils/generateHTML";
+import { generateBBG } from "../utils/generateBBG";
 import { formatDate } from "../utils/dates";
 import SendConfirmModal from "./SendConfirmModal";
 import RecipientList, { type Recipient } from "./RecipientList";
@@ -117,12 +118,14 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
     setSending(true);
     setPinError(null);
     try {
-      const html = generateHTML(useDailyStore.getState());
+      const state = useDailyStore.getState();
+      const html = generateHTML(state);
+      const text = generateBBG(state); // plain-text fallback for the multipart MIME
       const resp = await fetch("/api/send-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          html, subject: subject.trim(), recipients: activeRecipients, pin: pin.trim(),
+          html, text, subject: subject.trim(), recipients: activeRecipients, pin: pin.trim(),
           dailyDate: date, listName: selectedListName || null,
           attachments: attachment ? [attachment] : undefined,
           abTest: abEnabled && abSubjectB.trim() ? { enabled: true, subjectB: abSubjectB.trim() } : undefined,
@@ -165,12 +168,15 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
     setSending(true);
     setPinError(null);
     try {
-      const html = generateHTML(useDailyStore.getState());
+      const state = useDailyStore.getState();
+      const html = generateHTML(state);
+      const text = generateBBG(state);
       const resp = await fetch("/api/send-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           html,
+          text,
           subject: `[TEST] ${subject.trim()}`,
           recipients: [addr],
           pin: pin.trim(),

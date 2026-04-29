@@ -31,7 +31,13 @@ function fmtNewsLinks(links: NewsLink[] | undefined, indent = "  "): string[] {
  *     context — now we give per-section excerpts of up to ~400 chars and
  *     iterate over ALL items in a section instead of just the first).
  *   - Still well under Bloomberg IB's chat limits (~5k chars).
+ *
+ * Result is memoized by state reference: zustand returns a new state
+ * object only when something actually changed, so WeakMap-keyed caching
+ * is safe and avoids regenerating the string when multiple subscribers
+ * (Header, PreviewTab, AIReview, send modal) all read the same state.
  */
+const bbgCache = new WeakMap<DailyState, string>();
 
 const truncate = (s: string, max: number): string => {
   const cleaned = (s || "").replace(/\s+/g, " ").trim();
@@ -43,6 +49,9 @@ const isOn = (s: DailyState, key: string): boolean =>
   Boolean(s.sections.find((x) => x.key === key)?.on);
 
 export function generateBBG(s: DailyState): string {
+  const cached = bbgCache.get(s);
+  if (cached !== undefined) return cached;
+
   const L: string[] = [];
 
   // ─── HEADER ───────────────────────────────────────────────
@@ -209,5 +218,7 @@ export function generateBBG(s: DailyState): string {
   // ─── FOOTER ───────────────────────────────────────────────
   L.push("", "---", "LS Research | latinsecurities.com.ar");
 
-  return L.join("\n");
+  const result = L.join("\n");
+  bbgCache.set(s, result);
+  return result;
 }

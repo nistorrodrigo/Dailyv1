@@ -50,7 +50,7 @@ export default async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
-  const { html, subject, recipients, pin, isTest, listName, dailyDate, attachments, abTest } = req.body;
+  const { html, text, subject, recipients, pin, isTest, listName, dailyDate, attachments, abTest } = req.body;
 
   // PIN verification. Any failure is logged with caller IP so brute-force
   // attempts show up in Vercel logs even though we don't have a persistent
@@ -80,15 +80,30 @@ export default async function handler(req, res) {
   if (!apiKey || !fromEmail) return res.status(500).json({ error: "SendGrid not configured." });
 
   try {
-    // Build SendGrid payload
+    // Build SendGrid payload. Multipart (text/plain + text/html) — RFC says
+    // text/plain must come first. Better deliverability and lets recipients
+    // with HTML disabled still see something.
     const sgPayload = {
       from: { email: fromEmail, name: "Latin Securities Daily" },
-      content: [{ type: "text/html", value: html }],
+      content: text
+        ? [
+            { type: "text/plain", value: text },
+            { type: "text/html", value: html },
+          ]
+        : [{ type: "text/html", value: html }],
       tracking_settings: {
         open_tracking: { enable: true },
         click_tracking: { enable: true },
       },
     };
+
+    // Per-recipient substitution map. The HTML body contains the token
+    // `__LS_RECIPIENT_EMAIL__` inside the unsubscribe URL; SendGrid replaces
+    // it with the recipient's email so each person gets their own pre-filled
+    // unsubscribe link. (Generic v3 substitutions, not the asm group system.)
+    const buildSubstitutions = (recipientEmail) => ({
+      "__LS_RECIPIENT_EMAIL__": encodeURIComponent(recipientEmail),
+    });
 
     // Add attachments if present (base64 encoded)
     if (attachments?.length) {
@@ -114,7 +129,7 @@ export default async function handler(req, res) {
         headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           ...sgPayload,
-          personalizations: groupA.map((email) => ({ to: [{ email }] })),
+          personalizations: groupA.map((email) => ({ to: [{ email }], substitutions: buildSubstitutions(email) })),
           subject: subject + " [A]",
         }),
       });
@@ -125,7 +140,7 @@ export default async function handler(req, res) {
         headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           ...sgPayload,
-          personalizations: groupB.map((email) => ({ to: [{ email }] })),
+          personalizations: groupB.map((email) => ({ to: [{ email }], substitutions: buildSubstitutions(email) })),
           subject: abTest.subjectB + " [B]",
         }),
       });
@@ -143,7 +158,10 @@ export default async function handler(req, res) {
 
     // Normal send. One personalization per recipient — otherwise SendGrid
     // puts every address in the same To: header and recipients see each other.
-    sgPayload.personalizations = recipients.map((email) => ({ to: [{ email }] }));
+    sgPayload.personalizations = recipients.map((email) => ({
+      to: [{ email }],
+      substitutions: buildSubstitutions(email),
+    }));
     sgPayload.subject = subject;
 
     const response = await fetch("https://api.sendgrid.com/v3/mail/send", {
