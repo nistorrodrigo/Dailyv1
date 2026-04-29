@@ -1,7 +1,25 @@
 import { formatDate, fmtEventDate, fmtTime } from "./dates";
 import { resolveCorporateBlock } from "./ratings";
 import { fmtUpside } from "./prices";
-import type { DailyState } from "../types";
+import type { DailyState, NewsLink } from "../types";
+
+/**
+ * Format a NewsLink list as "Sources: <label> · <label2> · …" plus
+ * indented URLs underneath. URLs go on their own lines because BBG chat
+ * auto-linkifies bare URLs but won't pull them out of inline punctuation.
+ */
+function fmtNewsLinks(links: NewsLink[] | undefined, indent = "  "): string[] {
+  if (!links || !links.length) return [];
+  const valid = links.filter((l) => l.url && l.url.trim());
+  if (!valid.length) return [];
+  const out: string[] = [];
+  out.push(`${indent}Sources:`);
+  for (const l of valid) {
+    const label = l.label.trim();
+    out.push(`${indent}  ↗ ${label ? label + " — " : ""}${l.url.trim()}`);
+  }
+  return out;
+}
 
 /**
  * Generate the Bloomberg-flavoured plain-text version of the daily.
@@ -57,7 +75,7 @@ export function generateBBG(s: DailyState): string {
 
   // ─── MACRO / POLITICAL (every block) ──────────────────────
   if (isOn(s, "macro")) {
-    const macroBlocks = s.macroBlocks.filter((b) => b.body || b.lsPick);
+    const macroBlocks = s.macroBlocks.filter((b) => b.body || b.lsPick || (b.newsLinks && b.newsLinks.length));
     if (macroBlocks.length) {
       L.push("", "📰 MACRO / POLITICAL");
       macroBlocks.forEach((b, i) => {
@@ -65,6 +83,7 @@ export function generateBBG(s: DailyState): string {
         if (title) L.push(`▸ ${title.toUpperCase()}`);
         if (b.body) L.push(`  ${truncate(b.body, 380)}`);
         if (b.lsPick) L.push(`  💡 LS view: ${truncate(b.lsPick, 200)}`);
+        for (const line of fmtNewsLinks(b.newsLinks)) L.push(line);
         if (i < macroBlocks.length - 1) L.push("");
       });
     }
@@ -126,7 +145,8 @@ export function generateBBG(s: DailyState): string {
         if (meta) L.push(`  ${meta}${r.analyst ? ` — ${r.analyst}` : ""}`);
         else if (r.analyst) L.push(`  ${r.analyst}`);
         if (r.body) L.push(`  ${truncate(r.body, 280)}`);
-        if (r.link) L.push(`  ↗ ${r.link}`);
+        if (r.link) L.push(`  ↗ Full report: ${r.link}`);
+        for (const line of fmtNewsLinks(c.newsLinks)) L.push(line);
         if (i < blocks.length - 1) L.push("");
       });
     }

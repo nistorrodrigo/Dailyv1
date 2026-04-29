@@ -112,4 +112,47 @@ describe("generateBBG", () => {
     expect(bbg).toContain("BBAR");
     expect(bbg).toContain("Q4 EPS beat");
   });
+
+  it("renders news links under macro blocks when present", () => {
+    const state = {
+      ...DEFAULT_STATE,
+      macroBlocks: [
+        {
+          id: "1",
+          title: "RATES",
+          body: "BCRA cut 100bp",
+          lsPick: "",
+          newsLinks: [
+            { label: "Bloomberg", url: "https://bloomberg.com/news/x" },
+            { label: "", url: "https://reuters.com/y" },
+          ],
+        },
+      ],
+    };
+    const bbg = generateBBG(state);
+    expect(bbg).toContain("Sources:");
+    expect(bbg).toContain("Bloomberg — https://bloomberg.com/news/x");
+    expect(bbg).toContain("https://reuters.com/y");
+  });
+
+  it("renders news links separately from the LS report link in corporate", () => {
+    const state = {
+      ...DEFAULT_STATE,
+      corpBlocks: [
+        {
+          id: "c1",
+          tickers: ["VIST"],
+          headline: "Q4 results",
+          analystId: "a1",
+          body: "",
+          link: "https://latinsecurities.com/report",
+          newsLinks: [{ label: "FT", url: "https://ft.com/article" }],
+        },
+      ],
+    };
+    const bbg = generateBBG(state);
+    expect(bbg).toContain("Full report: https://latinsecurities.com/report");
+    expect(bbg).toContain("Sources:");
+    expect(bbg).toContain("FT — https://ft.com/article");
+  });
 });

@@ -28,7 +28,7 @@ interface DailyActions {
   resetState: () => void;
   newDaily: () => void;
 
-  updateListItem: (field: ListField, id: string, key: string, value: string | string[]) => void;
+  updateListItem: (field: ListField, id: string, key: string, value: unknown) => void;
   addListItem: (field: ListField, item: MacroBlock | CorpBlock | ResearchReport | Signature | Analyst) => void;
   removeListItem: (field: ListField, id: string) => void;
 

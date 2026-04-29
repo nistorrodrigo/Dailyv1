@@ -20,11 +20,20 @@ export interface Section {
   on: boolean;
 }
 
+export interface NewsLink {
+  /** Display label (defaults to the URL hostname when empty). */
+  label: string;
+  /** Full URL including protocol. */
+  url: string;
+}
+
 export interface MacroBlock {
   id: string;
   title: string;
   body: string;
   lsPick: string;
+  /** External news article links shown under the block in HTML/BBG output. */
+  newsLinks?: NewsLink[];
 }
 
 export interface EquityPick {
@@ -48,7 +57,10 @@ export interface CorpBlock {
   headline: string;
   analystId: string;
   body: string;
+  /** Primary LS report link (rendered as "Full LS report ↗"). */
   link: string;
+  /** External news article links rendered alongside the report link. */
+  newsLinks?: NewsLink[];
 }
 
 export interface ResearchReport {

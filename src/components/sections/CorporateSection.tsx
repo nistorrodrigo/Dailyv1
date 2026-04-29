@@ -1,7 +1,7 @@
 import React from "react";
 import { useShallow } from "zustand/react/shallow";
 import useDailyStore from "../../store/useDailyStore";
-import { Card, Inp, X, DashBtn } from "../ui";
+import { Card, Inp, X, DashBtn, NewsLinksEditor } from "../ui";
 import { BRAND } from "../../constants/brand";
 import { ImproveBtn, CopyPromptBtn } from "../ui/AIHelpers";
 import { rc, rb } from "../../utils/ratings";
@@ -111,7 +111,11 @@ export default function CorporateSection() {
               </div>
             </div>
             <Inp value={b.body} onChange={(v) => updateListItem("corpBlocks", b.id, "body", v)} multi rows={4} />
-            <Inp label="Link" value={b.link} onChange={(v) => updateListItem("corpBlocks", b.id, "link", v)} placeholder="https://..." />
+            <Inp label="LS Report Link" value={b.link} onChange={(v) => updateListItem("corpBlocks", b.id, "link", v)} placeholder="https://..." />
+            <NewsLinksEditor
+              links={b.newsLinks}
+              onChange={(next) => updateListItem("corpBlocks", b.id, "newsLinks", next)}
+            />
           </div>
         );
       })}
