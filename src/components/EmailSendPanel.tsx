@@ -33,6 +33,12 @@ interface SendResult {
   message: string;
 }
 
+interface EmailAttachment {
+  content: string;
+  filename: string;
+  type: string;
+}
+
 export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): React.ReactElement | null {
   const [recipients, setRecipients] = useState<Recipient[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
@@ -50,6 +56,10 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
   const [showLogs, setShowLogs] = useState<boolean>(false);
   const [sgLoading, setSgLoading] = useState<boolean>(false);
   const [sgProgress, setSgProgress] = useState<string>("");
+  const [abEnabled, setAbEnabled] = useState<boolean>(false);
+  const [abSubjectB, setAbSubjectB] = useState<string>("");
+  const [attachment, setAttachment] = useState<EmailAttachment | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState<boolean>(false);
 
   useEffect(() => {
     if (open) {
@@ -93,13 +103,20 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
     }
   };
 
-  const handleSend = async (): Promise<void> => {
+  /** Pre-flight checks. Returns true if ready to open the confirmation modal. */
+  const handleSendClick = (): void => {
     const activeRecipients = recipients.filter((r) => r.active).map((r) => r.email);
-    if (!activeRecipients.length) return alert("No active recipients selected");
-    if (!subject.trim()) return alert("Subject is required");
+    if (!activeRecipients.length) { alert("No active recipients selected"); return; }
+    if (!subject.trim()) { alert("Subject is required"); return; }
     if (!pin.trim()) { setPinError("Enter PIN to send"); return; }
-    if (!window.confirm(`Send daily to ${activeRecipients.length} recipient(s)?\n\nRecipients:\n${activeRecipients.join("\n")}`)) return;
+    setPinError("");
+    setConfirmOpen(true);
+  };
 
+  /** Actually fires the send. Called from the confirmation modal after the user clicks "Confirm". */
+  const performSend = async (): Promise<void> => {
+    setConfirmOpen(false);
+    const activeRecipients = recipients.filter((r) => r.active).map((r) => r.email);
     setSending(true);
     setPinError("");
     try {
@@ -110,8 +127,8 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
         body: JSON.stringify({
           html, subject: subject.trim(), recipients: activeRecipients, pin: pin.trim(),
           dailyDate: date, listName: selectedListName || null,
-          attachments: (window as Record<string, unknown>)._emailAttachment ? [(window as Record<string, unknown>)._emailAttachment] : undefined,
-          abTest: (document.getElementById("ab-subject") as HTMLInputElement)?.value ? { enabled: true, subjectB: (document.getElementById("ab-subject") as HTMLInputElement).value } : undefined,
+          attachments: attachment ? [attachment] : undefined,
+          abTest: abEnabled && abSubjectB.trim() ? { enabled: true, subjectB: abSubjectB.trim() } : undefined,
         }),
       });
       const data = await resp.json();
@@ -127,6 +144,20 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
     } finally {
       setSending(false);
     }
+  };
+
+  /** Build a top-N domain breakdown for the confirmation modal. */
+  const recipientStats = (): { total: number; domains: { domain: string; count: number }[]; sample: string[] } => {
+    const active = recipients.filter((r) => r.active);
+    const byDomain: Record<string, number> = {};
+    active.forEach((r) => {
+      const d = r.email.split("@")[1] || "(no domain)";
+      byDomain[d] = (byDomain[d] || 0) + 1;
+    });
+    const domains = Object.entries(byDomain)
+      .map(([domain, count]) => ({ domain, count }))
+      .sort((a, b) => b.count - a.count);
+    return { total: active.length, domains, sample: active.slice(0, 5).map((r) => r.email) };
   };
 
   return (
@@ -297,18 +328,20 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
             <div className="flex items-center justify-between mb-1">
               <span className="text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide">A/B Test Subject</span>
               <button
-                onClick={() => setField("_abEnabled", !((window as Record<string, boolean>)._abEnabled))}
+                onClick={() => setAbEnabled((v) => !v)}
                 className="text-[10px] text-[var(--text-muted)] bg-transparent border-none cursor-pointer"
-                id="ab-toggle"
               >
-                {document.getElementById("ab-subject") ? "Disable" : "Enable"}
+                {abEnabled ? "Disable" : "Enable"}
               </button>
             </div>
-            <input
-              id="ab-subject"
-              placeholder="Variant B subject line (50% of recipients get this)"
-              className="themed-input w-full px-2.5 py-2 rounded-md border border-[var(--border-input)] text-[12px] bg-[var(--bg-input)] text-[var(--text-primary)]"
-            />
+            {abEnabled && (
+              <input
+                value={abSubjectB}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAbSubjectB(e.target.value)}
+                placeholder="Variant B subject line (50% of recipients get this)"
+                className="themed-input w-full px-2.5 py-2 rounded-md border border-[var(--border-input)] text-[12px] bg-[var(--bg-input)] text-[var(--text-primary)]"
+              />
+            )}
             <div className="text-[9px] text-[var(--text-muted)] mt-1">Recipients split 50/50. Track opens per variant in Dashboard.</div>
           </div>
 
@@ -322,15 +355,24 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
               className="text-xs"
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                 const file = e.target.files?.[0];
-                if (!file) return;
+                if (!file) { setAttachment(null); return; }
                 const reader = new FileReader();
                 reader.onload = () => {
                   const base64 = (reader.result as string).split(",")[1];
-                  (window as Record<string, unknown>)._emailAttachment = { content: base64, filename: file.name, type: file.type };
+                  setAttachment({ content: base64, filename: file.name, type: file.type });
                 };
                 reader.readAsDataURL(file);
               }}
             />
+            {attachment && (
+              <div className="text-[10px] text-[var(--text-secondary)] mt-1">
+                Attached: <strong>{attachment.filename}</strong>
+                <button
+                  onClick={() => { setAttachment(null); const inp = document.getElementById("email-attachment") as HTMLInputElement | null; if (inp) inp.value = ""; }}
+                  className="ml-2 text-red-500 bg-transparent border-none cursor-pointer"
+                >Remove</button>
+              </div>
+            )}
             <div className="text-[9px] text-[var(--text-muted)] mt-1">PDF will be attached to the email.</div>
           </div>
 
@@ -344,7 +386,7 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
             placeholder="Enter PIN to authorize send"
             className="themed-input w-full px-2.5 py-2 rounded-md border text-sm bg-[var(--bg-input)] text-[var(--text-primary)]"
             style={{ borderColor: pinError ? "#e74c3c" : "var(--border-input)" }}
-            onKeyDown={(e) => e.key === "Enter" && handleSend()}
+            onKeyDown={(e) => e.key === "Enter" && handleSendClick()}
           />
           {pinError && <div className="text-[11px] text-red-500 mt-1 font-semibold">{pinError}</div>}
         </div>
@@ -381,7 +423,7 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
             {sending ? "..." : "Test Email"}
           </button>
           <button
-            onClick={handleSend}
+            onClick={handleSendClick}
             disabled={sending || !pin.trim()}
             style={{
               flex: 2, padding: "12px 20px", borderRadius: 6,
@@ -423,6 +465,111 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
           </div>
         )}
       </div>
+
+      {confirmOpen && (() => {
+        const { total, domains, sample } = recipientStats();
+        const topDomains = domains.slice(0, 5);
+        const otherDomainCount = domains.slice(5).reduce((s, d) => s + d.count, 0);
+        return (
+          <div
+            onClick={() => setConfirmOpen(false)}
+            style={{
+              position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)",
+              zIndex: 2000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16,
+            }}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: "var(--bg-card)", borderRadius: 8, maxWidth: 520, width: "100%",
+                maxHeight: "90vh", overflow: "auto", boxShadow: "0 10px 40px rgba(0,0,0,0.3)",
+              }}
+            >
+              <div style={{ background: BRAND.navy, padding: "14px 20px", borderTopLeftRadius: 8, borderTopRightRadius: 8 }}>
+                <div style={{ color: "#fff", fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>
+                  Confirm Send
+                </div>
+              </div>
+              <div style={{ padding: 20 }}>
+                <div className="mb-4 p-3 rounded-md" style={{ background: "rgba(231,76,60,0.08)", border: "1px solid rgba(231,76,60,0.25)" }}>
+                  <div className="text-[11px] font-bold uppercase tracking-wide" style={{ color: "#c0392b" }}>You are about to send to</div>
+                  <div className="text-3xl font-bold mt-1" style={{ color: "#c0392b" }}>{total.toLocaleString()} recipient{total === 1 ? "" : "s"}</div>
+                  <div className="text-[11px] mt-1" style={{ color: "var(--text-muted)" }}>This is irreversible. Make sure you tested first.</div>
+                </div>
+
+                <div className="mb-4">
+                  <div className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "var(--text-secondary)" }}>Subject</div>
+                  <div className="text-[13px] font-semibold" style={{ color: "var(--text-primary)" }}>{subject}</div>
+                  {abEnabled && abSubjectB.trim() && (
+                    <div className="text-[12px] mt-1 italic" style={{ color: "var(--text-muted)" }}>
+                      A/B variant B: {abSubjectB}
+                    </div>
+                  )}
+                </div>
+
+                {selectedListName && (
+                  <div className="mb-4">
+                    <div className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "var(--text-secondary)" }}>Imported from list</div>
+                    <div className="text-[12px]" style={{ color: "var(--text-primary)" }}>{selectedListName}</div>
+                  </div>
+                )}
+
+                {attachment && (
+                  <div className="mb-4">
+                    <div className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "var(--text-secondary)" }}>Attachment</div>
+                    <div className="text-[12px]" style={{ color: "var(--text-primary)" }}>📎 {attachment.filename}</div>
+                  </div>
+                )}
+
+                <div className="mb-4">
+                  <div className="text-[10px] font-bold uppercase tracking-wide mb-2" style={{ color: "var(--text-secondary)" }}>
+                    Domain breakdown ({domains.length} domain{domains.length === 1 ? "" : "s"})
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    {topDomains.map((d) => (
+                      <div key={d.domain} className="flex items-center justify-between text-[12px]">
+                        <span style={{ color: "var(--text-primary)" }}>{d.domain}</span>
+                        <span style={{ color: "var(--text-muted)" }}>{d.count.toLocaleString()} ({Math.round((d.count / total) * 100)}%)</span>
+                      </div>
+                    ))}
+                    {otherDomainCount > 0 && (
+                      <div className="flex items-center justify-between text-[12px] italic">
+                        <span style={{ color: "var(--text-muted)" }}>+ {domains.length - 5} other domains</span>
+                        <span style={{ color: "var(--text-muted)" }}>{otherDomainCount.toLocaleString()}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="mb-4">
+                  <div className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "var(--text-secondary)" }}>Sample (first 5)</div>
+                  <div className="text-[11px] font-mono" style={{ color: "var(--text-muted)" }}>
+                    {sample.map((e) => <div key={e}>{e}</div>)}
+                    {total > 5 && <div className="italic">… and {(total - 5).toLocaleString()} more</div>}
+                  </div>
+                </div>
+
+                <div className="flex gap-2 mt-5">
+                  <button
+                    onClick={() => setConfirmOpen(false)}
+                    className="flex-1 py-2.5 rounded-md border bg-transparent text-[12px] font-bold cursor-pointer uppercase"
+                    style={{ borderColor: "var(--border-input)", color: "var(--text-secondary)" }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={performSend}
+                    className="flex-1 py-2.5 rounded-md border-none text-white text-[12px] font-bold cursor-pointer uppercase"
+                    style={{ background: "#c0392b" }}
+                  >
+                    Confirm Send to {total.toLocaleString()}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
