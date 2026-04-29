@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { BRAND } from "../../constants/brand";
 import useDailyStore from "../../store/useDailyStore";
 import { useShallow } from "zustand/react/shallow";
+import { toast } from "../../store/useToastStore";
 
 interface DraftBlock {
   id: string;
@@ -92,9 +93,9 @@ export default function AIDraftTab(): React.ReactElement {
       setGenerated(true);
 
       const tokens = data.usage ? data.usage.input + data.usage.output : 0;
-      alert(`Draft generated with ${data.model} (${tokens} tokens). Review below and accept/reject each item.`);
+      toast.success(`Draft generated with ${data.model} (${tokens} tokens). Review below.`);
     } catch (err) {
-      alert("AI Draft failed: " + ((err as Error).message));
+      toast.error("AI Draft failed: " + ((err as Error).message));
     } finally {
       setLoading(false);
     }
@@ -111,7 +112,7 @@ export default function AIDraftTab(): React.ReactElement {
   const handleApply = () => {
     const accepted = draft.filter((b) => b.accepted);
     if (!accepted.length && !summaryDraft) {
-      alert("Accept at least one item first");
+      toast.info("Accept at least one item first");
       return;
     }
 
@@ -144,7 +145,7 @@ export default function AIDraftTab(): React.ReactElement {
       setField("fiSeller", flowsDraft.fiSeller);
     }
 
-    alert(`Applied ${accepted.length} items to the daily`);
+    toast.success(`Applied ${accepted.length} items to the daily`);
   };
 
   const acceptedCount = draft.filter((b) => b.accepted).length;

@@ -2,6 +2,7 @@ import useUIStore from "./store/useUIStore";
 import useKeyboardShortcuts from "./hooks/useKeyboardShortcuts";
 import type { UIState } from "./types";
 import Header from "./components/Header";
+import Toaster from "./components/Toaster";
 import EditorTab from "./components/sections/EditorTab";
 import AnalystsTab from "./components/sections/AnalystsTab";
 import PreviewTab from "./components/sections/PreviewTab";
@@ -40,6 +41,7 @@ export default function App() {
         {tab === "email-editor" && <EmailEditorTab />}
         {tab === "dashboard" && <DashboardTab />}
       </div>
+      <Toaster />
     </div>
   );
 }

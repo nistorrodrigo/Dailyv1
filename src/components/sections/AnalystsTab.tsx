@@ -3,6 +3,7 @@ import useDailyStore from "../../store/useDailyStore";
 import { Card, X } from "../ui";
 import { BRAND } from "../../constants/brand";
 import { rc } from "../../utils/ratings";
+import { toast } from "../../store/useToastStore";
 
 const is: React.CSSProperties = { padding: "6px 8px", borderRadius: 4, border: "1px solid var(--border-input)", fontSize: 12, boxSizing: "border-box" };
 const ss: React.CSSProperties = { ...is, background: "var(--bg-input)" };
@@ -33,9 +34,9 @@ export default function AnalystsTab() {
           priceMap[c.ticker] ? { ...c, last: `US$${priceMap[c.ticker].toFixed(2)}` } : c
         ),
       })));
-      alert(`Updated prices for ${Object.keys(priceMap).length}/${unique.length} tickers`);
+      toast.success(`Updated prices for ${Object.keys(priceMap).length}/${unique.length} tickers`);
     } catch (err: unknown) {
-      alert("Price fetch failed: " + (err instanceof Error ? err.message : String(err)) + "\nEnter prices manually in the Last column.");
+      toast.error("Price fetch failed: " + (err instanceof Error ? err.message : String(err)) + " — enter prices manually.");
     }
   };
 
@@ -62,13 +63,13 @@ export default function AnalystsTab() {
         });
       });
       const newAnalysts = Object.values(grouped).map((a: { name: string; title: string; coverage: { ticker: string; rating: string; tp: string }[] }, i: number) => ({ id: `imp${Date.now()}${i}`, ...a })) as import("../../types").Analyst[];
-      if (newAnalysts.length === 0) { alert("No valid data found. Check file format."); return; }
+      if (newAnalysts.length === 0) { toast.error("No valid data found. Check file format."); return; }
       if (window.confirm(`Found ${newAnalysts.length} analyst(s) with ${rows.length} tickers. Replace current database?`)) {
         setField("analysts", newAnalysts);
       } else {
         setField("analysts", [...analysts, ...newAnalysts]);
       }
-      alert(`Imported ${newAnalysts.length} analyst(s)`);
+      toast.success(`Imported ${newAnalysts.length} analyst(s)`);
     };
     if (file.name.match(/\.xlsx?$/i)) {
       // @ts-ignore - dynamic CDN import
@@ -78,7 +79,7 @@ export default function AnalystsTab() {
       const ws = wb.Sheets[wb.SheetNames[0]];
       const json: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1 });
       let hIdx = json.findIndex((r: any[]) => r.some((c: any) => String(c || "").toLowerCase().includes("analyst")) && r.some((c: any) => String(c || "").toLowerCase().includes("ticker")));
-      if (hIdx === -1) { alert("Could not find header row with 'Analyst Name' and 'Ticker'"); return; }
+      if (hIdx === -1) { toast.error("Could not find header row with 'Analyst Name' and 'Ticker'"); return; }
       const hdr = json[hIdx].map((c: any) => String(c || "").toLowerCase().trim());
       const aCol = hdr.findIndex((h: string) => h.includes("analyst"));
       const tCol = hdr.findIndex((h: string) => h.includes("ticker"));
@@ -97,7 +98,7 @@ export default function AnalystsTab() {
         const lines = (ev.target?.result as string).split("\n").map((l: string) => l.trim()).filter(Boolean);
         const hdr = lines[0].toLowerCase();
         if (!hdr.includes("analyst") || !hdr.includes("ticker")) {
-          alert("CSV must have columns: Analyst Name, Ticker, Rating, Target Price");
+          toast.error("CSV must have columns: Analyst Name, Ticker, Rating, Target Price");
           return;
         }
         const rows = lines.slice(1).map((l: string) => {
@@ -145,6 +146,12 @@ export default function AnalystsTab() {
             className="themed-input w-full px-2.5 py-2 rounded-md border border-[var(--border-input)] text-sm bg-[var(--bg-input)] text-[var(--text-primary)]"
           />
         </div>
+        {analysts.length === 0 && (
+          <div style={{ padding: "24px 16px", textAlign: "center", color: "var(--text-muted)", fontSize: 13, lineHeight: 1.6, background: "var(--bg-card-alt)", borderRadius: 8, border: "1px dashed var(--border-light)" }}>
+            <div style={{ fontWeight: 700, marginBottom: 6, color: "var(--text-primary)" }}>No analysts yet</div>
+            Click <strong>Upload File</strong> above to import from Excel/CSV, or use <strong>+ Add Analyst</strong> below.
+          </div>
+        )}
         {analysts.filter((a) => {
           if (!search) return true;
           const q = search.toLowerCase();

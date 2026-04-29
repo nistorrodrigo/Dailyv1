@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { BRAND } from "../constants/brand";
 import { fetchSendGridLists, fetchSendGridContacts, invalidateSendGridListsCache, type SendGridList } from "../lib/sendgridApi";
+import { toast } from "../store/useToastStore";
 
 interface Contact {
   email: string;
@@ -155,9 +156,9 @@ export default function ContactsPanel({ open, onClose }: ContactsPanelProps): Re
 
   const copySelected = () => {
     const emails = contacts.filter(c => c.selected).map(c => c.email);
-    if (!emails.length) return alert("Select contacts first");
+    if (!emails.length) { toast.info("Select contacts first"); return; }
     navigator.clipboard.writeText(emails.join(", "));
-    alert(`Copied ${emails.length} emails to clipboard`);
+    toast.success(`Copied ${emails.length} emails to clipboard`);
   };
 
   const exportCSV = () => {
@@ -173,15 +174,15 @@ export default function ContactsPanel({ open, onClose }: ContactsPanelProps): Re
   };
 
   const saveCurrentSelection = () => {
-    if (!filterName.trim()) return alert("Enter a name for this selection");
+    if (!filterName.trim()) { toast.info("Enter a name for this selection"); return; }
     const emails = contacts.filter(c => c.selected).map(c => c.email);
-    if (!emails.length) return alert("Select contacts first");
+    if (!emails.length) { toast.info("Select contacts first"); return; }
     const newFilter: SavedFilter = { name: filterName.trim(), emails };
     const updated = [...savedFilters, newFilter];
     setSavedFilters(updated);
     saveSavedFilters(updated);
     setFilterName("");
-    alert(`Saved "${newFilter.name}" with ${emails.length} contacts`);
+    toast.success(`Saved "${newFilter.name}" with ${emails.length} contacts`);
   };
 
   const loadSavedFilter = (filter: SavedFilter) => {
@@ -271,7 +272,7 @@ export default function ContactsPanel({ open, onClose }: ContactsPanelProps): Re
           <>
             {savedFilters.map((f, i) => (
               <div key={i} className="flex items-center justify-between p-3 mb-2 rounded-md border border-[var(--border-light)] bg-[var(--bg-card-alt)]">
-                <div className="cursor-pointer flex-1" onClick={() => { if (selectedList) loadSavedFilter(f); else alert("Load a SendGrid list first, then apply this selection"); }}>
+                <div className="cursor-pointer flex-1" onClick={() => { if (selectedList) loadSavedFilter(f); else toast.info("Load a SendGrid list first, then apply this selection"); }}>
                   <div className="text-sm font-bold text-[var(--text-primary)]">{f.name}</div>
                   <div className="text-[10px] text-[var(--text-muted)]">{f.emails.length} contacts</div>
                 </div>

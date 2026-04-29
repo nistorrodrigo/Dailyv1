@@ -2,6 +2,7 @@ import { generateHTML } from "./generateHTML";
 import { getLogos } from "../constants/logos";
 import useDailyStore from "../store/useDailyStore";
 import { formatDate } from "./dates";
+import { toast } from "../store/useToastStore";
 
 export async function exportPDF(): Promise<void> {
   // Ensure logos are loaded before generating
@@ -13,7 +14,7 @@ export async function exportPDF(): Promise<void> {
   // Open a new window with the HTML and trigger print (Save as PDF)
   const win = window.open("", "_blank");
   if (!win) {
-    alert("Please allow popups to export PDF");
+    toast.error("Please allow popups to export PDF");
     return;
   }
 

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import useDailyStore from "../../store/useDailyStore";
 import useUIStore from "../../store/useUIStore";
+import { toast } from "../../store/useToastStore";
 
 interface CopyPromptBtnProps {
   section: string;
@@ -57,7 +58,7 @@ export function ImproveBtn({ text, onImprove, context = "macro/political section
   const [loading, setLoading] = useState(false);
 
   const handleImprove = async () => {
-    if (!text.trim()) return alert("Write something first, then click Improve");
+    if (!text.trim()) { toast.info("Write something first, then click Improve"); return; }
     setLoading(true);
     try {
       const resp = await fetch("/api/ai-draft", {
@@ -85,9 +86,9 @@ export function ImproveBtn({ text, onImprove, context = "macro/political section
           return;
         }
       }
-      alert("Could not improve — try again or edit manually");
+      toast.info("Could not improve — try again or edit manually");
     } catch (err) {
-      alert("Improve failed: " + (err as Error).message);
+      toast.error("Improve failed: " + (err as Error).message);
     } finally {
       setLoading(false);
     }

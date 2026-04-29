@@ -3,6 +3,7 @@ import { BRAND } from "../constants/brand";
 import { loadDaily, listDailies } from "../lib/dailyApi";
 import { supabase } from "../lib/supabase";
 import useDailyStore from "../store/useDailyStore";
+import { toast } from "../store/useToastStore";
 
 interface DiffPanelProps {
   open: boolean;
@@ -56,7 +57,7 @@ export default function DiffPanel({ open, onClose }: DiffPanelProps): React.Reac
     setLoading(true);
     try {
       const prev = await loadDaily(compareDate);
-      if (!prev?.state) { alert("No data for " + compareDate); return; }
+      if (!prev?.state) { toast.info("No data for " + compareDate); return; }
       const current = useDailyStore.getState();
       const ps = prev.state;
 
@@ -86,7 +87,7 @@ export default function DiffPanel({ open, onClose }: DiffPanelProps): React.Reac
 
       setDiffs([...results, ...sectionDiffs] as FieldDiff[]);
     } catch (err) {
-      alert("Compare failed: " + (err as Error).message);
+      toast.error("Compare failed: " + (err as Error).message);
     } finally {
       setLoading(false);
     }

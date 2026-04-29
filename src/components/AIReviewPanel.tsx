@@ -3,6 +3,7 @@ import { BRAND } from "../constants/brand";
 import useDailyStore from "../store/useDailyStore";
 import AIModelPicker, { type AIModelKey, AI_MODELS } from "./ui/AIModelPicker";
 import { generateBBG } from "../utils/generateBBG";
+import { toast } from "../store/useToastStore";
 
 interface ReviewResult {
   issues: string[];
@@ -83,7 +84,7 @@ Return ONLY the JSON, no markdown.`,
       });
       if (parsed.summary) setExecSummary(parsed.summary);
     } catch (err) {
-      alert("Review failed: " + (err as Error).message);
+      toast.error("Review failed: " + (err as Error).message);
     } finally {
       setLoading(false);
     }
@@ -92,7 +93,7 @@ Return ONLY the JSON, no markdown.`,
   const applySummary = () => {
     if (execSummary) {
       useDailyStore.getState().setField("summaryBar", execSummary);
-      alert("Executive summary applied to Summary Bar!");
+      toast.success("Executive summary applied to Summary Bar");
     }
   };
 

@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import { BRAND } from "../../constants/brand";
 import useDailyStore from "../../store/useDailyStore";
 import { generateHTML } from "../../utils/generateHTML";
+import { toast } from "../../store/useToastStore";
 
 export default function EmailEditorTab(): React.ReactElement {
   const [html, setHtml] = useState("");
@@ -26,7 +27,7 @@ export default function EmailEditorTab(): React.ReactElement {
 
   const copyHtml = () => {
     navigator.clipboard.writeText(html).then(() => {
-      alert("HTML copied to clipboard!");
+      toast.success("HTML copied to clipboard");
     });
   };
 

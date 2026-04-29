@@ -4,6 +4,7 @@ import useDailyStore from "../../store/useDailyStore";
 import { Card } from "../ui";
 import { BRAND } from "../../constants/brand";
 import type { MarketSnapshot } from "../../types";
+import { toast } from "../../store/useToastStore";
 
 const is: React.CSSProperties = { padding: "6px 8px", borderRadius: 4, border: "1px solid var(--border-input)", fontSize: 12, boxSizing: "border-box", width: "100%", background: "var(--bg-input)", color: "var(--text-primary)" };
 
@@ -54,9 +55,9 @@ export default function SnapshotSection(): React.ReactElement | null {
         }
       }
       setField("snapshot", newSnap);
-      alert(`Updated ${Object.keys(s).length} prices`);
+      toast.success(`Updated ${Object.keys(s).length} prices`);
     } catch (err) {
-      alert("Fetch failed: " + (err as Error).message);
+      toast.error("Fetch failed: " + (err as Error).message);
     } finally {
       setFetching(false);
     }

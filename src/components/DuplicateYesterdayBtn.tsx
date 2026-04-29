@@ -3,6 +3,7 @@ import useDailyStore from "../store/useDailyStore";
 import { loadDaily } from "../lib/dailyApi";
 import { supabase } from "../lib/supabase";
 import { DEFAULT_STATE } from "../constants/defaultState";
+import { toast } from "../store/useToastStore";
 
 export default function DuplicateYesterdayBtn(): React.ReactElement {
   const handleDuplicate = async (): Promise<void> => {
@@ -28,7 +29,7 @@ export default function DuplicateYesterdayBtn(): React.ReactElement {
     try {
       const daily = await loadDaily(yDate);
       if (!daily?.state) {
-        alert(`No daily found for ${yDate}. Try loading from History instead.`);
+        toast.info(`No daily found for ${yDate}. Try loading from History instead.`);
         return;
       }
       if (!window.confirm(`Load yesterday's daily (${yDate}) as today's template? Content will be copied, date set to ${today}.`)) return;
@@ -43,7 +44,7 @@ export default function DuplicateYesterdayBtn(): React.ReactElement {
         summaryBar: "",
       });
     } catch (err) {
-      alert("Failed to load yesterday: " + (err as Error).message);
+      toast.error("Failed to load yesterday: " + (err as Error).message);
     }
   };
 

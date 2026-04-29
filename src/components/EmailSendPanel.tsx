@@ -10,6 +10,7 @@ import SendConfirmModal from "./SendConfirmModal";
 import RecipientList, { type Recipient } from "./RecipientList";
 import ABTestSubject from "./ABTestSubject";
 import AttachmentInput, { type EmailAttachment } from "./AttachmentInput";
+import { toast } from "../store/useToastStore";
 
 interface EmailSendPanelProps {
   open: boolean;
@@ -38,7 +39,7 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
   const [newName, setNewName] = useState<string>("");
   const date = useDailyStore((s) => s.date);
   const [subject, setSubject] = useState<string>("");
-  const [pin, setPin] = useState<string>("");
+  const [pin, setPin] = useState<string>(() => sessionStorage.getItem("ls-send-pin") || "");
   const [pinError, setPinError] = useState<string>("");
   const [sendResult, setSendResult] = useState<SendResult | null>(null);
   const [sgLists, setSgLists] = useState<SendGridList[]>([]);
@@ -51,6 +52,8 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
   const [abSubjectB, setAbSubjectB] = useState<string>("");
   const [attachment, setAttachment] = useState<EmailAttachment | null>(null);
   const [confirmOpen, setConfirmOpen] = useState<boolean>(false);
+  const [testFormOpen, setTestFormOpen] = useState<boolean>(false);
+  const [testEmailAddress, setTestEmailAddress] = useState<string>("");
 
   useEffect(() => {
     if (open) {
@@ -71,7 +74,7 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
         const r = await addRecipient(newEmail.trim(), newName.trim());
         if (r) setRecipients((prev) => [...prev, r]);
       } catch (err) {
-        alert("Failed to add: " + (err as Error).message);
+        toast.error("Failed to add: " + (err as Error).message);
       }
     } else {
       setRecipients((prev) => [...prev, { id: Date.now(), email: newEmail.trim(), name: newName.trim(), active: true }]);
@@ -97,8 +100,8 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
   /** Pre-flight checks. Returns true if ready to open the confirmation modal. */
   const handleSendClick = (): void => {
     const activeRecipients = recipients.filter((r) => r.active).map((r) => r.email);
-    if (!activeRecipients.length) { alert("No active recipients selected"); return; }
-    if (!subject.trim()) { alert("Subject is required"); return; }
+    if (!activeRecipients.length) { toast.error("No active recipients selected"); return; }
+    if (!subject.trim()) { toast.error("Subject is required"); return; }
     if (!pin.trim()) { setPinError("Enter PIN to send"); return; }
     setPinError("");
     setConfirmOpen(true);
@@ -132,6 +135,53 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
       } else {
         setSendResult({ type: "error", message: `Send failed: ${(err as Error).message}` });
       }
+    } finally {
+      setSending(false);
+    }
+  };
+
+  /** Default address for the test email (first signature, or empty). */
+  const defaultTestAddress = (): string => {
+    const first = useDailyStore.getState().signatures[0];
+    return first?.email || "";
+  };
+
+  /** Open the inline "send test to which email?" form. */
+  const handleTestEmailClick = (): void => {
+    if (!pin.trim()) { setPinError("Enter PIN"); return; }
+    setPinError("");
+    setTestEmailAddress(testEmailAddress || defaultTestAddress());
+    setTestFormOpen(true);
+  };
+
+  /** Fire the test send for the email currently in `testEmailAddress`. */
+  const performTestSend = async (): Promise<void> => {
+    const addr = testEmailAddress.trim();
+    if (!addr) { toast.info("Enter an email address"); return; }
+    setTestFormOpen(false);
+    setSending(true);
+    setPinError("");
+    try {
+      const html = generateHTML(useDailyStore.getState());
+      const resp = await fetch("/api/send-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          html,
+          subject: `[TEST] ${subject.trim()}`,
+          recipients: [addr],
+          pin: pin.trim(),
+          isTest: true,
+          dailyDate: date,
+        }),
+      });
+      const data = await resp.json();
+      if (!data.ok) throw new Error(data.error);
+      setSendResult({ type: "success", message: `✓ Test email sent to ${addr}` });
+    } catch (err) {
+      const msg = (err as Error).message;
+      if (msg?.includes("Invalid PIN")) setPinError("Invalid PIN");
+      else setSendResult({ type: "error", message: `Test failed: ${msg}` });
     } finally {
       setSending(false);
     }
@@ -303,41 +353,41 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
             onChange={setAttachment}
           />
 
-          <label className="block mb-1 text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide">
-            Security PIN
-          </label>
+          <div className="flex items-baseline justify-between mb-1">
+            <label className="text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide">
+              Security PIN
+            </label>
+            {pin && (
+              <button
+                onClick={() => { sessionStorage.removeItem("ls-send-pin"); setPin(""); }}
+                className="text-[10px] text-[var(--text-muted)] bg-transparent border-none cursor-pointer"
+                title="Clear remembered PIN for this tab"
+              >
+                Forget PIN
+              </button>
+            )}
+          </div>
           <input
             type="password"
             value={pin}
-            onChange={(e) => { setPin(e.target.value); setPinError(""); }}
+            onChange={(e) => {
+              setPin(e.target.value);
+              setPinError("");
+              sessionStorage.setItem("ls-send-pin", e.target.value);
+            }}
             placeholder="Enter PIN to authorize send"
             className="themed-input w-full px-2.5 py-2 rounded-md border text-sm bg-[var(--bg-input)] text-[var(--text-primary)]"
             style={{ borderColor: pinError ? "#e74c3c" : "var(--border-input)" }}
             onKeyDown={(e) => e.key === "Enter" && handleSendClick()}
           />
+          <div className="text-[9px] text-[var(--text-muted)] mt-0.5 italic">
+            Remembered for this browser tab; cleared on close.
+          </div>
           {pinError && <div className="text-[11px] text-red-500 mt-1 font-semibold">{pinError}</div>}
         </div>
         <div className="flex gap-2">
           <button
-            onClick={() => {
-              if (!pin.trim()) { setPinError("Enter PIN"); return; }
-              const testEmail = prompt("Send test to which email?", "rodrigo.nistor@latinsecurities.ar");
-              if (!testEmail) return;
-              setSending(true);
-              setPinError("");
-              const html = generateHTML(useDailyStore.getState());
-              fetch("/api/send-email", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ html, subject: `[TEST] ${subject.trim()}`, recipients: [testEmail], pin: pin.trim(), isTest: true, dailyDate: date }),
-              }).then(r => r.json()).then(data => {
-                if (!data.ok) throw new Error(data.error);
-                setSendResult({ type: "success", message: `\u2713 Test email sent to ${testEmail}` });
-              }).catch(err => {
-                if (err.message?.includes("Invalid PIN")) setPinError("Invalid PIN");
-                else setSendResult({ type: "error", message: `Test failed: ${err.message}` });
-              }).finally(() => setSending(false));
-            }}
+            onClick={handleTestEmailClick}
             disabled={sending || !pin.trim()}
             style={{
               flex: 1, padding: "12px 16px", borderRadius: 6,
@@ -362,6 +412,34 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
             {sending ? "Sending..." : "Send Daily Email"}
           </button>
         </div>
+        {testFormOpen && (
+          <div className="mt-2 p-3 rounded-md border" style={{ background: "var(--bg-card-alt)", borderColor: BRAND.orange + "40" }}>
+            <label className="block mb-1 text-[10px] font-bold uppercase tracking-wide" style={{ color: BRAND.orange }}>
+              Send test to which email?
+            </label>
+            <div className="flex gap-2">
+              <input
+                value={testEmailAddress}
+                onChange={(e) => setTestEmailAddress(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") performTestSend(); if (e.key === "Escape") setTestFormOpen(false); }}
+                autoFocus
+                placeholder="email@latinsecurities.ar"
+                className="themed-input flex-1 px-2.5 py-1.5 rounded border border-[var(--border-input)] text-[12px] bg-[var(--bg-input)] text-[var(--text-primary)]"
+              />
+              <button
+                onClick={performTestSend}
+                disabled={sending}
+                className="px-3 py-1.5 rounded text-[10px] font-bold border-none cursor-pointer text-white disabled:opacity-50"
+                style={{ background: BRAND.orange }}
+              >Send Test</button>
+              <button
+                onClick={() => setTestFormOpen(false)}
+                className="px-3 py-1.5 rounded text-[10px] font-bold cursor-pointer bg-transparent text-[var(--text-muted)]"
+                style={{ border: "1px solid var(--border-input)" }}
+              >Cancel</button>
+            </div>
+          </div>
+        )}
 
         {/* Send History */}
         <button
@@ -407,6 +485,7 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
         abSubjectB={abEnabled ? abSubjectB : undefined}
         selectedListName={selectedListName || undefined}
         attachmentFilename={attachment?.filename}
+        html={confirmOpen ? generateHTML(useDailyStore.getState()) : undefined}
       />
     </div>
   );

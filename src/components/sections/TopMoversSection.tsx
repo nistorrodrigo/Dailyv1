@@ -3,6 +3,7 @@ import { useShallow } from "zustand/react/shallow";
 import useDailyStore from "../../store/useDailyStore";
 import { Card, X, DashBtn } from "../ui";
 import { BRAND } from "../../constants/brand";
+import { toast } from "../../store/useToastStore";
 
 const is: React.CSSProperties = { padding: "6px 8px", borderRadius: 4, border: "1px solid var(--border-input)", fontSize: 12, boxSizing: "border-box" };
 
@@ -25,7 +26,7 @@ export default function TopMoversSection() {
       setField("cclRate", data);
     } catch (e) {
       console.error("CCL fetch failed:", e);
-      alert("Failed to fetch CCL: " + (e as Error).message);
+      toast.error("Failed to fetch CCL: " + (e as Error).message);
     } finally {
       setFetching(false);
     }

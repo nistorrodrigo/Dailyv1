@@ -18,6 +18,8 @@ export interface SendConfirmModalProps {
   selectedListName?: string;
   /** Filename of attached PDF, if any. */
   attachmentFilename?: string;
+  /** Full HTML body of the email, rendered as a mini preview. */
+  html?: string;
 }
 
 /**
@@ -39,6 +41,7 @@ export default function SendConfirmModal({
   abSubjectB,
   selectedListName,
   attachmentFilename,
+  html,
 }: SendConfirmModalProps): React.ReactElement | null {
   if (!open) return null;
 
@@ -152,6 +155,22 @@ export default function SendConfirmModal({
               )}
             </div>
           </div>
+
+          {html && (
+            <div className="mb-4">
+              <div className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "var(--text-secondary)" }}>
+                Email preview
+              </div>
+              <div style={{ border: "1px solid var(--border-light)", borderRadius: 6, overflow: "hidden", background: "#fff" }}>
+                <iframe
+                  srcDoc={html}
+                  title="Email preview"
+                  sandbox=""
+                  style={{ width: "100%", height: 220, border: "none", display: "block" }}
+                />
+              </div>
+            </div>
+          )}
 
           <div className="flex gap-2 mt-5">
             <button

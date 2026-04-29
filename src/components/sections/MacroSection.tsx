@@ -6,6 +6,7 @@ import SortableList from "../ui/SortableList";
 import MarkdownEditor from "../ui/MarkdownEditor";
 import { CopyPromptBtn, ImproveBtn } from "../ui/AIHelpers";
 import { BRAND } from "../../constants/brand";
+import { toast } from "../../store/useToastStore";
 
 const AI_MODELS = [
   { key: "haiku", label: "Haiku 4.5", cost: "~$0.002/draft" },
@@ -80,9 +81,9 @@ export default function MacroSection() {
       setAiContext("");
 
       const tokens = data.usage ? data.usage.input + data.usage.output : 0;
-      alert(`${aiMode === "full" ? "Full daily" : "Macro blocks"} drafted with ${data.model} (${tokens} tokens)`);
+      toast.success(`${aiMode === "full" ? "Full daily" : "Macro blocks"} drafted with ${data.model} (${tokens} tokens)`);
     } catch (err: unknown) {
-      alert("AI Draft failed: " + (err instanceof Error ? err.message : String(err)));
+      toast.error("AI Draft failed: " + (err instanceof Error ? err.message : String(err)));
     } finally {
       setAiLoading(false);
     }

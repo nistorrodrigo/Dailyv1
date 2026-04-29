@@ -4,6 +4,7 @@ import { listTemplates, saveTemplate, deleteTemplate } from "../lib/templatesApi
 import { supabase } from "../lib/supabase";
 import useDailyStore from "../store/useDailyStore";
 import type { Section, DailyState } from "../types";
+import { toast } from "../store/useToastStore";
 
 interface TemplatesPanelProps {
   open: boolean;
@@ -32,7 +33,7 @@ export default function TemplatesPanel({ open, onClose }: TemplatesPanelProps): 
   if (!open) return null;
 
   const handleSave = async (): Promise<void> => {
-    if (!newName.trim()) return alert("Enter a template name");
+    if (!newName.trim()) { toast.info("Enter a template name"); return; }
     try {
       const fullState = useDailyStore.getState();
       const sectionsConfig = fullState.sections;
@@ -40,8 +41,9 @@ export default function TemplatesPanel({ open, onClose }: TemplatesPanelProps): 
       setNewName("");
       const updated = await listTemplates();
       setTemplates(updated);
+      toast.success(`Template "${newName.trim()}" saved`);
     } catch (err) {
-      alert("Failed to save: " + (err as Error).message);
+      toast.error("Failed to save: " + (err as Error).message);
     }
   };
 
@@ -60,7 +62,7 @@ export default function TemplatesPanel({ open, onClose }: TemplatesPanelProps): 
       await deleteTemplate(id);
       setTemplates((t) => t.filter((x) => x.id !== id));
     } catch (err) {
-      alert("Failed to delete: " + (err as Error).message);
+      toast.error("Failed to delete: " + (err as Error).message);
     }
   };
 
@@ -116,6 +118,11 @@ export default function TemplatesPanel({ open, onClose }: TemplatesPanelProps): 
           </div>
         )}
         {loading && <p style={{ fontSize: 12, color: "#666", textAlign: "center" }}>Loading...</p>}
+        {!loading && supabase && templates.length === 0 && (
+          <p style={{ fontSize: 12, color: "#999", textAlign: "center", padding: 12 }}>
+            No templates yet. Configure section toggles, then save above.
+          </p>
+        )}
         {templates.map((t) => (
           <div key={t.id} style={{
             padding: 12, marginBottom: 8, borderRadius: 6,

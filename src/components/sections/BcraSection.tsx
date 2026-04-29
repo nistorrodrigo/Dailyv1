@@ -3,6 +3,7 @@ import { useState } from "react";
 import useDailyStore from "../../store/useDailyStore";
 import { Card } from "../ui";
 import { BRAND } from "../../constants/brand";
+import { toast } from "../../store/useToastStore";
 
 export default function BcraSection() {
     const { sections, bcraData, bcraHiddenRows } = useDailyStore(useShallow((s) => ({ sections: s.sections, bcraData: s.bcraData, bcraHiddenRows: s.bcraHiddenRows })));
@@ -21,7 +22,7 @@ export default function BcraSection() {
       setBcraData(data);
     } catch (e) {
       console.error("BCRA fetch failed:", e);
-      alert("Failed to fetch BCRA data: " + (e as Error).message);
+      toast.error("Failed to fetch BCRA data: " + (e as Error).message);
     } finally {
       setFetching(false);
     }

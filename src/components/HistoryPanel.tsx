@@ -4,6 +4,7 @@ import { listDailies, loadDaily, deleteDaily } from "../lib/dailyApi";
 import { supabase } from "../lib/supabase";
 import useDailyStore from "../store/useDailyStore";
 import type { DailyState } from "../types";
+import { toast } from "../store/useToastStore";
 
 interface HistoryPanelProps {
   open: boolean;
@@ -39,7 +40,7 @@ export default function HistoryPanel({ open, onClose }: HistoryPanelProps): Reac
         onClose();
       }
     } catch (err) {
-      alert("Failed to load: " + (err as Error).message);
+      toast.error("Failed to load: " + (err as Error).message);
     }
   };
 
@@ -59,7 +60,7 @@ export default function HistoryPanel({ open, onClose }: HistoryPanelProps): Reac
         onClose();
       }
     } catch (err) {
-      alert("Failed to duplicate: " + (err as Error).message);
+      toast.error("Failed to duplicate: " + (err as Error).message);
     }
   };
 
@@ -69,7 +70,7 @@ export default function HistoryPanel({ open, onClose }: HistoryPanelProps): Reac
       await deleteDaily(id);
       setDailies((d) => d.filter((x) => x.id !== id));
     } catch (err) {
-      alert("Failed to delete: " + (err as Error).message);
+      toast.error("Failed to delete: " + (err as Error).message);
     }
   };
 
