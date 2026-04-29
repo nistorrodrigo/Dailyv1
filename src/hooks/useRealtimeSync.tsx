@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "../lib/supabase";
 import useDailyStore from "../store/useDailyStore";
 import type { DailyState } from "../types";
@@ -11,24 +12,22 @@ interface ActiveEditor {
 
 export function useRealtimeSync() {
   const [activeEditors, setActiveEditors] = useState<ActiveEditor[]>([]);
-  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const channelRef = useRef<RealtimeChannel | null>(null);
 
   useEffect(() => {
-    if (!supabase) return;
+    const sb = supabase;
+    if (!sb) return;
 
-    const channel = supabase.channel("daily-sync", {
+    const channel = sb.channel("daily-sync", {
       config: { broadcast: { self: false } },
     });
 
     channel
       .on("broadcast", { event: "state-update" }, ({ payload }) => {
-        // Another user updated the state — merge their changes
-        if (payload?.state) {
-          const current = useDailyStore.getState();
-          // Only merge if they changed a different section
-          if (payload.section && payload.section !== current._lastEditedSection) {
-            useDailyStore.setState({ [payload.field]: payload.value } as Partial<DailyState>);
-          }
+        // Another user updated the state — merge their changes.
+        // self:false (above) prevents echoes of our own broadcasts.
+        if (payload?.field) {
+          useDailyStore.setState({ [payload.field]: payload.value } as Partial<DailyState>);
         }
       })
       .on("broadcast", { event: "editing" }, ({ payload }) => {
@@ -46,13 +45,14 @@ export function useRealtimeSync() {
     channelRef.current = channel;
 
     return () => {
-      supabase.removeChannel(channel);
+      sb.removeChannel(channel);
     };
   }, []);
 
-  const broadcastEdit = (section: string, field: string, value: unknown) => {
-    if (!channelRef.current || !supabase) return;
-    supabase.auth.getUser().then(({ data }) => {
+  const broadcastEdit = (section: string) => {
+    const sb = supabase;
+    if (!channelRef.current || !sb) return;
+    sb.auth.getUser().then(({ data }) => {
       channelRef.current?.send({
         type: "broadcast",
         event: "editing",

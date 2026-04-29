@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { BRAND } from "../constants/brand";
 import { listRecipients, addRecipient, toggleRecipient, removeRecipient } from "../lib/recipientsApi";
+import { fetchSendGridLists, fetchSendGridContacts, type SendGridList, type SendGridContact } from "../lib/sendgridApi";
 import { supabase } from "../lib/supabase";
 import useDailyStore from "../store/useDailyStore";
 import { generateHTML } from "../utils/generateHTML";
@@ -16,17 +17,6 @@ interface Recipient {
   email: string;
   name: string;
   active: boolean;
-}
-
-interface SendGridList {
-  id: string;
-  name: string;
-  count: number;
-}
-
-interface SendGridContact {
-  email: string;
-  name: string;
 }
 
 interface EmailLog {
@@ -59,6 +49,7 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
   const [emailLogs, setEmailLogs] = useState<EmailLog[]>([]);
   const [showLogs, setShowLogs] = useState<boolean>(false);
   const [sgLoading, setSgLoading] = useState<boolean>(false);
+  const [sgProgress, setSgProgress] = useState<string>("");
 
   useEffect(() => {
     if (open) {
@@ -193,10 +184,8 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
                 onClick={async () => {
                   setSgLoading(true);
                   try {
-                    const resp = await fetch("/api/sendgrid-lists");
-                    const data = await resp.json();
-                    if (data.ok) setSgLists(data.lists);
-                    else throw new Error(data.error);
+                    const lists = await fetchSendGridLists();
+                    setSgLists(lists);
                   } catch (err) {
                     setSendResult({ type: "error", message: "Failed to load lists: " + (err as Error).message });
                   } finally {
@@ -214,31 +203,11 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
                 key={list.id}
                 onClick={async () => {
                   setSgLoading(true);
+                  setSgProgress("");
                   try {
-                    const startResp = await fetch(`/api/sendgrid-lists?listId=${list.id}`);
-                    const startData = await startResp.json();
-                    if (!startData.ok) throw new Error(startData.error || `HTTP ${startResp.status}`);
-
-                    let contacts: SendGridContact[] | undefined;
-                    if (startData.contacts) {
-                      contacts = startData.contacts;
-                    } else if (startData.exportId) {
-                      const exportId = startData.exportId;
-                      for (let attempts = 0; attempts < 30; attempts++) {
-                        await new Promise((r) => setTimeout(r, 2000));
-                        const pollResp = await fetch(`/api/sendgrid-lists?exportId=${exportId}`);
-                        const pollData = await pollResp.json();
-                        if (pollData.status === "ready" && pollData.contacts) {
-                          contacts = pollData.contacts;
-                          break;
-                        }
-                        if (pollData.status === "failure") throw new Error("SendGrid reported export failure");
-                      }
-                      if (!contacts) throw new Error("Export timed out after 60s");
-                    } else {
-                      throw new Error("Unexpected response: no contacts and no exportId");
-                    }
-
+                    const contacts = await fetchSendGridContacts(list.id, {
+                      onProgress: (msg) => setSgProgress(msg.replace("contacts...", `${list.count} contacts...`)),
+                    });
                     const newRecipients = contacts
                       .filter((c: SendGridContact) => !recipients.find((r) => r.email === c.email))
                       .map((c: SendGridContact) => ({ id: `sg${Date.now()}${Math.random()}`, email: c.email, name: c.name, active: true }));
@@ -249,6 +218,7 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
                     setSendResult({ type: "error", message: "Import failed: " + (err as Error).message });
                   } finally {
                     setSgLoading(false);
+                    setSgProgress("");
                   }
                 }}
                 disabled={sgLoading}
@@ -258,6 +228,9 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
               </button>
             ))}
           </div>
+          {sgProgress && (
+            <div className="mt-1 text-[10px] text-[var(--text-muted)] italic">{sgProgress}</div>
+          )}
         </div>
 
         <div style={{ marginBottom: 16 }}>
