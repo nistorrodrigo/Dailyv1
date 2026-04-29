@@ -166,6 +166,12 @@ describe("generateHTML", () => {
     expect(html).toContain('href="https://ft.com/a"');
   });
 
+  it("includes an unsubscribe link in the footer", () => {
+    const html = generateHTML(DEFAULT_STATE);
+    expect(html).toContain("/api/unsubscribe");
+    expect(html).toContain("Unsubscribe");
+  });
+
   it("ignores news links with empty URLs (defensive)", () => {
     const state = {
       ...DEFAULT_STATE,
