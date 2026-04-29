@@ -32,7 +32,20 @@ export interface TextMetrics {
   perSection: Record<string, number>;
 }
 
+/**
+ * Memoize by state ref. zustand emits a new state object only when state
+ * actually changes, so a WeakMap keyed on state is safe and ALSO essential
+ * here: passing this directly to `useDailyStore(...)` as a selector returns
+ * a fresh object on every call, which zustand interprets as "value changed"
+ * and causes an infinite render loop (React error #185). Memoizing means
+ * the same state ref returns the same metrics object — stable identity.
+ */
+const cache = new WeakMap<DailyState, TextMetrics>();
+
 export function getDailyTextMetrics(s: DailyState): TextMetrics {
+  const cached = cache.get(s);
+  if (cached) return cached;
+
   const perSection: Record<string, number> = {};
   const add = (key: string, n: number) => {
     if (n) perSection[key] = (perSection[key] || 0) + n;
@@ -61,5 +74,7 @@ export function getDailyTextMetrics(s: DailyState): TextMetrics {
   (s.tweets || []).forEach((t) => add("tweets", countWords(t.content)));
 
   const total = Object.values(perSection).reduce((a, b) => a + b, 0);
-  return { total, perSection };
+  const result: TextMetrics = { total, perSection };
+  cache.set(s, result);
+  return result;
 }

@@ -110,10 +110,12 @@ export default function Header(): React.ReactElement {
     useShallow((s) => ({ copiedLabel: s.copiedLabel, saveStatus: s.saveStatus, darkMode: s.darkMode, lastSavedAt: s.lastSavedAt })),
   );
   const date = useDailyStore((s) => s.date);
-  // Subscribe to the whole store for metrics — recomputed on every change
-  // but it's a fast pure pass over a few text fields.
-  const metrics = useDailyStore(getDailyTextMetrics);
-  const minutes = readingTimeMinutes(metrics.total);
+  // Subscribe ONLY to the primitive total — the underlying selector returns
+  // a fresh object on each call (memoized by WeakMap on state ref), so we
+  // pluck the number out so zustand's Object.is comparison is bulletproof
+  // against accidental re-render loops (React error #185).
+  const totalWords = useDailyStore((s) => getDailyTextMetrics(s).total);
+  const minutes = readingTimeMinutes(totalWords);
   const copyToClipboard = useUIStore((s) => s.copyToClipboard);
   const toggleDarkMode = useUIStore((s) => s.toggleDarkMode);
   const toggleShortcutsOverlay = useUIStore((s) => s.toggleShortcutsOverlay);
@@ -192,12 +194,12 @@ export default function Header(): React.ReactElement {
           )}
 
           {/* Word count + reading time */}
-          {metrics.total > 0 && (
+          {totalWords > 0 && (
             <span
               style={{ fontSize: 10, color: "rgba(255,255,255,0.55)", fontWeight: 500, letterSpacing: 0.3, marginRight: 4 }}
-              title={`${metrics.total} words · ~${minutes} min read`}
+              title={`${totalWords} words · ~${minutes} min read`}
             >
-              {metrics.total.toLocaleString()} words · {minutes}m
+              {totalWords.toLocaleString()} words · {minutes}m
             </span>
           )}
 
