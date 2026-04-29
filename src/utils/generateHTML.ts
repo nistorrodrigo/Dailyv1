@@ -44,7 +44,7 @@ export function generateHTML(s: DailyState, mode: string = "full", template: str
   const allTickers = s.analysts.flatMap(a => a.coverage.map(c => ({ ticker: c.ticker, rating: c.rating, tp: c.tp, last: c.last || "", analyst: a.name })));
 
   // SNAPSHOT
-  const snp = (s.snapshot || {}) as Record<string, string>;
+  const snp = s.snapshot;
   const snpRows = [
     ["Merval", snp.merval, snp.mervalChg], ["ADRs", snp.adrs, snp.adrsChg], ["S&P 500", snp.sp500, snp.sp500Chg],
     ["UST 10Y", snp.ust10y, ""], ["DXY", snp.dxy, ""], ["Soja", snp.soja, ""], ["WTI", snp.wti, ""],

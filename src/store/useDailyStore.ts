@@ -54,7 +54,7 @@ interface DailyActions {
   toggleSection: (key: string) => void;
   setSectionOn: (key: string, on: boolean) => void;
   moveSection: (from: number, to: number) => void;
-  reorderList: (field: string, from: number, to: number) => void;
+  reorderList: (field: ListField, from: number, to: number) => void;
 
   updateMover: (type: MoverType, index: number, key: string, value: string) => void;
   addMover: (type: MoverType) => void;
@@ -236,7 +236,7 @@ const useDailyStore = create<DailyStore>()(
 
         reorderList: (field, from, to) =>
           set((s) => {
-            const arr = [...(s as Record<string, unknown[]>)[field]];
+            const arr = [...s[field]];
             const [item] = arr.splice(from, 1);
             arr.splice(to, 0, item);
             return { [field]: arr } as Partial<DailyState>;

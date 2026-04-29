@@ -11,7 +11,7 @@ export function generateBBG(s: DailyState): string {
   if (s.summaryBar) L.push("", `🔥 ${s.summaryBar}`);
 
   // SNAPSHOT
-  const snp = (s.snapshot || {}) as Record<string, string>;
+  const snp = s.snapshot;
   const snpItems = [
     snp.merval ? `Merval ${snp.merval}${snp.mervalChg ? ` (${snp.mervalChg}%)` : ""}` : "",
     snp.adrs ? `ADRs ${snp.adrs}${snp.adrsChg ? ` (${snp.adrsChg}%)` : ""}` : "",

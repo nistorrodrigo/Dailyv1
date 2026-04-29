@@ -3,10 +3,12 @@ import { useShallow } from "zustand/react/shallow";
 import useDailyStore from "../../store/useDailyStore";
 import { Card } from "../ui";
 import { BRAND } from "../../constants/brand";
+import type { MarketSnapshot } from "../../types";
 
 const is: React.CSSProperties = { padding: "6px 8px", borderRadius: 4, border: "1px solid var(--border-input)", fontSize: 12, boxSizing: "border-box", width: "100%", background: "var(--bg-input)", color: "var(--text-primary)" };
 
-const rows = [
+type SnapshotKey = keyof MarketSnapshot;
+const rows: { key: SnapshotKey; label: string; chgKey: SnapshotKey | null }[] = [
   { key: "merval", label: "Merval", chgKey: "mervalChg" },
   { key: "adrs", label: "ADRs Index", chgKey: "adrsChg" },
   { key: "sp500", label: "S&P 500", chgKey: "sp500Chg" },
@@ -17,7 +19,7 @@ const rows = [
   { key: "ccl", label: "CCL", chgKey: "cclChg" },
   { key: "mep", label: "MEP", chgKey: "mepChg" },
   { key: "blue", label: "Blue", chgKey: null },
-] as const;
+];
 
 export default function SnapshotSection(): React.ReactElement | null {
   const { sections, snapshot } = useDailyStore(useShallow((s) => ({ sections: s.sections, snapshot: s.snapshot })));
@@ -27,7 +29,7 @@ export default function SnapshotSection(): React.ReactElement | null {
 
   if (!sections.find((x) => x.key === "snapshot")?.on) return null;
 
-  const update = (key: string, value: string) => {
+  const update = (key: SnapshotKey, value: string) => {
     setField("snapshot", { ...snapshot, [key]: value });
   };
 
@@ -37,9 +39,9 @@ export default function SnapshotSection(): React.ReactElement | null {
       const resp = await fetch("/api/snapshot");
       const data = await resp.json();
       if (!data.ok) throw new Error("Fetch failed");
-      const s = data.snapshot;
-      const newSnap = { ...snapshot };
-      const map: Record<string, [string, string | null]> = {
+      const s: Record<string, { value: string; chg?: string }> = data.snapshot;
+      const newSnap: MarketSnapshot = { ...snapshot };
+      const map: Record<string, [SnapshotKey, SnapshotKey | null]> = {
         merval: ["merval", "mervalChg"], sp500: ["sp500", "sp500Chg"],
         dxy: ["dxy", null], wti: ["wti", null], soja: ["soja", null],
         ust10y: ["ust10y", null],
@@ -47,8 +49,8 @@ export default function SnapshotSection(): React.ReactElement | null {
       };
       for (const [apiKey, [stateKey, chgKey]] of Object.entries(map)) {
         if (s[apiKey]) {
-          (newSnap as Record<string, string>)[stateKey] = s[apiKey].value;
-          if (chgKey && s[apiKey].chg) (newSnap as Record<string, string>)[chgKey] = s[apiKey].chg;
+          newSnap[stateKey] = s[apiKey].value;
+          if (chgKey && s[apiKey].chg) newSnap[chgKey] = s[apiKey].chg!;
         }
       }
       setField("snapshot", newSnap);
@@ -86,7 +88,7 @@ export default function SnapshotSection(): React.ReactElement | null {
               <td style={{ padding: "4px 8px", fontSize: 12, fontWeight: 600, color: "var(--text-primary)" }}>{r.label}</td>
               <td style={{ padding: 3 }}>
                 <input
-                  value={(snapshot as Record<string, string>)[r.key] || ""}
+                  value={snapshot[r.key] || ""}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => update(r.key, e.target.value)}
                   style={{ ...is, textAlign: "center" }}
                   placeholder="—"
@@ -95,9 +97,9 @@ export default function SnapshotSection(): React.ReactElement | null {
               <td style={{ padding: 3 }}>
                 {r.chgKey ? (
                   <input
-                    value={(snapshot as Record<string, string>)[r.chgKey] || ""}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => update(r.chgKey, e.target.value)}
-                    style={{ ...is, textAlign: "center", color: ((snapshot as Record<string, string>)[r.chgKey] || "").startsWith("-") ? "#c0392b" : "#1a7a3a" }}
+                    value={snapshot[r.chgKey] || ""}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => r.chgKey && update(r.chgKey, e.target.value)}
+                    style={{ ...is, textAlign: "center", color: (snapshot[r.chgKey] || "").startsWith("-") ? "#c0392b" : "#1a7a3a" }}
                     placeholder="—"
                   />
                 ) : <span style={{ display: "block", textAlign: "center", color: "var(--text-muted)", fontSize: 11 }}>—</span>}
