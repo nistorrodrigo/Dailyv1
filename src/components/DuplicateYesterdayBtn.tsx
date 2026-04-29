@@ -51,7 +51,22 @@ export default function DuplicateYesterdayBtn(): React.ReactElement {
   return (
     <button
       onClick={handleDuplicate}
-      className="px-3.5 py-1.5 rounded-md border border-[var(--color-teal)] bg-transparent text-[var(--color-teal)] text-[10px] font-bold cursor-pointer uppercase tracking-wide whitespace-nowrap"
+      style={{
+        padding: "6px 12px",
+        borderRadius: 6,
+        border: "1px solid rgba(255,255,255,0.18)",
+        background: "transparent",
+        color: "var(--color-teal)",
+        fontSize: 10,
+        fontWeight: 700,
+        cursor: "pointer",
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
+        whiteSpace: "nowrap",
+        transition: "all 120ms ease",
+      }}
+      onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.08)"; }}
+      onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "transparent"; }}
     >
       From Yesterday
     </button>

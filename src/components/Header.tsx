@@ -5,6 +5,7 @@ import useDailyStore from "../store/useDailyStore";
 import useUIStore from "../store/useUIStore";
 import { generateHTML } from "../utils/generateHTML";
 import { generateBBG } from "../utils/generateBBG";
+import { fmtEventDate } from "../utils/dates";
 import HistoryPanel from "./HistoryPanel";
 import TemplatesPanel from "./TemplatesPanel";
 import EmailSendPanel from "./EmailSendPanel";
@@ -28,106 +29,208 @@ function timeAgo(ts: number): string {
   return `${Math.floor(m / 60)}h ago`;
 }
 
-const hBtn = (borderColor: string, textColor: string, bg: string = "transparent"): React.CSSProperties => ({
-  padding: "6px 14px", borderRadius: 6,
-  border: bg === "transparent" ? `1px solid ${borderColor}` : "none",
-  background: bg, color: textColor,
-  fontSize: 10, fontWeight: 700, cursor: "pointer",
-  textTransform: "uppercase", letterSpacing: 0.5, whiteSpace: "nowrap",
-});
+/**
+ * Toolbar button. Defaults to a neutral transparent style; pass an `accent`
+ * to tint the text/hover but keep the border + background uniform across
+ * the toolbar. Pass `primary` for the prominent filled CTA (Send Email).
+ */
+interface TBProps {
+  onClick: () => void;
+  children: React.ReactNode;
+  accent?: string;
+  primary?: boolean;
+  title?: string;
+}
+
+const TBtn = ({ onClick, children, accent, primary, title }: TBProps) => {
+  const [hover, setHover] = useState(false);
+  if (primary) {
+    return (
+      <button
+        onClick={onClick}
+        title={title}
+        onMouseEnter={() => setHover(true)}
+        onMouseLeave={() => setHover(false)}
+        style={{
+          padding: "7px 18px",
+          borderRadius: 6,
+          border: "none",
+          background: hover ? "#2868c8" : BRAND.blue,
+          color: "#fff",
+          fontSize: 11,
+          fontWeight: 700,
+          cursor: "pointer",
+          textTransform: "uppercase",
+          letterSpacing: 0.5,
+          whiteSpace: "nowrap",
+          boxShadow: hover ? "0 2px 6px rgba(30,90,176,0.4)" : "0 1px 3px rgba(30,90,176,0.25)",
+          transition: "all 120ms ease",
+        }}
+      >
+        {children}
+      </button>
+    );
+  }
+  const color = accent || "rgba(255,255,255,0.85)";
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        padding: "6px 12px",
+        borderRadius: 6,
+        border: "1px solid rgba(255,255,255,0.18)",
+        background: hover ? "rgba(255,255,255,0.08)" : "transparent",
+        color,
+        fontSize: 10,
+        fontWeight: 700,
+        cursor: "pointer",
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
+        whiteSpace: "nowrap",
+        transition: "all 120ms ease",
+      }}
+    >
+      {children}
+    </button>
+  );
+};
+
+const Divider = () => (
+  <div style={{ width: 1, height: 22, background: "rgba(255,255,255,0.15)", margin: "0 4px" }} aria-hidden />
+);
 
 export default function Header(): React.ReactElement {
-  const { copiedLabel, saveStatus, darkMode, lastSavedAt } = useUIStore(useShallow((s) => ({ copiedLabel: s.copiedLabel, saveStatus: s.saveStatus, darkMode: s.darkMode, lastSavedAt: s.lastSavedAt })));
+  const { copiedLabel, saveStatus, darkMode, lastSavedAt } = useUIStore(
+    useShallow((s) => ({ copiedLabel: s.copiedLabel, saveStatus: s.saveStatus, darkMode: s.darkMode, lastSavedAt: s.lastSavedAt })),
+  );
+  const date = useDailyStore((s) => s.date);
   const copyToClipboard = useUIStore((s) => s.copyToClipboard);
   const toggleDarkMode = useUIStore((s) => s.toggleDarkMode);
   const newDaily = useDailyStore((s) => s.newDaily);
   const [openPanel, setOpenPanel] = useState<PanelName>(null);
 
-  const copyGenerated = useCallback((type: "html" | "bbg") => {
+  const copyGenerated = useCallback(
+    (type: "html" | "bbg") => {
+      const state = useDailyStore.getState();
+      const text = type === "html" ? generateHTML(state) : generateBBG(state);
+      copyToClipboard(text, type);
+    },
+    [copyToClipboard],
+  );
+
+  const sendWhatsApp = () => {
     const state = useDailyStore.getState();
-    const text = type === "html" ? generateHTML(state) : generateBBG(state);
-    copyToClipboard(text, type);
-  }, [copyToClipboard]);
+    const bbg = generateBBG(state);
+    window.open("https://web.whatsapp.com/send?text=" + encodeURIComponent(bbg), "_blank");
+  };
 
   return (
     <>
-      <div className="header-content" style={{
-        background: "var(--bg-header)", padding: "10px 20px",
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        borderBottom: `3px solid ${BRAND.sky}`,
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <img src={LOGO_WHITE_URL} alt="LS" style={{ height: 26 }} />
-          <span className="header-logo-text" style={{
-            fontSize: 10, letterSpacing: 1.2, color: BRAND.sky,
-            textTransform: "uppercase", fontWeight: 600,
-          }}>
-            Daily Builder
-          </span>
+      <div
+        className="header-content"
+        style={{
+          background: "var(--bg-header)",
+          padding: "12px 22px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          borderBottom: `3px solid ${BRAND.sky}`,
+          gap: 16,
+        }}
+      >
+        {/* Brand block */}
+        <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
+          <img src={LOGO_WHITE_URL} alt="Latin Securities" style={{ height: 34, width: "auto", flexShrink: 0 }} />
+          <div style={{ width: 1, height: 32, background: "rgba(255,255,255,0.18)" }} aria-hidden />
+          <div style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
+            <span style={{ fontSize: 13, color: "#fff", fontWeight: 700, letterSpacing: 0.4, lineHeight: 1.1 }}>
+              Argentina Daily
+            </span>
+            <span style={{ fontSize: 10, letterSpacing: 1.4, color: BRAND.sky, textTransform: "uppercase", fontWeight: 600 }}>
+              {fmtEventDate(date) || "Daily Builder"}
+            </span>
+          </div>
         </div>
-        <div className="header-buttons" style={{ display: "flex", gap: 6, alignItems: "center" }}>
+
+        {/* Action buttons */}
+        <div className="header-buttons" style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "nowrap" }}>
           <PresenceIndicator />
+
+          {/* Save status (no border, just text) */}
           {(saveStatus === "saved" || saveStatus === "idle") && lastSavedAt && (
-            <span className="save-indicator" style={{ fontSize: 10, color: BRAND.green, fontWeight: 600, letterSpacing: 0.5 }}>
-              {"\u2713"} Saved {timeAgo(lastSavedAt)}
+            <span style={{ fontSize: 10, color: BRAND.green, fontWeight: 600, letterSpacing: 0.5, marginRight: 4 }}>
+              {"✓"} Saved {timeAgo(lastSavedAt)}
             </span>
           )}
           {saveStatus === "saving" && (
-            <span className="save-indicator" style={{ fontSize: 10, color: BRAND.orange, fontWeight: 600, letterSpacing: 0.5 }}>
-              SAVING...
+            <span style={{ fontSize: 10, color: BRAND.orange, fontWeight: 600, letterSpacing: 0.5, marginRight: 4 }}>
+              SAVING…
             </span>
           )}
           {saveStatus === "error" && (
-            <span className="save-indicator" style={{ fontSize: 10, color: "#e74c3c", fontWeight: 600 }}>
+            <span style={{ fontSize: 10, color: "#e74c3c", fontWeight: 600, marginRight: 4 }}>
               OFFLINE
             </span>
           )}
 
-          {/* Dark mode toggle */}
+          {/* Output group: copy/share */}
+          <TBtn onClick={() => copyGenerated("html")} accent={BRAND.sky} title="Copy HTML email body">
+            {copiedLabel === "html" ? "✓ Copied" : "Copy HTML"}
+          </TBtn>
+          <TBtn onClick={() => copyGenerated("bbg")} accent={BRAND.green} title="Copy Bloomberg-formatted text">
+            {copiedLabel === "bbg" ? "✓ Copied" : "Copy BBG"}
+          </TBtn>
+          <TBtn onClick={sendWhatsApp} accent="#25D366" title="Open WhatsApp Web with BBG text">
+            WhatsApp
+          </TBtn>
+          <TBtn onClick={() => import("../utils/exportPDF").then((m) => m.exportPDF())} accent="#e74c3c" title="Export as PDF">
+            PDF
+          </TBtn>
+
+          <Divider />
+
+          {/* Workflow group */}
+          <TBtn onClick={() => setOpenPanel("contacts")} accent="#2ecc71">Contacts</TBtn>
+          <TBtn onClick={() => setOpenPanel("templates")} accent={BRAND.teal}>Templates</TBtn>
+          <TBtn onClick={() => setOpenPanel("history")} accent={BRAND.salmon}>History</TBtn>
+          <TBtn onClick={() => setOpenPanel("diff")} accent="#9b59b6">Diff</TBtn>
+          <TBtn onClick={() => setOpenPanel("schedule")} accent="#e67e22">Schedule</TBtn>
+          <TBtn onClick={() => setOpenPanel("ai-review")} accent="#8b5cf6">AI Review</TBtn>
+
+          <Divider />
+
+          {/* State group */}
+          <DuplicateYesterdayBtn />
+          <TBtn onClick={newDaily} accent={BRAND.orange}>New Daily</TBtn>
+
+          <Divider />
+
+          {/* Primary CTA */}
+          <TBtn onClick={() => setOpenPanel("email")} primary>Send Email</TBtn>
+
+          <Divider />
+
+          {/* Utilities */}
           <button
             onClick={toggleDarkMode}
-            style={{
-              ...hBtn("transparent", "#fff", "transparent"),
-              border: "none", fontSize: 16, padding: "4px 8px",
-            }}
             title={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+            style={{
+              border: "1px solid rgba(255,255,255,0.18)",
+              borderRadius: 6,
+              background: "transparent",
+              color: "#fff",
+              fontSize: 14,
+              padding: "5px 10px",
+              cursor: "pointer",
+              lineHeight: 1,
+            }}
           >
-            {darkMode ? "\u2600" : "\u263E"}
+            {darkMode ? "☀" : "☾"}
           </button>
-
-          <button onClick={() => setOpenPanel("contacts")} style={hBtn("#2ecc71", "#2ecc71")}>Contacts</button>
-          <button onClick={() => setOpenPanel("templates")} style={hBtn(BRAND.teal, BRAND.teal)}>Templates</button>
-          <button onClick={() => setOpenPanel("history")} style={hBtn(BRAND.salmon, BRAND.salmon)}>History</button>
-          <button onClick={() => setOpenPanel("diff")} style={hBtn("#9b59b6", "#9b59b6")}>Diff</button>
-          <button onClick={() => setOpenPanel("schedule")} style={hBtn("#e67e22", "#e67e22")}>Schedule</button>
-          <DuplicateYesterdayBtn />
-          <button onClick={newDaily} style={hBtn(BRAND.orange, BRAND.orange)}>New Daily</button>
-          <button onClick={() => copyGenerated("html")} style={hBtn(BRAND.sky, BRAND.sky)}>
-            {copiedLabel === "html" ? "\u2713 Copied!" : "Copy HTML"}
-          </button>
-          <button onClick={() => copyGenerated("bbg")} style={hBtn(BRAND.green, BRAND.green)}>
-            {copiedLabel === "bbg" ? "\u2713 Copied!" : "Copy BBG"}
-          </button>
-          <button onClick={() => {
-            const state = useDailyStore.getState();
-            const bbg = generateBBG(state);
-            const url = "https://web.whatsapp.com/send?text=" + encodeURIComponent(bbg);
-            window.open(url, "_blank");
-          }} style={hBtn("#25D366", "#25D366")}>
-            WhatsApp
-          </button>
-          <button onClick={() => setOpenPanel("email")} style={hBtn("none", "#fff", BRAND.blue)}>
-            Send Email
-          </button>
-          <button onClick={() => setOpenPanel("ai-review")} style={hBtn("#8b5cf6", "#8b5cf6")}>
-            AI Review
-          </button>
-          <button onClick={() => import("../utils/exportPDF").then((m) => m.exportPDF())} style={hBtn("#e74c3c", "#e74c3c")}>
-            PDF
-          </button>
-          <button onClick={logout} style={hBtn("#888", "#888")} title="Log out">
-            Logout
-          </button>
+          <TBtn onClick={logout} title="Log out">Logout</TBtn>
         </div>
       </div>
       <HistoryPanel open={openPanel === "history"} onClose={() => setOpenPanel(null)} />
