@@ -8,6 +8,8 @@ interface MarkdownEditorProps {
   onChange: (v: string) => void;
   rows?: number;
   placeholder?: string;
+  /** Optional paste hook — invoked on `onPaste` of the textarea. */
+  onPaste?: (e: React.ClipboardEvent<HTMLTextAreaElement>) => void;
 }
 
 function wrapSelection(textareaRef: React.RefObject<HTMLTextAreaElement | null>, before: string, after: string) {
@@ -21,7 +23,7 @@ function wrapSelection(textareaRef: React.RefObject<HTMLTextAreaElement | null>,
   return { newText, cursorPos: start + before.length + selected.length + after.length };
 }
 
-export default function MarkdownEditor({ value, onChange, rows = 4, placeholder }: MarkdownEditorProps) {
+export default function MarkdownEditor({ value, onChange, rows = 4, placeholder, onPaste }: MarkdownEditorProps) {
   const [showPreview, setShowPreview] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -74,6 +76,7 @@ export default function MarkdownEditor({ value, onChange, rows = 4, placeholder 
           ref={textareaRef}
           value={value}
           onChange={(e) => onChange(e.target.value)}
+          onPaste={onPaste}
           rows={rows}
           placeholder={placeholder}
           style={{

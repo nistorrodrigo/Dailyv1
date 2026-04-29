@@ -8,6 +8,7 @@ import { toast } from "../store/useToastStore";
 import { generateHTML } from "../utils/generateHTML";
 import { generateBBG } from "../utils/generateBBG";
 import { fmtEventDate } from "../utils/dates";
+import { getDailyTextMetrics, readingTimeMinutes } from "../utils/textMetrics";
 import HistoryPanel from "./HistoryPanel";
 import TemplatesPanel from "./TemplatesPanel";
 import EmailSendPanel from "./EmailSendPanel";
@@ -109,6 +110,10 @@ export default function Header(): React.ReactElement {
     useShallow((s) => ({ copiedLabel: s.copiedLabel, saveStatus: s.saveStatus, darkMode: s.darkMode, lastSavedAt: s.lastSavedAt })),
   );
   const date = useDailyStore((s) => s.date);
+  // Subscribe to the whole store for metrics — recomputed on every change
+  // but it's a fast pure pass over a few text fields.
+  const metrics = useDailyStore(getDailyTextMetrics);
+  const minutes = readingTimeMinutes(metrics.total);
   const copyToClipboard = useUIStore((s) => s.copyToClipboard);
   const toggleDarkMode = useUIStore((s) => s.toggleDarkMode);
   const toggleShortcutsOverlay = useUIStore((s) => s.toggleShortcutsOverlay);
@@ -183,6 +188,16 @@ export default function Header(): React.ReactElement {
           {saveStatus === "error" && (
             <span style={{ fontSize: 10, color: "#e74c3c", fontWeight: 600, marginRight: 4 }}>
               OFFLINE
+            </span>
+          )}
+
+          {/* Word count + reading time */}
+          {metrics.total > 0 && (
+            <span
+              style={{ fontSize: 10, color: "rgba(255,255,255,0.55)", fontWeight: 500, letterSpacing: 0.3, marginRight: 4 }}
+              title={`${metrics.total} words · ~${minutes} min read`}
+            >
+              {metrics.total.toLocaleString()} words · {minutes}m
             </span>
           )}
 

@@ -51,6 +51,27 @@ export default function Toaster(): React.ReactElement {
           >
             <span style={{ flexShrink: 0, fontWeight: 700, lineHeight: 1.4 }}>{palette.icon}</span>
             <span style={{ flex: 1, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{t.message}</span>
+            {t.action && (
+              <button
+                onClick={() => { t.action!.onClick(); dismiss(t.id); }}
+                style={{
+                  background: "transparent",
+                  border: `1px solid ${palette.fg}`,
+                  color: palette.fg,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  padding: "3px 10px",
+                  borderRadius: 4,
+                  cursor: "pointer",
+                  textTransform: "uppercase",
+                  letterSpacing: 0.4,
+                  whiteSpace: "nowrap",
+                  flexShrink: 0,
+                }}
+              >
+                {t.action.label}
+              </button>
+            )}
             <button
               onClick={() => dismiss(t.id)}
               aria-label="Dismiss"

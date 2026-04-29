@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import useDailyStore from "../../store/useDailyStore";
 import { Card, Inp, X, DashBtn, NewsLinksEditor } from "../ui";
+import { makeUrlPasteHandler } from "../../hooks/useUrlPasteHint";
 import SortableList from "../ui/SortableList";
 import MarkdownEditor from "../ui/MarkdownEditor";
 import { CopyPromptBtn, ImproveBtn } from "../ui/AIHelpers";
@@ -112,7 +113,12 @@ export default function MacroSection() {
                     <CopyPromptBtn section="Macro / Political" currentText={b.body} />
                   </div>
                 </div>
-                <MarkdownEditor value={b.body} onChange={(v) => updateListItem("macroBlocks", b.id, "body", v)} rows={4} />
+                <MarkdownEditor
+                  value={b.body}
+                  onChange={(v) => updateListItem("macroBlocks", b.id, "body", v)}
+                  rows={4}
+                  onPaste={makeUrlPasteHandler(b.newsLinks, (next) => updateListItem("macroBlocks", b.id, "newsLinks", next))}
+                />
               </div>
               <Inp label="LS Pick / Comment" value={b.lsPick} onChange={(v) => updateListItem("macroBlocks", b.id, "lsPick", v)} />
               <NewsLinksEditor

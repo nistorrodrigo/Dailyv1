@@ -6,6 +6,7 @@ import SortableList from "../ui/SortableList";
 import { BRAND } from "../../constants/brand";
 import { ImproveBtn, CopyPromptBtn } from "../ui/AIHelpers";
 import { rc, rb } from "../../utils/ratings";
+import { makeUrlPasteHandler } from "../../hooks/useUrlPasteHint";
 
 const is: React.CSSProperties = { padding: "6px 8px", borderRadius: 4, border: "1px solid var(--border-input)", fontSize: 12, boxSizing: "border-box" };
 const ss: React.CSSProperties = { ...is, background: "var(--bg-card)" };
@@ -116,7 +117,13 @@ export default function CorporateSection() {
                 <CopyPromptBtn section="Corporate" currentText={b.body} />
               </div>
             </div>
-            <Inp value={b.body} onChange={(v) => updateListItem("corpBlocks", b.id, "body", v)} multi rows={4} />
+            <Inp
+              value={b.body}
+              onChange={(v) => updateListItem("corpBlocks", b.id, "body", v)}
+              multi
+              rows={4}
+              onPaste={makeUrlPasteHandler(b.newsLinks, (next) => updateListItem("corpBlocks", b.id, "newsLinks", next))}
+            />
             <Inp label="LS Report Link" value={b.link} onChange={(v) => updateListItem("corpBlocks", b.id, "link", v)} placeholder="https://..." />
             <NewsLinksEditor
               links={b.newsLinks}

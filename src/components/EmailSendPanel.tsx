@@ -40,7 +40,10 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
   const date = useDailyStore((s) => s.date);
   const [subject, setSubject] = useState<string>("");
   const [pin, setPin] = useState<string>(() => sessionStorage.getItem("ls-send-pin") || "");
-  const [pinError, setPinError] = useState<string>("");
+  // pinError carries both the message and the kind so we can render
+  // different colours: "missing" → amber (this is your fault, try again),
+  // "invalid" → red (server rejected, security concern).
+  const [pinError, setPinError] = useState<{ kind: "missing" | "invalid"; message: string } | null>(null);
   const [sendResult, setSendResult] = useState<SendResult | null>(null);
   const [sgLists, setSgLists] = useState<SendGridList[]>([]);
   const [selectedListName, setSelectedListName] = useState<string>("");
@@ -102,8 +105,8 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
     const activeRecipients = recipients.filter((r) => r.active).map((r) => r.email);
     if (!activeRecipients.length) { toast.error("No active recipients selected"); return; }
     if (!subject.trim()) { toast.error("Subject is required"); return; }
-    if (!pin.trim()) { setPinError("Enter PIN to send"); return; }
-    setPinError("");
+    if (!pin.trim()) { setPinError({ kind: "missing", message: "Enter PIN to send" }); return; }
+    setPinError(null);
     setConfirmOpen(true);
   };
 
@@ -112,7 +115,7 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
     setConfirmOpen(false);
     const activeRecipients = recipients.filter((r) => r.active).map((r) => r.email);
     setSending(true);
-    setPinError("");
+    setPinError(null);
     try {
       const html = generateHTML(useDailyStore.getState());
       const resp = await fetch("/api/send-email", {
@@ -131,7 +134,7 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
       setPin("");
     } catch (err) {
       if ((err as Error).message.includes("Invalid PIN")) {
-        setPinError("Invalid PIN. Try again.");
+        setPinError({ kind: "invalid", message: "Invalid PIN. Try again." });
       } else {
         setSendResult({ type: "error", message: `Send failed: ${(err as Error).message}` });
       }
@@ -148,8 +151,8 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
 
   /** Open the inline "send test to which email?" form. */
   const handleTestEmailClick = (): void => {
-    if (!pin.trim()) { setPinError("Enter PIN"); return; }
-    setPinError("");
+    if (!pin.trim()) { setPinError({ kind: "missing", message: "Enter PIN" }); return; }
+    setPinError(null);
     setTestEmailAddress(testEmailAddress || defaultTestAddress());
     setTestFormOpen(true);
   };
@@ -160,7 +163,7 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
     if (!addr) { toast.info("Enter an email address"); return; }
     setTestFormOpen(false);
     setSending(true);
-    setPinError("");
+    setPinError(null);
     try {
       const html = generateHTML(useDailyStore.getState());
       const resp = await fetch("/api/send-email", {
@@ -180,7 +183,7 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
       setSendResult({ type: "success", message: `✓ Test email sent to ${addr}` });
     } catch (err) {
       const msg = (err as Error).message;
-      if (msg?.includes("Invalid PIN")) setPinError("Invalid PIN");
+      if (msg?.includes("Invalid PIN")) setPinError({ kind: "invalid", message: "Invalid PIN" });
       else setSendResult({ type: "error", message: `Test failed: ${msg}` });
     } finally {
       setSending(false);
@@ -372,18 +375,31 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
             value={pin}
             onChange={(e) => {
               setPin(e.target.value);
-              setPinError("");
+              setPinError(null);
               sessionStorage.setItem("ls-send-pin", e.target.value);
             }}
             placeholder="Enter PIN to authorize send"
             className="themed-input w-full px-2.5 py-2 rounded-md border text-sm bg-[var(--bg-input)] text-[var(--text-primary)]"
-            style={{ borderColor: pinError ? "#e74c3c" : "var(--border-input)" }}
+            style={{
+              borderColor: pinError?.kind === "invalid"
+                ? "#e74c3c"
+                : pinError?.kind === "missing"
+                  ? "#e67e22"
+                  : "var(--border-input)",
+            }}
             onKeyDown={(e) => e.key === "Enter" && handleSendClick()}
           />
           <div className="text-[9px] text-[var(--text-muted)] mt-0.5 italic">
             Remembered for this browser tab; cleared on close.
           </div>
-          {pinError && <div className="text-[11px] text-red-500 mt-1 font-semibold">{pinError}</div>}
+          {pinError && (
+            <div
+              className="text-[11px] mt-1 font-semibold"
+              style={{ color: pinError.kind === "invalid" ? "#e74c3c" : "#c97a2c" }}
+            >
+              {pinError.kind === "invalid" ? "🔒 " : "⚠ "}{pinError.message}
+            </div>
+          )}
         </div>
         <div className="flex gap-2">
           <button

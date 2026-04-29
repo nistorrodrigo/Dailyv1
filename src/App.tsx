@@ -5,6 +5,7 @@ import type { UIState } from "./types";
 import Header from "./components/Header";
 import Toaster from "./components/Toaster";
 import KeyboardShortcutsOverlay from "./components/KeyboardShortcutsOverlay";
+import OfflineBanner from "./components/OfflineBanner";
 import EditorTab from "./components/sections/EditorTab";
 import AnalystsTab from "./components/sections/AnalystsTab";
 import PreviewTab from "./components/sections/PreviewTab";
@@ -27,6 +28,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[var(--bg-page)] font-sans">
+      <OfflineBanner />
       <Header />
       <div className="flex bg-[var(--bg-tab-bar)] border-b border-[var(--border-light)] max-md:justify-center">
         <button onClick={() => setTab("edit")} className={tabCls(tab === "edit")}>Editor</button>

@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import useDailyStore from "../../store/useDailyStore";
 import { Card, X, DashBtn } from "../ui";
@@ -6,6 +6,7 @@ import SortableList from "../ui/SortableList";
 import { BRAND } from "../../constants/brand";
 import { rc, rb } from "../../utils/ratings";
 import { fmtUpside, upsideColor } from "../../utils/prices";
+import { toast } from "../../store/useToastStore";
 import type { CoverageItem, EquityPick, FIIdea } from "../../types";
 
 const is: React.CSSProperties = { padding: "6px 8px", borderRadius: 4, border: "1px solid var(--border-input)", fontSize: 12, boxSizing: "border-box" };
@@ -37,10 +38,40 @@ export default function TradeIdeasSection() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const [bulkPaste, setBulkPaste] = useState("");
+
   if (!sections.find((x) => x.key === "tradeIdeas")?.on) return null;
 
   const allTickers = analysts.flatMap((a) => a.coverage.map((c) => c.ticker));
   const uniqueTickers = [...new Set(allTickers)];
+
+  /**
+   * Split a free-form blob ("BBAR, VIST\nIRS · CAAP") into clean tickers,
+   * dedupe against what's already on the list, and append a row per ticker.
+   * Recognises commas, semicolons, whitespace and pipe as delimiters.
+   */
+  const handleBulkPaste = () => {
+    const parts = bulkPaste
+      .split(/[\s,;|·]+/)
+      .map((s) => s.trim().toUpperCase())
+      .filter(Boolean);
+    if (!parts.length) return;
+    const existing = new Set(equityPicks.map((p) => p.ticker));
+    const fresh = [...new Set(parts)].filter((t) => !existing.has(t));
+    if (!fresh.length) {
+      toast.info("All those tickers are already in the list.");
+      return;
+    }
+    const added: EquityPick[] = fresh.map((t, i) => ({
+      id: `ep-bulk-${Date.now()}-${i}`,
+      ticker: t,
+      reason: "",
+    }));
+    setField("equityPicks", [...equityPicks, ...added]);
+    setBulkPaste("");
+    const skipped = parts.length - fresh.length;
+    toast.success(`Added ${added.length} ticker${added.length === 1 ? "" : "s"}${skipped ? ` (${skipped} duplicate${skipped === 1 ? "" : "s"} skipped)` : ""}`);
+  };
 
   const findCoverage = (ticker: string): CoverageItem | null => {
     for (const a of analysts) {
@@ -106,6 +137,35 @@ export default function TradeIdeasSection() {
           }}
         />
         <DashBtn onClick={addEquityPick}>+ Add Equity Pick</DashBtn>
+
+        {/* Bulk ticker paste — turns "BBAR, VIST, IRS" into N rows in one shot */}
+        <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+          <input
+            value={bulkPaste}
+            onChange={(e) => setBulkPaste(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleBulkPaste(); } }}
+            placeholder="Paste tickers: BBAR, VIST, IRS, CAAP…"
+            style={{ ...is, flex: 1, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}
+          />
+          <button
+            onClick={handleBulkPaste}
+            disabled={!bulkPaste.trim()}
+            style={{
+              padding: "6px 12px",
+              borderRadius: 4,
+              border: "1px solid var(--border-input)",
+              background: "transparent",
+              color: bulkPaste.trim() ? BRAND.blue : "var(--text-muted)",
+              fontSize: 11,
+              fontWeight: 700,
+              cursor: bulkPaste.trim() ? "pointer" : "default",
+              textTransform: "uppercase",
+              letterSpacing: 0.4,
+            }}
+          >
+            Bulk Add
+          </button>
+        </div>
       </div>
 
       {/* FI Ideas */}
