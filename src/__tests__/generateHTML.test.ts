@@ -103,12 +103,22 @@ describe("generateHTML", () => {
     expect(html).toContain("mock-orig-logo");
   });
 
-  it("renders bigger header logo (48px) and visible footer logo (32px, no opacity)", () => {
-    // Previously 32px header / 22px footer with opacity:0.6 — too small to read.
+  it("uses explicit pixel dimensions on logos so Outlook doesn't clip them", () => {
+    // Previously height:32px width:auto in the header — Outlook ignored
+    // width:auto and rendered the intrinsic 400px-wide logo, clipping it.
+    // Fix: explicit width AND height in both HTML attrs and inline style,
+    // matching the logo's 4:1 aspect ratio for the header (logo-white.png)
+    // and ~3.7:1 for the footer (logo.png).
     const html = generateHTML(DEFAULT_STATE);
-    expect(html).toContain("height:48px");
-    expect(html).toContain("height:32px");
+    expect(html).toContain('width="180"');
+    expect(html).toContain('height="45"');
+    expect(html).toContain("width:180px;height:45px");
+    // Footer logo (smaller).
+    expect(html).toContain('width="120"');
+    expect(html).toContain('height="32"');
+    // Old bugs we don't want to regress to.
     expect(html).not.toContain("opacity:0.6");
+    expect(html).not.toContain("width:auto");
   });
 
   it("renders news links under macro blocks", () => {

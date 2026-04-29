@@ -180,7 +180,7 @@ export function generateHTML(s: DailyState, mode: string = "full", template: str
 
     // HEADER
     + '<tr><td style="background:' + DS.navy + ';padding:36px 40px 30px;">'
-    + '<img src="' + logoW + '" alt="Latin Securities" style="height:48px;width:auto;display:block;margin-bottom:24px;" />'
+    + '<img src="' + logoW + '" alt="Latin Securities" width="180" height="45" style="width:180px;height:45px;display:block;margin-bottom:24px;border:0;outline:none;text-decoration:none;-ms-interpolation-mode:bicubic;" />'
     + '<div style="font-size:24px;font-weight:300;color:#fff;letter-spacing:-0.3px;">Argentina Daily</div>'
     + '<div style="margin-top:6px;"><span style="font-size:13px;color:rgba(255,255,255,0.55);font-weight:400;">' + formatDate(s.date) + '</span><span style="font-size:10px;color:' + DS.sky + ';font-weight:600;text-transform:uppercase;letter-spacing:1.5px;margin-left:16px;border:1px solid rgba(51,153,255,0.3);padding:3px 10px;border-radius:3px;">Sales &amp; Trading</span></div>'
     + '</td></tr>'
@@ -195,7 +195,7 @@ export function generateHTML(s: DailyState, mode: string = "full", template: str
     + sectionContent
 
     // SIGNATURE
-    + '<tr><td style="padding:24px 40px 0;border-top:1px solid ' + DS.border + ';"><img src="' + logo + '" alt="Latin Securities" style="height:32px;width:auto;display:block;margin-bottom:14px;" />' + sig + '</td></tr>'
+    + '<tr><td style="padding:24px 40px 0;border-top:1px solid ' + DS.border + ';"><img src="' + logo + '" alt="Latin Securities" width="120" height="32" style="width:120px;height:32px;display:block;margin-bottom:14px;border:0;outline:none;text-decoration:none;-ms-interpolation-mode:bicubic;" />' + sig + '</td></tr>'
 
     // FOOTER
     + '<tr><td style="padding:20px 40px 24px;"><div style="border-top:1px solid ' + DS.borderLight + ';padding-top:16px;"><div style="font-size:10px;font-weight:600;color:' + DS.textMuted + ';text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Latin Securities S.A.</div><div style="font-size:9.5px;color:' + DS.textMuted + ';line-height:1.6;">Arenales 707, 6th Floor \u00B7 Buenos Aires, Argentina \u00B7 <a href="https://www.latinsecurities.com.ar" style="color:' + DS.accent + ';text-decoration:none;">latinsecurities.com.ar</a></div><div style="font-size:9px;color:#b0b0b0;line-height:1.5;margin-top:10px;">' + (s.disclaimer || 'This material has been prepared by Latin Securities S.A. for informational purposes only.') + ' \u00A9 ' + new Date().getFullYear() + ' Latin Securities S.A. All rights reserved.</div></div></td></tr>'
