@@ -16,10 +16,12 @@ export default function BcraSection() {
     setFetching(true);
     try {
       const res = await fetch("/api/bcra");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setBcraData(data);
     } catch (e) {
       console.error("BCRA fetch failed:", e);
+      alert("Failed to fetch BCRA data: " + (e as Error).message);
     } finally {
       setFetching(false);
     }

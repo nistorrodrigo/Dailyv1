@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { BRAND } from "../constants/brand";
+import { fetchSendGridLists, type SendGridList } from "../lib/sendgridApi";
 
 interface SchedulePanelProps {
   open: boolean;
@@ -15,12 +16,6 @@ interface ScheduleObject {
   recipient_emails?: string[];
   last_sent_at?: string;
   last_sent_date?: string;
-}
-
-interface SendGridList {
-  id: string;
-  name: string;
-  count: number;
 }
 
 interface ResultMessage {
@@ -39,8 +34,11 @@ export default function SchedulePanel({ open, onClose }: SchedulePanelProps): Re
     if (!open) return;
     setLoading(true);
     setResult(null);
-    fetch("/api/schedule").then(r => r.json()).then(data => {
-      if (data.ok) {
+    (async () => {
+      try {
+        const resp = await fetch("/api/schedule");
+        const data = await resp.json();
+        if (!resp.ok || !data.ok) throw new Error(data.error || `HTTP ${resp.status}`);
         const s = data.schedule;
         // If last scheduled date already passed, reset to today
         const today = new Date().toISOString().split("T")[0];
@@ -50,14 +48,21 @@ export default function SchedulePanel({ open, onClose }: SchedulePanelProps): Re
         }
         if (!s.scheduled_date) s.scheduled_date = today;
         setSchedule(s);
+      } catch (err) {
+        setResult({ type: "error", message: "Failed to load schedule: " + (err as Error).message });
+      } finally {
+        setLoading(false);
       }
-    }).finally(() => setLoading(false));
+    })();
   }, [open]);
 
   const loadLists = async (): Promise<void> => {
-    const resp = await fetch("/api/sendgrid-lists");
-    const data = await resp.json();
-    if (data.ok) setSgLists(data.lists);
+    try {
+      const lists = await fetchSendGridLists();
+      setSgLists(lists);
+    } catch (err) {
+      setResult({ type: "error", message: "Failed to load SendGrid lists: " + (err as Error).message });
+    }
   };
 
   const handleSave = async (): Promise<void> => {
@@ -87,11 +92,13 @@ export default function SchedulePanel({ open, onClose }: SchedulePanelProps): Re
   const handleCancel = async (): Promise<void> => {
     setSaving(true);
     try {
-      await fetch("/api/schedule", {
+      const resp = await fetch("/api/schedule", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...schedule, enabled: false }),
       });
+      const data = await resp.json();
+      if (!resp.ok || !data.ok) throw new Error(data.error || `HTTP ${resp.status}`);
       setSchedule({ ...schedule!, enabled: false });
       setResult({ type: "success", message: "Scheduled send cancelled" });
     } catch (err) {

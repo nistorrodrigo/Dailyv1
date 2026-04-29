@@ -18,14 +18,26 @@ interface AnalyticsData {
 export default function DashboardTab() {
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string>("");
 
   useEffect(() => {
-    fetch("/api/analytics").then((r: Response) => r.json()).then((d: AnalyticsData) => {
-      if (d.ok) setData(d);
-    }).finally(() => setLoading(false));
+    (async () => {
+      try {
+        const resp = await fetch("/api/analytics");
+        const d = await resp.json() as AnalyticsData & { error?: string };
+        if (!resp.ok || !d.ok) throw new Error(d.error || `HTTP ${resp.status}`);
+        setData(d);
+      } catch (err) {
+        setError((err as Error).message);
+        console.error("[DashboardTab] analytics fetch failed:", err);
+      } finally {
+        setLoading(false);
+      }
+    })();
   }, []);
 
   if (loading) return <div className="text-center py-20 text-[var(--text-muted)]">Loading analytics...</div>;
+  if (error) return <div className="text-center py-20 text-red-500 text-sm">Analytics unavailable: {error}</div>;
   if (!data) return <div className="text-center py-20 text-[var(--text-muted)]">Analytics unavailable</div>;
 
   const { stats, last7, recentEmails } = data;
@@ -91,11 +103,21 @@ function EmailTracking(): React.ReactElement {
   } | null>(null);
   const [show, setShow] = useState(false);
 
+  const [trackingError, setTrackingError] = useState<string>("");
+
   const loadTracking = async () => {
-    const resp = await fetch("/api/analytics?type=email-events");
-    const d = await resp.json();
-    if (d.ok) setTracking(d);
-    setShow(true);
+    setTrackingError("");
+    try {
+      const resp = await fetch("/api/analytics?type=email-events");
+      const d = await resp.json();
+      if (!resp.ok || !d.ok) throw new Error(d.error || `HTTP ${resp.status}`);
+      setTracking(d);
+    } catch (err) {
+      setTrackingError((err as Error).message);
+      console.error("[DashboardTab] tracking fetch failed:", err);
+    } finally {
+      setShow(true);
+    }
   };
 
   return (
@@ -107,7 +129,8 @@ function EmailTracking(): React.ReactElement {
         </button>
       </div>
       {!show && <p className="text-xs text-[var(--text-muted)]">Click "Load Tracking Data" to see who opened your dailies.</p>}
-      {show && !tracking && <p className="text-xs text-[var(--text-muted)]">No tracking data yet. Data appears after SendGrid webhook is configured.</p>}
+      {show && trackingError && <p className="text-xs text-red-500">Failed to load: {trackingError}</p>}
+      {show && !tracking && !trackingError && <p className="text-xs text-[var(--text-muted)]">No tracking data yet. Data appears after SendGrid webhook is configured.</p>}
       {show && tracking && (
         <>
           <div className="flex gap-3 flex-wrap mb-4">

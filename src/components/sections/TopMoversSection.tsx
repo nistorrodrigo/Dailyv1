@@ -20,10 +20,12 @@ export default function TopMoversSection() {
     setFetching(true);
     try {
       const res = await fetch("/api/ccl");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setField("cclRate", data);
     } catch (e) {
       console.error("CCL fetch failed:", e);
+      alert("Failed to fetch CCL: " + (e as Error).message);
     } finally {
       setFetching(false);
     }

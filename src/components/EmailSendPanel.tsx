@@ -368,9 +368,14 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
           onClick={async () => {
             setShowLogs(!showLogs);
             if (!showLogs && emailLogs.length === 0) {
-              const resp = await fetch("/api/analytics?type=email-log");
-              const data = await resp.json();
-              if (data.ok) setEmailLogs(data.logs);
+              try {
+                const resp = await fetch("/api/analytics?type=email-log");
+                const data = await resp.json();
+                if (!resp.ok || !data.ok) throw new Error(data.error || `HTTP ${resp.status}`);
+                setEmailLogs(data.logs);
+              } catch (err) {
+                setSendResult({ type: "error", message: "Failed to load history: " + (err as Error).message });
+              }
             }
           }}
           className="w-full mt-3 py-2 rounded-md border border-[var(--border-input)] bg-transparent text-[var(--text-muted)] text-xs font-semibold cursor-pointer"
