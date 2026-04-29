@@ -1,8 +1,10 @@
 import React, { useState, useCallback } from "react";
 import { useShallow } from "zustand/react/shallow";
+import { useStore } from "zustand";
 import { BRAND, LOGO_WHITE_URL } from "../constants/brand";
 import useDailyStore from "../store/useDailyStore";
 import useUIStore from "../store/useUIStore";
+import { toast } from "../store/useToastStore";
 import { generateHTML } from "../utils/generateHTML";
 import { generateBBG } from "../utils/generateBBG";
 import { fmtEventDate } from "../utils/dates";
@@ -109,8 +111,16 @@ export default function Header(): React.ReactElement {
   const date = useDailyStore((s) => s.date);
   const copyToClipboard = useUIStore((s) => s.copyToClipboard);
   const toggleDarkMode = useUIStore((s) => s.toggleDarkMode);
+  const toggleShortcutsOverlay = useUIStore((s) => s.toggleShortcutsOverlay);
   const newDaily = useDailyStore((s) => s.newDaily);
   const [openPanel, setOpenPanel] = useState<PanelName>(null);
+
+  // zundo's temporal store — subscribe so the Undo/Redo buttons enable/disable
+  // reactively as the user edits or undoes.
+  const canUndo = useStore(useDailyStore.temporal, (s) => s.pastStates.length > 0);
+  const canRedo = useStore(useDailyStore.temporal, (s) => s.futureStates.length > 0);
+  const doUndo = () => { useDailyStore.temporal.getState().undo(); toast.info("Undone", 1500); };
+  const doRedo = () => { useDailyStore.temporal.getState().redo(); toast.info("Redone", 1500); };
 
   const copyGenerated = useCallback(
     (type: "html" | "bbg") => {
@@ -176,6 +186,48 @@ export default function Header(): React.ReactElement {
             </span>
           )}
 
+          {/* Undo / Redo */}
+          <button
+            onClick={doUndo}
+            disabled={!canUndo}
+            title="Undo (Ctrl+Z)"
+            aria-label="Undo"
+            style={{
+              border: "1px solid rgba(255,255,255,0.18)",
+              borderRadius: 6,
+              background: "transparent",
+              color: canUndo ? "#fff" : "rgba(255,255,255,0.3)",
+              fontSize: 14,
+              padding: "4px 10px",
+              cursor: canUndo ? "pointer" : "default",
+              lineHeight: 1,
+              transition: "all 120ms ease",
+            }}
+          >
+            ↶
+          </button>
+          <button
+            onClick={doRedo}
+            disabled={!canRedo}
+            title="Redo (Ctrl+Y / Ctrl+Shift+Z)"
+            aria-label="Redo"
+            style={{
+              border: "1px solid rgba(255,255,255,0.18)",
+              borderRadius: 6,
+              background: "transparent",
+              color: canRedo ? "#fff" : "rgba(255,255,255,0.3)",
+              fontSize: 14,
+              padding: "4px 10px",
+              cursor: canRedo ? "pointer" : "default",
+              lineHeight: 1,
+              transition: "all 120ms ease",
+            }}
+          >
+            ↷
+          </button>
+
+          <Divider />
+
           {/* Output group: copy/share */}
           <TBtn onClick={() => copyGenerated("html")} accent={BRAND.sky} title="Copy HTML email body">
             {copiedLabel === "html" ? "✓ Copied" : "Copy HTML"}
@@ -215,8 +267,26 @@ export default function Header(): React.ReactElement {
 
           {/* Utilities */}
           <button
+            onClick={toggleShortcutsOverlay}
+            title="Keyboard shortcuts (?)"
+            aria-label="Keyboard shortcuts"
+            style={{
+              border: "1px solid rgba(255,255,255,0.18)",
+              borderRadius: 6,
+              background: "transparent",
+              color: "#fff",
+              fontSize: 13,
+              padding: "5px 10px",
+              cursor: "pointer",
+              lineHeight: 1,
+              fontWeight: 700,
+            }}
+          >
+            ?
+          </button>
+          <button
             onClick={toggleDarkMode}
-            title={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+            title={darkMode ? "Switch to light mode (Ctrl+D)" : "Switch to dark mode (Ctrl+D)"}
             style={{
               border: "1px solid rgba(255,255,255,0.18)",
               borderRadius: 6,

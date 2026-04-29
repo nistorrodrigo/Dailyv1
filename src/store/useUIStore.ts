@@ -8,10 +8,13 @@ interface UIActions {
   setCopiedLabel: (label: string) => void;
   toggleDarkMode: () => void;
   copyToClipboard: (text: string, label: string) => void;
+  toggleShortcutsOverlay: () => void;
+  setShortcutsOverlayOpen: (open: boolean) => void;
 }
 
 interface UIStore extends UIState {
   lastSavedAt: number | null;
+  shortcutsOverlayOpen: boolean;
 }
 
 const useUIStore = create<UIStore & UIActions>((set, get) => ({
@@ -21,6 +24,7 @@ const useUIStore = create<UIStore & UIActions>((set, get) => ({
   saveStatus: "idle",
   lastSavedAt: null,
   darkMode: localStorage.getItem("ls-dark-mode") === "1",
+  shortcutsOverlayOpen: false,
 
   setTab: (tab: UIState["tab"]) => set({ tab }),
   setPreviewMode: (mode: UIState["previewMode"]) => set({ previewMode: mode }),
@@ -47,6 +51,9 @@ const useUIStore = create<UIStore & UIActions>((set, get) => ({
       setTimeout(() => set({ copiedLabel: "" }), 2000);
     });
   },
+
+  toggleShortcutsOverlay: () => set((s) => ({ shortcutsOverlayOpen: !s.shortcutsOverlayOpen })),
+  setShortcutsOverlayOpen: (open: boolean) => set({ shortcutsOverlayOpen: open }),
 }));
 
 export default useUIStore;

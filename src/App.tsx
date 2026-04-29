@@ -1,8 +1,10 @@
 import useUIStore from "./store/useUIStore";
 import useKeyboardShortcuts from "./hooks/useKeyboardShortcuts";
+import useUnsavedChangesGuard from "./hooks/useUnsavedChangesGuard";
 import type { UIState } from "./types";
 import Header from "./components/Header";
 import Toaster from "./components/Toaster";
+import KeyboardShortcutsOverlay from "./components/KeyboardShortcutsOverlay";
 import EditorTab from "./components/sections/EditorTab";
 import AnalystsTab from "./components/sections/AnalystsTab";
 import PreviewTab from "./components/sections/PreviewTab";
@@ -21,6 +23,7 @@ export default function App() {
   const tab: UIState["tab"] = useUIStore((s) => s.tab);
   const setTab = useUIStore((s) => s.setTab);
   useKeyboardShortcuts();
+  useUnsavedChangesGuard();
 
   return (
     <div className="min-h-screen bg-[var(--bg-page)] font-sans">
@@ -42,6 +45,7 @@ export default function App() {
         {tab === "dashboard" && <DashboardTab />}
       </div>
       <Toaster />
+      <KeyboardShortcutsOverlay />
     </div>
   );
 }
