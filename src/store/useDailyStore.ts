@@ -20,7 +20,7 @@ import type {
   Section,
 } from "../types";
 
-type ListField = "macroBlocks" | "corpBlocks" | "researchReports" | "signatures" | "analysts";
+type ListField = "macroBlocks" | "corpBlocks" | "researchReports" | "signatures" | "analysts" | "equityPicks" | "fiIdeas";
 type MoverType = "gainers" | "losers";
 
 interface DailyActions {
@@ -158,7 +158,7 @@ const useDailyStore = create<DailyStore>()(
           }),
 
         addEquityPick: () =>
-          set((s) => ({ equityPicks: [...s.equityPicks, { ticker: "", reason: "" }] })),
+          set((s) => ({ equityPicks: [...s.equityPicks, { id: `ep-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, ticker: "", reason: "" }] })),
 
         removeEquityPick: (index) =>
           set((s) => ({ equityPicks: s.equityPicks.filter((_, i) => i !== index) })),
@@ -172,7 +172,7 @@ const useDailyStore = create<DailyStore>()(
           }),
 
         addFIIdea: () =>
-          set((s) => ({ fiIdeas: [...s.fiIdeas, { idea: "", reason: "" }] })),
+          set((s) => ({ fiIdeas: [...s.fiIdeas, { id: `fi-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, idea: "", reason: "" }] })),
 
         removeFIIdea: (index) =>
           set((s) => ({ fiIdeas: s.fiIdeas.filter((_, i) => i !== index) })),

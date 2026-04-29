@@ -126,14 +126,14 @@ export default function AIDraftTab(): React.ReactElement {
     if (newMacros.length) setField("macroBlocks", [...macroBlocks, ...newMacros]);
 
     // Apply equity picks
-    const newEquity = accepted.filter((b) => b.section === "Equity Pick").map((b) => ({
-      ticker: b.ticker || "", reason: b.reason || "",
+    const newEquity = accepted.filter((b) => b.section === "Equity Pick").map((b, i) => ({
+      id: `ep-ai-${Date.now()}-${i}`, ticker: b.ticker || "", reason: b.reason || "",
     }));
     if (newEquity.length) setField("equityPicks", newEquity);
 
     // Apply FI ideas
-    const newFI = accepted.filter((b) => b.section === "FI Idea").map((b) => ({
-      idea: b.idea || "", reason: b.reason || "",
+    const newFI = accepted.filter((b) => b.section === "FI Idea").map((b, i) => ({
+      id: `fi-ai-${Date.now()}-${i}`, idea: b.idea || "", reason: b.reason || "",
     }));
     if (newFI.length) setField("fiIdeas", newFI);
 

@@ -106,7 +106,7 @@ describe("generateBBG", () => {
   it("includes equity pick reasons when provided", () => {
     const state = {
       ...DEFAULT_STATE,
-      equityPicks: [{ ticker: "BBAR", reason: "Q4 EPS beat consensus by 12%" }],
+      equityPicks: [{ id: "ep-test", ticker: "BBAR", reason: "Q4 EPS beat consensus by 12%" }],
     };
     const bbg = generateBBG(state);
     expect(bbg).toContain("BBAR");

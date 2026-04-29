@@ -2,6 +2,7 @@ import React from "react";
 import { useShallow } from "zustand/react/shallow";
 import useDailyStore from "../../store/useDailyStore";
 import { Card, Inp, X, DashBtn, NewsLinksEditor } from "../ui";
+import SortableList from "../ui/SortableList";
 import { BRAND } from "../../constants/brand";
 import { ImproveBtn, CopyPromptBtn } from "../ui/AIHelpers";
 import { rc, rb } from "../../utils/ratings";
@@ -14,6 +15,7 @@ export default function CorporateSection() {
       const updateListItem = useDailyStore((s) => s.updateListItem);
   const addListItem = useDailyStore((s) => s.addListItem);
   const removeListItem = useDailyStore((s) => s.removeListItem);
+  const reorderList = useDailyStore((s) => s.reorderList);
 
   if (!sections.find((x) => x.key === "corporate")?.on) return null;
 
@@ -22,12 +24,16 @@ export default function CorporateSection() {
 
   return (
     <Card title="Corporate" color={BRAND.blue}>
-      {corpBlocks.map((b) => {
-        const analyst = analysts.find((a) => a.id === b.analystId);
-        const tickers = b.tickers || [];
+      <SortableList
+        items={corpBlocks}
+        onReorder={(from, to) => reorderList("corpBlocks", from, to)}
+        renderItem={(item) => {
+          const b = corpBlocks.find((x) => x.id === item.id)!;
+          const analyst = analysts.find((a) => a.id === b.analystId);
+          const tickers = b.tickers || [];
 
-        return (
-          <div key={b.id} style={{ marginBottom: 16, padding: 12, background: "#f8f9fa", borderRadius: 6, position: "relative" }}>
+          return (
+          <div style={{ marginBottom: 16, padding: 12, background: "#f8f9fa", borderRadius: 6, position: "relative" }}>
             <div style={{ position: "absolute", top: 8, right: 8 }}>
               <X onClick={() => removeListItem("corpBlocks", b.id)} />
             </div>
@@ -117,8 +123,9 @@ export default function CorporateSection() {
               onChange={(next) => updateListItem("corpBlocks", b.id, "newsLinks", next)}
             />
           </div>
-        );
-      })}
+          );
+        }}
+      />
       <DashBtn onClick={() => addListItem("corpBlocks", { id: Date.now().toString(), tickers: [], headline: "", analystId: "", body: "", link: "" })}>
         + Add Corporate Block
       </DashBtn>

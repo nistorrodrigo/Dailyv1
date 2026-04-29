@@ -37,11 +37,15 @@ export interface MacroBlock {
 }
 
 export interface EquityPick {
+  /** Stable id for drag-and-drop reordering. New items get a random id. */
+  id: string;
   ticker: string;
   reason: string;
 }
 
 export interface FIIdea {
+  /** Stable id for drag-and-drop reordering. New items get a random id. */
+  id: string;
   idea: string;
   reason: string;
 }
