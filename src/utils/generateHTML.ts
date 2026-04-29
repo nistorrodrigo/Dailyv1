@@ -4,7 +4,23 @@ import { formatDate, fmtEventDate, fmtTime } from "./dates";
 import { rc, rb, resolveCorporateBlock } from "./ratings";
 import { fmtUpside, upsideColor, calcUpside } from "./prices";
 import { nl2br } from "./text";
-import type { DailyState } from "../types";
+import type { DailyState, NewsLink } from "../types";
+
+/** Hostname-only fallback when a NewsLink has no label, e.g. "ft.com". */
+function hostOf(url: string): string {
+  try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return url; }
+}
+
+/** Tiny "Sources: <a> · <a>" footer for blocks that have news links. */
+function renderNewsLinks(links: NewsLink[] | undefined): string {
+  if (!links || !links.length) return "";
+  const valid = links.filter((l) => l.url && l.url.trim());
+  if (!valid.length) return "";
+  const items = valid
+    .map((l) => '<a href="' + l.url + '" style="color:#1e5ab0;text-decoration:none;font-weight:600;">' + (l.label.trim() || hostOf(l.url)) + ' ↗</a>')
+    .join('<span style="color:#bbb;margin:0 6px;">·</span>');
+  return '<div style="margin-top:10px;font-size:11.5px;line-height:1.6;color:#888;"><span style="font-weight:600;text-transform:uppercase;letter-spacing:0.5px;font-size:10px;margin-right:6px;">Sources</span>' + items + '</div>';
+}
 
 const DS = {
   maxW: 640,
@@ -60,7 +76,7 @@ export function generateHTML(s: DailyState, mode: string = "full", template: str
   const latam = s.sections.find(x => x.key === "latam")?.on && s.latam ? secHdr("LatAm Context") + '<tr><td style="padding:0 40px 8px;"><div style="font-size:13.5px;line-height:1.65;color:' + DS.text + ';text-align:justify;">' + nl2br(s.latam) + '</div></td></tr>' : "";
 
   // MACRO
-  const macro = s.sections.find(x => x.key === "macro")?.on ? secHdr("Macro / Political") + '<tr><td style="padding:0 40px 8px;">' + s.macroBlocks.map(b => '<div style="margin-bottom:20px;"><div style="font-size:13px;font-weight:700;color:' + DS.navy + ';text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">' + b.title + '</div><div style="font-size:13.5px;line-height:1.65;color:' + DS.text + ';text-align:justify;">' + nl2br(b.body) + '</div>' + (b.lsPick ? '<div style="background:' + DS.greenBg + ';border-left:3px solid ' + DS.green + ';padding:10px 14px;margin-top:10px;font-size:13px;line-height:1.55;color:' + DS.green + ';"><span style="font-weight:700;">LS View:</span> ' + nl2br(b.lsPick) + '</div>' : '') + '</div>').join("") + '</td></tr>' : "";
+  const macro = s.sections.find(x => x.key === "macro")?.on ? secHdr("Macro / Political") + '<tr><td style="padding:0 40px 8px;">' + s.macroBlocks.map(b => '<div style="margin-bottom:20px;"><div style="font-size:13px;font-weight:700;color:' + DS.navy + ';text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">' + b.title + '</div><div style="font-size:13.5px;line-height:1.65;color:' + DS.text + ';text-align:justify;">' + nl2br(b.body) + '</div>' + (b.lsPick ? '<div style="background:' + DS.greenBg + ';border-left:3px solid ' + DS.green + ';padding:10px 14px;margin-top:10px;font-size:13px;line-height:1.55;color:' + DS.green + ';"><span style="font-weight:700;">LS View:</span> ' + nl2br(b.lsPick) + '</div>' : '') + renderNewsLinks(b.newsLinks) + '</div>').join("") + '</td></tr>' : "";
 
   // TRADE IDEAS
   const trade = s.sections.find(x => x.key === "tradeIdeas")?.on ? secHdr("Trade Ideas") + '<tr><td style="padding:0 40px 8px;"><div style="font-size:11px;font-weight:700;color:' + DS.navy + ';text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;padding-bottom:4px;">Equity \u2014 Research Top Picks</div>' + s.equityPicks.filter(p => p.ticker).map(p => {
@@ -76,7 +92,7 @@ export function generateHTML(s: DailyState, mode: string = "full", template: str
   const mEst = s.sections.find(x => x.key === "macroEstimates")?.on ? secHdr("Macro Estimates") + '<tr><td style="padding:0 40px 8px;"><div style="font-size:10.5px;color:' + DS.textMuted + ';margin-bottom:8px;">Source: ' + s.macroSource + '</div><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid ' + DS.border + ';"><tr style="background:' + DS.bgAlt + ';"><td style="padding:8px 12px;font-size:11px;font-weight:700;color:' + DS.navy + ';width:40%;border-bottom:1px solid ' + DS.border + ';"></td>' + s.macroCols.map(c => '<td style="padding:8px 12px;font-size:11px;font-weight:700;color:' + DS.navy + ';text-align:center;border-bottom:1px solid ' + DS.border + ';border-left:1px solid ' + DS.borderLight + ';">' + c + '</td>').join("") + '</tr>' + s.macroRows.map((r, i) => '<tr style="background:' + (i % 2 === 0 ? "#fff" : DS.bgAlt) + ';"><td style="padding:7px 12px;font-size:12.5px;font-weight:600;color:' + DS.text + ';border-bottom:1px solid ' + DS.borderLight + ';">' + r.label + '</td>' + s.macroCols.map(c => '<td style="padding:7px 12px;font-size:12.5px;color:' + DS.text + ';text-align:center;border-bottom:1px solid ' + DS.borderLight + ';border-left:1px solid ' + DS.borderLight + ';">' + (r.vals[c] || "") + '</td>').join("") + '</tr>').join("") + '</table></td></tr>' : "";
 
   // CORPORATE
-  const corp = s.sections.find(x => x.key === "corporate")?.on ? secHdr("Corporate") + '<tr><td style="padding:0 40px 8px;">' + s.corpBlocks.map(c => { const r = resolveCorporateBlock(c, s.analysts); return '<div style="margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid ' + DS.borderLight + ';"><div style="font-size:14px;font-weight:700;color:' + DS.navy + ';text-transform:uppercase;letter-spacing:0.3px;margin-bottom:8px;">' + r.tickers.join(" / ") + ' \u2014 ' + r.headline + '</div><div style="margin-bottom:8px;">' + r.covs.filter(cv => cv.ticker).map(cv => '<span style="display:inline-block;margin-right:8px;margin-bottom:4px;padding:4px 10px;border-radius:4px;font-size:11px;background:' + rb(cv.rating) + ';border:1px solid ' + rc(cv.rating) + '30;"><span style="font-weight:700;color:' + rc(cv.rating) + ';">' + cv.ticker + '</span> <span style="color:' + DS.textLight + ';">' + cv.rating + ' \u00B7 TP ' + cv.tp + (cv.last ? ' \u00B7 ' + cv.last : '') + (cv.tp && cv.last ? ' \u00B7 <span style="color:' + upsideColor(cv.tp, cv.last) + ';font-weight:700;">' + fmtUpside(cv.tp, cv.last) + '</span>' : '') + '</span></span>').join("") + '</div><div style="font-size:11.5px;color:' + DS.textMuted + ';font-style:italic;margin-bottom:6px;">' + r.analyst + '</div><div style="font-size:13.5px;line-height:1.65;color:' + DS.text + ';text-align:justify;">' + nl2br(r.body) + '</div>' + (r.link ? '<div style="margin-top:8px;"><a href="' + r.link + '" style="font-size:12px;color:#fff;background:' + DS.accent + ';padding:6px 14px;border-radius:4px;text-decoration:none;font-weight:600;">Full report &#8594;</a></div>' : '') + '</div>'; }).join("") + '</td></tr>' : "";
+  const corp = s.sections.find(x => x.key === "corporate")?.on ? secHdr("Corporate") + '<tr><td style="padding:0 40px 8px;">' + s.corpBlocks.map(c => { const r = resolveCorporateBlock(c, s.analysts); return '<div style="margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid ' + DS.borderLight + ';"><div style="font-size:14px;font-weight:700;color:' + DS.navy + ';text-transform:uppercase;letter-spacing:0.3px;margin-bottom:8px;">' + r.tickers.join(" / ") + ' \u2014 ' + r.headline + '</div><div style="margin-bottom:8px;">' + r.covs.filter(cv => cv.ticker).map(cv => '<span style="display:inline-block;margin-right:8px;margin-bottom:4px;padding:4px 10px;border-radius:4px;font-size:11px;background:' + rb(cv.rating) + ';border:1px solid ' + rc(cv.rating) + '30;"><span style="font-weight:700;color:' + rc(cv.rating) + ';">' + cv.ticker + '</span> <span style="color:' + DS.textLight + ';">' + cv.rating + ' \u00B7 TP ' + cv.tp + (cv.last ? ' \u00B7 ' + cv.last : '') + (cv.tp && cv.last ? ' \u00B7 <span style="color:' + upsideColor(cv.tp, cv.last) + ';font-weight:700;">' + fmtUpside(cv.tp, cv.last) + '</span>' : '') + '</span></span>').join("") + '</div><div style="font-size:11.5px;color:' + DS.textMuted + ';font-style:italic;margin-bottom:6px;">' + r.analyst + '</div><div style="font-size:13.5px;line-height:1.65;color:' + DS.text + ';text-align:justify;">' + nl2br(r.body) + '</div>' + (r.link ? '<div style="margin-top:8px;"><a href="' + r.link + '" style="font-size:12px;color:#fff;background:' + DS.accent + ';padding:6px 14px;border-radius:4px;text-decoration:none;font-weight:600;">Full report &#8594;</a></div>' : '') + renderNewsLinks(c.newsLinks) + '</div>'; }).join("") + '</td></tr>' : "";
 
   // RESEARCH
   const research = s.sections.find(x => x.key === "research")?.on && s.researchReports?.length ? secHdr("Research Reports") + '<tr><td style="padding:0 40px 8px;">' + (s.researchReports || []).filter(r => r.title).map(r => '<div style="margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid ' + DS.borderLight + ';"><div style="margin-bottom:3px;"><span style="font-size:10px;font-weight:700;color:' + DS.accent + ';text-transform:uppercase;letter-spacing:1px;">' + r.type + '</span></div><div style="font-size:13.5px;font-weight:700;color:' + DS.navy + ';margin-bottom:2px;">' + r.title + '</div>' + (r.author ? '<div style="font-size:11.5px;color:' + DS.textMuted + ';font-style:italic;margin-bottom:4px;">' + r.author + '</div>' : '') + (r.body ? '<div style="font-size:13px;line-height:1.6;color:' + DS.text + ';text-align:justify;">' + nl2br(r.body) + '</div>' : '') + (r.link ? '<a href="' + r.link + '" style="font-size:12px;color:' + DS.accent + ';text-decoration:none;">Read report &#8594;</a>' : '') + '</div>').join("") + '</td></tr>' : "";
@@ -164,7 +180,7 @@ export function generateHTML(s: DailyState, mode: string = "full", template: str
 
     // HEADER
     + '<tr><td style="background:' + DS.navy + ';padding:36px 40px 30px;">'
-    + '<img src="' + logoW + '" alt="Latin Securities" style="height:32px;display:block;margin-bottom:22px;" />'
+    + '<img src="' + logoW + '" alt="Latin Securities" style="height:48px;width:auto;display:block;margin-bottom:24px;" />'
     + '<div style="font-size:24px;font-weight:300;color:#fff;letter-spacing:-0.3px;">Argentina Daily</div>'
     + '<div style="margin-top:6px;"><span style="font-size:13px;color:rgba(255,255,255,0.55);font-weight:400;">' + formatDate(s.date) + '</span><span style="font-size:10px;color:' + DS.sky + ';font-weight:600;text-transform:uppercase;letter-spacing:1.5px;margin-left:16px;border:1px solid rgba(51,153,255,0.3);padding:3px 10px;border-radius:3px;">Sales &amp; Trading</span></div>'
     + '</td></tr>'
@@ -179,7 +195,7 @@ export function generateHTML(s: DailyState, mode: string = "full", template: str
     + sectionContent
 
     // SIGNATURE
-    + '<tr><td style="padding:24px 40px 0;border-top:1px solid ' + DS.border + ';"><img src="' + logo + '" alt="Latin Securities" style="height:22px;display:block;margin-bottom:12px;opacity:0.6;" />' + sig + '</td></tr>'
+    + '<tr><td style="padding:24px 40px 0;border-top:1px solid ' + DS.border + ';"><img src="' + logo + '" alt="Latin Securities" style="height:32px;width:auto;display:block;margin-bottom:14px;" />' + sig + '</td></tr>'
 
     // FOOTER
     + '<tr><td style="padding:20px 40px 24px;"><div style="border-top:1px solid ' + DS.borderLight + ';padding-top:16px;"><div style="font-size:10px;font-weight:600;color:' + DS.textMuted + ';text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Latin Securities S.A.</div><div style="font-size:9.5px;color:' + DS.textMuted + ';line-height:1.6;">Arenales 707, 6th Floor \u00B7 Buenos Aires, Argentina \u00B7 <a href="https://www.latinsecurities.com.ar" style="color:' + DS.accent + ';text-decoration:none;">latinsecurities.com.ar</a></div><div style="font-size:9px;color:#b0b0b0;line-height:1.5;margin-top:10px;">' + (s.disclaimer || 'This material has been prepared by Latin Securities S.A. for informational purposes only.') + ' \u00A9 ' + new Date().getFullYear() + ' Latin Securities S.A. All rights reserved.</div></div></td></tr>'

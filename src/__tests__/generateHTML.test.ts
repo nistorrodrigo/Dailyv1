@@ -102,4 +102,71 @@ describe("generateHTML", () => {
     expect(html).toContain("mock-white-logo");
     expect(html).toContain("mock-orig-logo");
   });
+
+  it("renders bigger header logo (48px) and visible footer logo (32px, no opacity)", () => {
+    // Previously 32px header / 22px footer with opacity:0.6 — too small to read.
+    const html = generateHTML(DEFAULT_STATE);
+    expect(html).toContain("height:48px");
+    expect(html).toContain("height:32px");
+    expect(html).not.toContain("opacity:0.6");
+  });
+
+  it("renders news links under macro blocks", () => {
+    const state = {
+      ...DEFAULT_STATE,
+      macroBlocks: [
+        {
+          id: "1",
+          title: "POLICY",
+          body: "Cabinet reshuffle",
+          lsPick: "",
+          newsLinks: [
+            { label: "Bloomberg", url: "https://bloomberg.com/x" },
+            { label: "", url: "https://reuters.com/y" },
+          ],
+        },
+      ],
+    };
+    const html = generateHTML(state);
+    expect(html).toContain("Sources");
+    expect(html).toContain('href="https://bloomberg.com/x"');
+    expect(html).toContain("Bloomberg ↗");
+    // Empty label falls back to hostname.
+    expect(html).toContain("reuters.com");
+  });
+
+  it("renders news links separately from the LS report link in corporate", () => {
+    const state = {
+      ...DEFAULT_STATE,
+      corpBlocks: [
+        {
+          id: "c1",
+          tickers: ["VIST"],
+          headline: "Q4",
+          analystId: "a1",
+          body: "",
+          link: "https://latinsecurities.com/report",
+          newsLinks: [{ label: "FT", url: "https://ft.com/a" }],
+        },
+      ],
+    };
+    const html = generateHTML(state);
+    expect(html).toContain("Full report &#8594;");
+    expect(html).toContain("Sources");
+    expect(html).toContain('href="https://ft.com/a"');
+  });
+
+  it("ignores news links with empty URLs (defensive)", () => {
+    const state = {
+      ...DEFAULT_STATE,
+      macroBlocks: [
+        {
+          id: "1", title: "T", body: "B", lsPick: "",
+          newsLinks: [{ label: "Empty", url: "" }, { label: "  ", url: "   " }],
+        },
+      ],
+    };
+    const html = generateHTML(state);
+    expect(html).not.toContain("Sources");
+  });
 });
