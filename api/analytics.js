@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { applyCors } from "./_helpers.js";
 
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL,
@@ -6,7 +7,7 @@ const supabase = createClient(
 );
 
 export default async function handler(req, res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  applyCors(req, res);
   res.setHeader("Cache-Control", "s-maxage=30, stale-while-revalidate=60");
 
   if (!supabase) return res.status(500).json({ error: "Supabase not configured" });

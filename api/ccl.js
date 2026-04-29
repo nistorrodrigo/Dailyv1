@@ -1,8 +1,10 @@
+import { applyCors, fetchWithRetry } from "./_helpers.js";
+
 export default async function handler(req, res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  applyCors(req, res);
   res.setHeader("Cache-Control", "s-maxage=300, stale-while-revalidate=600");
   try {
-    const r = await fetch("https://dolarapi.com/v1/dolares/contadoconliqui", {
+    const r = await fetchWithRetry("https://dolarapi.com/v1/dolares/contadoconliqui", {
       headers: { "User-Agent": "Mozilla/5.0" }
     });
     if (!r.ok) throw new Error(`dolarapi status ${r.status}`);

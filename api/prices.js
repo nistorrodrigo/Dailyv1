@@ -1,5 +1,7 @@
+import { applyCors, fetchWithRetry } from "./_helpers.js";
+
 export default async function handler(req, res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  applyCors(req, res);
   res.setHeader("Cache-Control", "s-maxage=300, stale-while-revalidate=600");
 
   const { tickers } = req.query;
@@ -12,7 +14,7 @@ export default async function handler(req, res) {
     // Try Yahoo Finance first
     try {
       const url = `https://query1.finance.yahoo.com/v8/finance/chart/${sym}?range=5d&interval=1d`;
-      const resp = await fetch(url, {
+      const resp = await fetchWithRetry(url, {
         headers: { "User-Agent": "Mozilla/5.0" }
       });
       const data = await resp.json();
@@ -25,7 +27,7 @@ export default async function handler(req, res) {
           continue;
         }
       }
-    } catch (e) {
+    } catch {
       // Yahoo failed, try Alpha Vantage
     }
 
@@ -34,18 +36,17 @@ export default async function handler(req, res) {
     if (avKey) {
       try {
         const url = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${sym}&apikey=${avKey}`;
-        const resp = await fetch(url);
+        const resp = await fetchWithRetry(url);
         const data = await resp.json();
         const price = parseFloat(data?.["Global Quote"]?.["05. price"]);
         if (!isNaN(price)) {
           prices[sym] = price;
         }
-      } catch (e) {
+      } catch {
         // skip failed ticker
       }
     }
   }
 
-  res.setHeader("Access-Control-Allow-Origin", "*");
   res.status(200).json({ prices });
 }

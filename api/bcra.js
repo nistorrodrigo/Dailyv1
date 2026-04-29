@@ -1,5 +1,7 @@
+import { applyCors, fetchWithRetry } from "./_helpers.js";
+
 export default async function handler(req, res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  applyCors(req, res);
   res.setHeader("Cache-Control", "s-maxage=900, stale-while-revalidate=1800");
 
   const BASE = "https://api.bcra.gob.ar/estadisticas/v4.0/monetarias";
@@ -25,7 +27,7 @@ export default async function handler(req, res) {
     const desde = dateStr(new Date(Date.now() - 400 * 86400000));
     const url   = `${BASE}/${id}?desde=${desde}&hasta=${hasta}`;
     try {
-      const r = await fetch(url, { headers: HDR, signal: AbortSignal.timeout(12000) });
+      const r = await fetchWithRetry(url, { headers: HDR, signal: AbortSignal.timeout(12000) });
       if (!r.ok) return null;
       const j = await r.json();
       const detalle = j.results?.[0]?.detalle || [];

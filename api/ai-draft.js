@@ -1,3 +1,5 @@
+import { applyCors } from "./_helpers.js";
+
 const MODELS = {
   haiku: { id: "claude-haiku-4-5-20251001", label: "Haiku 4.5", cost: "~$0.002" },
   sonnet: { id: "claude-sonnet-4-6", label: "Sonnet 4.6", cost: "~$0.012" },
@@ -35,9 +37,7 @@ The daily has these sections (generate content for ALL enabled ones):
 Return valid JSON only, no markdown wrapping.`;
 
 export default async function handler(req, res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  applyCors(req, res);
 
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
