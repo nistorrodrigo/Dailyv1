@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { List, type RowComponentProps } from "react-window";
 import { BRAND } from "../constants/brand";
 
 export interface Recipient {
@@ -16,6 +17,48 @@ export interface RecipientListProps {
   onBulkToggle?: (ids: Recipient["id"][], active: boolean) => void;
 }
 
+/** Row height including the 4px bottom margin — must match the inline style below. */
+const ROW_HEIGHT = 36;
+
+/** Above this many filtered rows, render through react-window so the DOM stays bounded. */
+const VIRTUALIZE_THRESHOLD = 100;
+
+interface VirtualRowProps {
+  visible: Recipient[];
+  onToggle: (id: Recipient["id"], active: boolean) => void;
+  onRemove: (id: Recipient["id"]) => void;
+}
+
+function VirtualRow({ index, style, visible, onToggle, onRemove }: RowComponentProps<VirtualRowProps>) {
+  const r = visible[index];
+  return (
+    <div
+      style={{
+        ...style,
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        padding: "6px 8px",
+        boxSizing: "border-box",
+        background: r.active ? "#f0f6ff" : "#fafafa",
+        border: `1px solid ${r.active ? BRAND.sky + "40" : "#eee"}`,
+        borderRadius: 4,
+      }}
+    >
+      <input type="checkbox" checked={r.active} onChange={(e) => onToggle(r.id, e.target.checked)} />
+      <span style={{ flex: 1, fontSize: 12, color: r.active ? "#333" : "#999", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        {r.name ? `${r.name} <${r.email}>` : r.email}
+      </span>
+      <button
+        onClick={() => onRemove(r.id)}
+        style={{ background: "none", border: "none", color: "#c0392b", cursor: "pointer", fontSize: 14, padding: 0 }}
+      >
+        {"×"}
+      </button>
+    </div>
+  );
+}
+
 /**
  * The list of recipients shown inside EmailSendPanel: each row has a checkbox
  * to toggle active and an X to remove. Stateless re. data — parent owns it.
@@ -24,7 +67,7 @@ export interface RecipientListProps {
  *  - case-insensitive search across name + email
  *  - "Show only active" filter
  *  - "Activate all shown" / "Deactivate all shown" bulk actions
- *  - virtualization-free render up to ~5k via a max-height + overflow scroll
+ *  - react-window virtualization above 100 rows so the DOM doesn't balloon
  */
 export default function RecipientList({
   recipients,
@@ -115,45 +158,57 @@ export default function RecipientList({
         </p>
       )}
 
-      <div style={{ maxHeight: recipients.length > 30 ? 300 : undefined, overflow: recipients.length > 30 ? "auto" : undefined }}>
-        {visible.map((r) => (
-          <div
-            key={r.id}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              padding: "6px 8px",
-              marginBottom: 4,
-              borderRadius: 4,
-              background: r.active ? "#f0f6ff" : "#fafafa",
-              border: `1px solid ${r.active ? BRAND.sky + "40" : "#eee"}`,
-            }}
-          >
-            <input
-              type="checkbox"
-              checked={r.active}
-              onChange={(e) => onToggle(r.id, e.target.checked)}
-            />
-            <span style={{ flex: 1, fontSize: 12, color: r.active ? "#333" : "#999" }}>
-              {r.name ? `${r.name} <${r.email}>` : r.email}
-            </span>
-            <button
-              onClick={() => onRemove(r.id)}
+      {visible.length > VIRTUALIZE_THRESHOLD ? (
+        <List
+          rowCount={visible.length}
+          rowHeight={ROW_HEIGHT}
+          defaultHeight={Math.min(visible.length * ROW_HEIGHT, 360)}
+          rowComponent={VirtualRow}
+          rowProps={{ visible, onToggle, onRemove }}
+          overscanCount={6}
+          style={{ maxHeight: 360 }}
+        />
+      ) : (
+        <div style={{ maxHeight: recipients.length > 30 ? 300 : undefined, overflow: recipients.length > 30 ? "auto" : undefined }}>
+          {visible.map((r) => (
+            <div
+              key={r.id}
               style={{
-                background: "none",
-                border: "none",
-                color: "#c0392b",
-                cursor: "pointer",
-                fontSize: 14,
-                padding: 0,
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "6px 8px",
+                marginBottom: 4,
+                borderRadius: 4,
+                background: r.active ? "#f0f6ff" : "#fafafa",
+                border: `1px solid ${r.active ? BRAND.sky + "40" : "#eee"}`,
               }}
             >
-              {"×"}
-            </button>
-          </div>
-        ))}
-      </div>
+              <input
+                type="checkbox"
+                checked={r.active}
+                onChange={(e) => onToggle(r.id, e.target.checked)}
+              />
+              <span style={{ flex: 1, fontSize: 12, color: r.active ? "#333" : "#999" }}>
+                {r.name ? `${r.name} <${r.email}>` : r.email}
+              </span>
+              <button
+                onClick={() => onRemove(r.id)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "#c0392b",
+                  cursor: "pointer",
+                  fontSize: 14,
+                  padding: 0,
+                }}
+              >
+                {"×"}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
