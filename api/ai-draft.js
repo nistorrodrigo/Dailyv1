@@ -42,7 +42,12 @@ export default async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  // Vercel sometimes auto-suffixes env vars with `_1` when a delete +
+  // re-create cycle (the standard Sensitive-flag rotation flow) collides
+  // with an existing key it can't fully purge. Vercel's UI also doesn't
+  // let you rename Sensitive vars after the fact. Accept both shapes so
+  // a botched rotation doesn't take AI Review and AI Draft offline.
+  const apiKey = process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY_1;
   if (!apiKey) return res.status(500).json({ error: "ANTHROPIC_API_KEY not configured" });
 
   const { context, existingBlocks, date, model = "haiku", mode = "macro", analysts, includeNews } = req.body;
