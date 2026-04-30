@@ -1,5 +1,7 @@
+import { applyCors, fetchWithRetry } from "./_helpers.js";
+
 export default async function handler(req, res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  applyCors(req, res);
   res.setHeader("Cache-Control", "s-maxage=300, stale-while-revalidate=600");
 
   const tickers = {
@@ -17,7 +19,7 @@ export default async function handler(req, res) {
   for (const [key, symbol] of Object.entries(tickers)) {
     try {
       const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?range=2d&interval=1d`;
-      const resp = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+      const resp = await fetchWithRetry(url, { headers: { "User-Agent": "Mozilla/5.0" } });
       const data = await resp.json();
       const result = data?.chart?.result?.[0];
       if (result) {
@@ -42,9 +44,9 @@ export default async function handler(req, res) {
   // Fetch CCL, MEP, Blue from dolarapi
   try {
     const [cclResp, mepResp, blueResp] = await Promise.all([
-      fetch("https://dolarapi.com/v1/dolares/contadoconliqui", { headers: { "User-Agent": "Mozilla/5.0" } }),
-      fetch("https://dolarapi.com/v1/dolares/bolsa", { headers: { "User-Agent": "Mozilla/5.0" } }),
-      fetch("https://dolarapi.com/v1/dolares/blue", { headers: { "User-Agent": "Mozilla/5.0" } }),
+      fetchWithRetry("https://dolarapi.com/v1/dolares/contadoconliqui", { headers: { "User-Agent": "Mozilla/5.0" } }),
+      fetchWithRetry("https://dolarapi.com/v1/dolares/bolsa", { headers: { "User-Agent": "Mozilla/5.0" } }),
+      fetchWithRetry("https://dolarapi.com/v1/dolares/blue", { headers: { "User-Agent": "Mozilla/5.0" } }),
     ]);
     const [ccl, mep, blue] = await Promise.all([cclResp.json(), mepResp.json(), blueResp.json()]);
 

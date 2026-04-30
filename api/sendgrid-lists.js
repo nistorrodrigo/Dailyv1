@@ -1,5 +1,7 @@
+import { applyCors, fetchWithRetry } from "./_helpers.js";
+
 export default async function handler(req, res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  applyCors(req, res);
 
   const apiKey = process.env.SENDGRID_API_KEY;
   if (!apiKey) return res.status(500).json({ ok: false, error: "SENDGRID_API_KEY env var is not set on the server" });
@@ -9,14 +11,14 @@ export default async function handler(req, res) {
   try {
     // Step 3: Check export status and get results
     if (exportId) {
-      const resp = await fetch(`https://api.sendgrid.com/v3/marketing/contacts/exports/${exportId}`, {
+      const resp = await fetchWithRetry(`https://api.sendgrid.com/v3/marketing/contacts/exports/${exportId}`, {
         headers: { "Authorization": `Bearer ${apiKey}` },
       });
       const data = await resp.json();
 
       if (data.status === "ready" && data.urls?.length) {
         // Download the CSV
-        const csvResp = await fetch(data.urls[0]);
+        const csvResp = await fetchWithRetry(data.urls[0]);
         const csvText = await csvResp.text();
 
         // Parse CSV
@@ -44,7 +46,7 @@ export default async function handler(req, res) {
 
     // Step 2: Start export for a specific list
     if (listId) {
-      const resp = await fetch("https://api.sendgrid.com/v3/marketing/contacts/exports", {
+      const resp = await fetchWithRetry("https://api.sendgrid.com/v3/marketing/contacts/exports", {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${apiKey}`,
@@ -66,7 +68,7 @@ export default async function handler(req, res) {
     }
 
     // Step 1: Fetch all lists
-    const resp = await fetch("https://api.sendgrid.com/v3/marketing/lists?page_size=100", {
+    const resp = await fetchWithRetry("https://api.sendgrid.com/v3/marketing/lists?page_size=100", {
       headers: { "Authorization": `Bearer ${apiKey}` },
     });
     if (!resp.ok) {
