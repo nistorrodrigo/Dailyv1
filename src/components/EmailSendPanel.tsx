@@ -6,14 +6,14 @@ import { supabase } from "../lib/supabase";
 import useDailyStore from "../store/useDailyStore";
 import { generateHTML } from "../utils/generateHTML";
 import { generateBBG } from "../utils/generateBBG";
-import { formatDate } from "../utils/dates";
+import { formatDate, fmtRelativeTime } from "../utils/dates";
 import SendConfirmModal from "./SendConfirmModal";
 import RecipientList, { type Recipient } from "./RecipientList";
 import ABTestSubject from "./ABTestSubject";
 import AttachmentInput, { type EmailAttachment } from "./AttachmentInput";
 import { toast } from "../store/useToastStore";
 import { useCurrentUser } from "../hooks/useCurrentUser";
-import { displayNameFromUser } from "../utils/displayName";
+import { displayNameFromUser, displayNameFromEmail } from "../utils/displayName";
 
 interface EmailSendPanelProps {
   open: boolean;
@@ -27,6 +27,9 @@ interface EmailLog {
   list_name?: string;
   is_test: boolean;
   sent_at: string;
+  /** Email of the analyst who fired the send (or fromEmail for legacy
+   *  rows that pre-date per-user identity tracking). */
+  sent_by?: string | null;
 }
 
 interface SendResult {
@@ -55,6 +58,11 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
   const [confirmOpen, setConfirmOpen] = useState<boolean>(false);
   const [testFormOpen, setTestFormOpen] = useState<boolean>(false);
   const [testEmailAddress, setTestEmailAddress] = useState<string>("");
+  // The most recent NON-test send for today's daily_date, if any. Used
+  // to render the "already sent X ago" warning that prevents accidental
+  // double-sends when two analysts are working in parallel.
+  const [lastSendToday, setLastSendToday] = useState<EmailLog | null>(null);
+  const [lastSendDismissed, setLastSendDismissed] = useState<boolean>(false);
   const currentUser = useCurrentUser();
   // Auth method label that the SendConfirmModal renders. "session" when
   // we're logged in with Supabase; "none" otherwise (the server rejects).
@@ -70,10 +78,32 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
   useEffect(() => {
     if (open) {
       setSubject(`Argentina Daily - ${formatDate(date)}`);
+      setLastSendDismissed(false);
       if (supabase) {
         setLoading(true);
         listRecipients().then(setRecipients).finally(() => setLoading(false));
       }
+      // Fetch the most-recent non-test send for today's daily_date so we
+      // can warn if the daily was already sent. We always re-fetch on open
+      // (rather than caching) because another analyst may have sent in
+      // the time the panel was closed.
+      (async () => {
+        try {
+          const resp = await fetch(`/api/analytics?type=email-log&date=${encodeURIComponent(date)}`);
+          const data = await resp.json();
+          if (!resp.ok || !data.ok) {
+            setLastSendToday(null);
+            return;
+          }
+          const logs = (data.logs as EmailLog[] | undefined) || [];
+          const realSend = logs.find((l) => !l.is_test && l.daily_date === date) || null;
+          setLastSendToday(realSend);
+        } catch {
+          // Non-fatal — the warning is purely advisory, so silently skip
+          // when the analytics endpoint is unreachable.
+          setLastSendToday(null);
+        }
+      })();
     }
   }, [open, date]);
 
@@ -272,6 +302,41 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
         </button>
       </div>
       <div style={{ flex: 1, overflow: "auto", padding: 16 }}>
+        {/* Last-sent warning. Shows when today's daily was already sent
+            (non-test) by anyone — defends against double-sends when two
+            analysts are editing in parallel. Dismissable in case the
+            analyst genuinely wants to re-send (e.g. correction). */}
+        {lastSendToday && !lastSendDismissed && (
+          <div
+            className="mb-3 p-3 rounded-md text-[12px]"
+            style={{
+              background: "rgba(231,158,76,0.12)",
+              color: "#c97a2c",
+              border: "1px solid rgba(231,158,76,0.45)",
+            }}
+          >
+            <div className="flex items-start gap-2">
+              <span className="font-bold">⚠</span>
+              <div className="flex-1 leading-snug">
+                <div className="font-bold">Today's daily was already sent</div>
+                <div className="mt-1 text-[11px]" style={{ color: "var(--text-primary)" }}>
+                  {fmtRelativeTime(lastSendToday.sent_at)}
+                  {lastSendToday.sent_by ? <> by <strong>{displayNameFromEmail(lastSendToday.sent_by)}</strong></> : null}
+                  {" "}to <strong>{lastSendToday.recipients_count.toLocaleString()}</strong> recipient{lastSendToday.recipients_count === 1 ? "" : "s"}
+                  {lastSendToday.list_name ? <> ({lastSendToday.list_name})</> : null}.
+                </div>
+              </div>
+              <button
+                aria-label="Dismiss already-sent warning"
+                onClick={() => setLastSendDismissed(true)}
+                className="bg-transparent border-none cursor-pointer text-inherit text-base leading-none -mt-0.5"
+                title="Dismiss"
+              >
+                {"×"}
+              </button>
+            </div>
+          </div>
+        )}
         <div style={{ marginBottom: 16 }}>
           <label className="block mb-1 text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide">
             Subject
@@ -512,15 +577,26 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
         {showLogs && (
           <div className="mt-2 max-h-48 overflow-auto">
             {emailLogs.length === 0 && <p className="text-xs text-[var(--text-muted)] text-center py-2">No emails sent yet</p>}
-            {emailLogs.map((log) => (
-              <div key={log.id} className="flex items-center gap-2 py-1.5 border-b border-[var(--border-light)] text-xs">
-                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${log.is_test ? "bg-amber-400" : "bg-green-500"}`} />
-                <span className="text-[var(--text-primary)] font-semibold">{log.daily_date}</span>
-                <span className="text-[var(--text-muted)]">{log.recipients_count} recipients</span>
-                {log.list_name && <span className="text-[var(--text-muted)]">({log.list_name})</span>}
-                <span className="text-[var(--text-muted)] ml-auto">{new Date(log.sent_at).toLocaleTimeString()}</span>
-              </div>
-            ))}
+            {emailLogs.map((log) => {
+              const senderName = displayNameFromEmail(log.sent_by);
+              return (
+                <div key={log.id} className="flex items-center gap-2 py-1.5 border-b border-[var(--border-light)] text-xs">
+                  <span className={`w-2 h-2 rounded-full flex-shrink-0 ${log.is_test ? "bg-amber-400" : "bg-green-500"}`} />
+                  <span className="text-[var(--text-primary)] font-semibold">{log.daily_date}</span>
+                  <span className="text-[var(--text-muted)]">{log.recipients_count} recipients</span>
+                  {senderName && (
+                    <span
+                      className="text-[10px] text-[var(--text-muted)] italic"
+                      title={log.sent_by || undefined}
+                    >
+                      by {senderName}
+                    </span>
+                  )}
+                  {log.list_name && <span className="text-[var(--text-muted)]">({log.list_name})</span>}
+                  <span className="text-[var(--text-muted)] ml-auto">{new Date(log.sent_at).toLocaleTimeString()}</span>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

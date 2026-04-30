@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatDate, fmtEventDate, fmtTime } from "../utils/dates";
+import { formatDate, fmtEventDate, fmtTime, fmtRelativeTime } from "../utils/dates";
 import { parsePrice, calcUpside, fmtUpside, upsideColor } from "../utils/prices";
 import { rc, rb, resolveCorporateBlock } from "../utils/ratings";
 import { nl2br, mdToHtml } from "../utils/text";
@@ -36,6 +36,36 @@ describe("dates", () => {
 
   it("fmtEventDate handles empty", () => {
     expect(fmtEventDate("")).toBe("");
+  });
+
+  it("fmtRelativeTime returns 'just now' for very recent timestamps", () => {
+    const now = new Date("2026-04-30T12:00:00Z");
+    const recent = new Date("2026-04-30T11:59:55Z").toISOString();
+    expect(fmtRelativeTime(recent, now)).toBe("just now");
+  });
+
+  it("fmtRelativeTime renders seconds, minutes, and hours", () => {
+    const now = new Date("2026-04-30T12:00:00Z");
+    expect(fmtRelativeTime(new Date("2026-04-30T11:59:15Z").toISOString(), now)).toBe("45 seconds ago");
+    expect(fmtRelativeTime(new Date("2026-04-30T11:55:00Z").toISOString(), now)).toBe("5 minutes ago");
+    expect(fmtRelativeTime(new Date("2026-04-30T11:59:00Z").toISOString(), now)).toBe("1 minute ago");
+    expect(fmtRelativeTime(new Date("2026-04-30T10:00:00Z").toISOString(), now)).toBe("2 hours ago");
+    expect(fmtRelativeTime(new Date("2026-04-30T11:00:00Z").toISOString(), now)).toBe("1 hour ago");
+  });
+
+  it("fmtRelativeTime falls through to absolute date past 24h", () => {
+    const now = new Date("2026-04-30T12:00:00Z");
+    const old = new Date("2026-04-25T12:00:00Z").toISOString();
+    const result = fmtRelativeTime(old, now);
+    expect(result).not.toMatch(/ago/);
+    expect(result.length).toBeGreaterThan(0);
+  });
+
+  it("fmtRelativeTime returns empty string for invalid input", () => {
+    expect(fmtRelativeTime(null)).toBe("");
+    expect(fmtRelativeTime(undefined)).toBe("");
+    expect(fmtRelativeTime("")).toBe("");
+    expect(fmtRelativeTime("not-a-date")).toBe("");
   });
 });
 

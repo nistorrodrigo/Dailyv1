@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { BRAND } from "../../constants/brand";
+import { displayNameFromEmail } from "../../utils/displayName";
 
 const StatCard = ({ label, value, color = BRAND.navy }: { label: string; value: string | number; color?: string }) => (
   <div className="p-4 rounded-lg border border-[var(--border-light)] bg-[var(--bg-card)] flex-1 min-w-[120px]">
@@ -12,7 +13,7 @@ interface AnalyticsData {
   ok: boolean;
   stats: { totalDailies: number; totalEmails: number; emailsMonth: number; testsMonth: number; totalRecipients: number };
   last7: { date: string; count: number }[];
-  recentEmails: { id: string; daily_date: string; subject: string; recipients_count: number; is_test: boolean; list_name?: string; sent_at: string }[];
+  recentEmails: { id: string; daily_date: string; subject: string; recipients_count: number; is_test: boolean; list_name?: string; sent_at: string; sent_by?: string | null }[];
 }
 
 export default function DashboardTab() {
@@ -78,19 +79,133 @@ export default function DashboardTab() {
       <div className="p-4 rounded-lg border border-[var(--border-light)] bg-[var(--bg-card)]">
         <div className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider mb-3">Recent Emails</div>
         {recentEmails.length === 0 && <p className="text-sm text-[var(--text-muted)]">No emails sent yet</p>}
-        {recentEmails.map((log) => (
-          <div key={log.id} className="flex items-center gap-3 py-2 border-b border-[var(--border-light)] last:border-0">
-            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${log.is_test ? "bg-amber-400" : "bg-green-500"}`} />
-            <span className="text-sm font-semibold text-[var(--text-primary)] min-w-[80px]">{log.daily_date}</span>
-            <span className="text-xs text-[var(--text-secondary)] flex-1 truncate">{log.subject}</span>
-            <span className="text-xs text-[var(--text-muted)]">{log.recipients_count} rcpts</span>
-            {log.list_name && <span className="text-[10px] text-[var(--text-muted)] px-1.5 py-0.5 rounded bg-[var(--bg-card-alt)] border border-[var(--border-light)]">{log.list_name}</span>}
-            <span className="text-[10px] text-[var(--text-muted)]">{new Date(log.sent_at).toLocaleDateString()}</span>
-          </div>
-        ))}
+        {recentEmails.map((log) => {
+          const senderName = displayNameFromEmail(log.sent_by);
+          return (
+            <div key={log.id} className="flex items-center gap-3 py-2 border-b border-[var(--border-light)] last:border-0">
+              <span className={`w-2 h-2 rounded-full flex-shrink-0 ${log.is_test ? "bg-amber-400" : "bg-green-500"}`} />
+              <span className="text-sm font-semibold text-[var(--text-primary)] min-w-[80px]">{log.daily_date}</span>
+              <span className="text-xs text-[var(--text-secondary)] flex-1 truncate">{log.subject}</span>
+              <span className="text-xs text-[var(--text-muted)]">{log.recipients_count} rcpts</span>
+              {senderName && (
+                <span
+                  className="text-[10px] text-[var(--text-muted)] italic whitespace-nowrap"
+                  title={log.sent_by || undefined}
+                >
+                  by {senderName}
+                </span>
+              )}
+              {log.list_name && <span className="text-[10px] text-[var(--text-muted)] px-1.5 py-0.5 rounded bg-[var(--bg-card-alt)] border border-[var(--border-light)]">{log.list_name}</span>}
+              <span className="text-[10px] text-[var(--text-muted)]">{new Date(log.sent_at).toLocaleDateString()}</span>
+            </div>
+          );
+        })}
       </div>
-      {/* Email Tracking */}
+      {/* Per-daily performance — open/click rates per individual send */}
+      <PerDailyStats />
+
+      {/* Email Tracking — aggregate event log */}
       <EmailTracking />
+    </div>
+  );
+}
+
+interface PerDailyRow {
+  id: string;
+  daily_date: string;
+  subject: string;
+  recipients_count: number;
+  list_name?: string;
+  sent_at: string;
+  sent_by?: string | null;
+  delivered: number;
+  opens: number;
+  uniqueOpens: number;
+  clicks: number;
+  uniqueClicks: number;
+  bounces: number;
+  openRate: number;
+  clickRate: number;
+}
+
+/** Per-daily performance breakdown. Joins email_log with email_events to
+ *  show open/click rates for each individual send rather than the
+ *  aggregate stats in the EmailTracking widget below. */
+function PerDailyStats(): React.ReactElement {
+  const [rows, setRows] = useState<PerDailyRow[] | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string>("");
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const resp = await fetch("/api/analytics?type=per-daily-stats");
+        const d = await resp.json();
+        if (!resp.ok || !d.ok) throw new Error(d.error || `HTTP ${resp.status}`);
+        setRows((d.rows as PerDailyRow[]) || []);
+      } catch (err) {
+        setError((err as Error).message);
+        console.error("[DashboardTab] per-daily-stats fetch failed:", err);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  const fmtPct = (x: number) =>
+    x > 0 ? `${(x * 100).toFixed(x >= 0.1 ? 0 : 1)}%` : "—";
+
+  return (
+    <div className="p-4 rounded-lg border border-[var(--border-light)] bg-[var(--bg-card)] mt-5">
+      <div className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider mb-3">
+        Per-Daily Performance
+      </div>
+
+      {loading && <p className="text-xs text-[var(--text-muted)]">Loading…</p>}
+      {!loading && error && <p className="text-xs text-red-500">Failed to load: {error}</p>}
+      {!loading && !error && rows && rows.length === 0 && (
+        <p className="text-xs text-[var(--text-muted)]">No sends yet — once you fire a daily, performance will show up here.</p>
+      )}
+      {!loading && !error && rows && rows.length > 0 && (
+        <div className="overflow-x-auto">
+          <table className="w-full text-[11px]" style={{ borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ background: "var(--bg-card-alt)" }}>
+                <th className="text-left p-1.5 font-bold uppercase tracking-wide text-[10px] text-[var(--text-muted)]">Date</th>
+                <th className="text-left p-1.5 font-bold uppercase tracking-wide text-[10px] text-[var(--text-muted)]">Sent by</th>
+                <th className="text-right p-1.5 font-bold uppercase tracking-wide text-[10px] text-[var(--text-muted)]">Sent</th>
+                <th className="text-right p-1.5 font-bold uppercase tracking-wide text-[10px] text-[var(--text-muted)]" title="Unique opens / delivered">Open rate</th>
+                <th className="text-right p-1.5 font-bold uppercase tracking-wide text-[10px] text-[var(--text-muted)]" title="Unique clicks / delivered">CTR</th>
+                <th className="text-right p-1.5 font-bold uppercase tracking-wide text-[10px] text-[var(--text-muted)]">Bounces</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => {
+                const senderName = displayNameFromEmail(r.sent_by);
+                return (
+                  <tr key={r.id} style={{ borderBottom: "1px solid var(--border-light)" }}>
+                    <td className="p-1.5 font-semibold text-[var(--text-primary)]">{r.daily_date}</td>
+                    <td className="p-1.5 text-[var(--text-secondary)]" title={r.sent_by || undefined}>{senderName || "—"}</td>
+                    <td className="p-1.5 text-right text-[var(--text-secondary)]">{r.recipients_count.toLocaleString()}</td>
+                    <td className="p-1.5 text-right" style={{ color: r.openRate >= 0.4 ? "#1a7a3a" : r.openRate >= 0.2 ? "#c97a2c" : "var(--text-muted)" }}>
+                      <span className="font-bold">{fmtPct(r.openRate)}</span>
+                      {r.uniqueOpens > 0 && <span className="ml-1 text-[10px] text-[var(--text-muted)]">({r.uniqueOpens})</span>}
+                    </td>
+                    <td className="p-1.5 text-right" style={{ color: r.clickRate >= 0.05 ? "#1a7a3a" : "var(--text-muted)" }}>
+                      <span className="font-bold">{fmtPct(r.clickRate)}</span>
+                      {r.uniqueClicks > 0 && <span className="ml-1 text-[10px] text-[var(--text-muted)]">({r.uniqueClicks})</span>}
+                    </td>
+                    <td className="p-1.5 text-right text-[var(--text-muted)]">{r.bounces > 0 ? r.bounces : "—"}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          <div className="mt-2 text-[10px] text-[var(--text-muted)] italic">
+            Rates are over unique opens/clicks per recipient. Delivered count comes from SendGrid events when present, else from the send-time recipient list.
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { User } from "@supabase/supabase-js";
-import { displayNameFromUser } from "../utils/displayName";
+import { displayNameFromUser, displayNameFromEmail } from "../utils/displayName";
 
 /** Build a minimal User-shaped object for testing — only the fields the
  *  helper actually reads. We cast through unknown because the real User
@@ -61,5 +61,29 @@ describe("displayNameFromUser", () => {
   it("collapses consecutive separators", () => {
     const u = makeUser({ email: "rodrigo..nistor@latinsecurities.ar" });
     expect(displayNameFromUser(u)).toBe("Rodrigo Nistor");
+  });
+});
+
+describe("displayNameFromEmail", () => {
+  it("title-cases dot-separated local part", () => {
+    expect(displayNameFromEmail("rodrigo.nistor@latinsecurities.ar")).toBe("Rodrigo Nistor");
+  });
+
+  it("handles single-word local part", () => {
+    expect(displayNameFromEmail("rodrigo@x.com")).toBe("Rodrigo");
+  });
+
+  it("returns empty string for null/undefined/empty", () => {
+    expect(displayNameFromEmail(null)).toBe("");
+    expect(displayNameFromEmail(undefined)).toBe("");
+    expect(displayNameFromEmail("")).toBe("");
+  });
+
+  it("returns empty string for an email with no local part", () => {
+    expect(displayNameFromEmail("@latinsecurities.ar")).toBe("");
+  });
+
+  it("normalises mixed-case input", () => {
+    expect(displayNameFromEmail("RODRIGO.NISTOR@LATINSECURITIES.AR")).toBe("Rodrigo Nistor");
   });
 });
