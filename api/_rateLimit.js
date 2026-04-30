@@ -1,7 +1,7 @@
-// Tiny rate limiter backed by Upstash Redis (provisioned via Vercel's
-// Marketplace integration — `@vercel/kv` was the old client and is now
-// deprecated in favour of `@upstash/redis`, which speaks the same REST
-// protocol and reads the same env vars).
+// Tiny rate limiter backed by Redis. Connects via the standard TCP protocol
+// using `ioredis`, which is what Vercel's "Connect Database → Redis" flow
+// gives you (the auto-injected `REDIS_URL` env var). Works with Upstash,
+// Redis Cloud, self-hosted, anything speaking the wire protocol.
 //
 // Pattern: fixed-window counter per (key, window). The first failure
 // initialises the counter and sets a TTL equal to the window. Subsequent
@@ -15,23 +15,25 @@
 // Graceful degradation: if Redis isn't configured (no env vars or import
 // fails), the helper returns `{ ok: true, skipped: true }` and logs a
 // warning. The endpoint still works, just without rate limiting. This
-// keeps dev environments and forks running without making KV mandatory.
+// keeps dev environments and forks running without making Redis mandatory.
 
 let clientPromise;
 
 async function getClient() {
   if (clientPromise) return clientPromise;
   clientPromise = (async () => {
-    // Vercel's Marketplace integration injects KV_REST_API_URL/_TOKEN.
-    // Older deployments may have UPSTASH_REDIS_REST_URL/_TOKEN — accept either.
-    const url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
-    const token = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
-    if (!url || !token) return null; // Not configured.
+    // Vercel's Redis integration injects `REDIS_URL`. Some setups also
+    // expose `KV_URL` (legacy) — accept either.
+    const url = process.env.REDIS_URL || process.env.KV_URL;
+    if (!url) return null; // Not configured.
     try {
-      const { Redis } = await import("@upstash/redis");
-      return new Redis({ url, token });
+      const { default: Redis } = await import("ioredis");
+      // lazyConnect avoids opening a TCP socket at import time. Each
+      // invocation that actually calls peek/incr triggers the connect
+      // and lets the lambda exit cleanly when done.
+      return new Redis(url, { lazyConnect: true, maxRetriesPerRequest: 2 });
     } catch (err) {
-      console.warn("[rateLimit] @upstash/redis import failed:", err?.message || err);
+      console.warn("[rateLimit] ioredis import failed:", err?.message || err);
       return null;
     }
   })();
