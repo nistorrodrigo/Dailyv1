@@ -19,6 +19,7 @@ import { logout } from "./LoginGate";
 import PresenceIndicator from "./PresenceIndicator";
 import AIReviewPanel from "./AIReviewPanel";
 import ContactsPanel from "./ContactsPanel";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 
 type PanelName = "history" | "templates" | "email" | "diff" | "schedule" | "ai-review" | "contacts" | null;
 
@@ -116,6 +117,8 @@ export default function Header(): React.ReactElement {
   // against accidental re-render loops (React error #185).
   const totalWords = useDailyStore((s) => getDailyTextMetrics(s).total);
   const minutes = readingTimeMinutes(totalWords);
+  // Currently authenticated user (if Supabase is configured + logged in).
+  const currentUser = useCurrentUser();
   const copyToClipboard = useUIStore((s) => s.copyToClipboard);
   const toggleDarkMode = useUIStore((s) => s.toggleDarkMode);
   const toggleShortcutsOverlay = useUIStore((s) => s.toggleShortcutsOverlay);
@@ -201,6 +204,43 @@ export default function Header(): React.ReactElement {
             >
               {totalWords.toLocaleString()} words · {minutes}m
             </span>
+          )}
+
+          {/* Authenticated user chip — visible source of truth for "who am I
+              about to send mail as". Shown only when there's a real session;
+              forks running without Supabase don't see anything here. */}
+          {currentUser && (
+            <div
+              title={`Signed in as ${currentUser.user.email}`}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "3px 10px 3px 4px",
+                borderRadius: 14,
+                background: "rgba(255,255,255,0.06)",
+                border: "1px solid rgba(255,255,255,0.12)",
+                whiteSpace: "nowrap",
+              }}
+            >
+              <span style={{
+                width: 20,
+                height: 20,
+                borderRadius: "50%",
+                background: BRAND.sky,
+                color: "#fff",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 10,
+                fontWeight: 700,
+              }}>
+                {(currentUser.user.email || "?").charAt(0).toUpperCase()}
+              </span>
+              <span style={{ fontSize: 11, color: "#fff", fontWeight: 500 }}>
+                {(currentUser.user.email || "").split("@")[0]}
+              </span>
+            </div>
           )}
 
           {/* Utilities live up here too — Help, dark mode, logout. */}

@@ -12,6 +12,7 @@ import RecipientList, { type Recipient } from "./RecipientList";
 import ABTestSubject from "./ABTestSubject";
 import AttachmentInput, { type EmailAttachment } from "./AttachmentInput";
 import { toast } from "../store/useToastStore";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 
 interface EmailSendPanelProps {
   open: boolean;
@@ -58,6 +59,15 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
   const [confirmOpen, setConfirmOpen] = useState<boolean>(false);
   const [testFormOpen, setTestFormOpen] = useState<boolean>(false);
   const [testEmailAddress, setTestEmailAddress] = useState<string>("");
+  const currentUser = useCurrentUser();
+  // Auth method label that the SendConfirmModal renders. "session" when
+  // we're logged in with Supabase, "pin" when no session but a PIN is
+  // present, "none" otherwise (the server will reject).
+  const authMethod: "session" | "pin" | "none" = currentUser
+    ? "session"
+    : pin.trim()
+      ? "pin"
+      : "none";
 
   useEffect(() => {
     if (open) {
@@ -144,6 +154,17 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
     setSending(true);
     setPinError(null);
     try {
+      // Re-check the session right before sending. Catches the case where
+      // the user opened the modal, walked away for hours, and came back to
+      // confirm — the JWT may have expired. Without this we'd blindly send
+      // and let the server return 403, then the user has to start over.
+      if (supabase) {
+        const { data } = await supabase.auth.getSession();
+        if (!data?.session?.access_token && !pin.trim()) {
+          throw new Error("Your session has expired. Log out and back in to continue.");
+        }
+      }
+
       const state = useDailyStore.getState();
       const html = generateHTML(state);
       const text = generateBBG(state); // plain-text fallback for the multipart MIME
@@ -556,6 +577,8 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
         selectedListName={selectedListName || undefined}
         attachmentFilename={attachment?.filename}
         html={confirmOpen ? generateHTML(useDailyStore.getState()) : undefined}
+        authedAs={currentUser?.user.email || null}
+        authMethod={authMethod}
       />
     </div>
   );

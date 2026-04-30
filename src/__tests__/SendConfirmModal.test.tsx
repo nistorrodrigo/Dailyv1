@@ -17,6 +17,9 @@ const baseProps = {
   ],
   sample: ["a@x.com", "b@y.com", "c@z.com"],
   subject: "Argentina Daily — April 29",
+  // Disable the type-to-confirm gate for tests that exercise other behaviour.
+  // Dedicated tests below cover the gated path.
+  requireTypedConfirmation: false,
 };
 
 describe("SendConfirmModal", () => {
@@ -95,5 +98,41 @@ describe("SendConfirmModal", () => {
   it("does not render a preview when html is undefined", () => {
     const { container } = render(<SendConfirmModal {...baseProps} html={undefined} />);
     expect(container.querySelector("iframe")).toBeNull();
+  });
+
+  it("shows authenticated identity when authedAs + authMethod=session", () => {
+    render(<SendConfirmModal {...baseProps} authedAs="rodrigo@latinsecurities.ar" authMethod="session" />);
+    expect(screen.getByText(/Authenticated session/i)).toBeInTheDocument();
+    expect(screen.getByText(/rodrigo@latinsecurities\.ar/)).toBeInTheDocument();
+  });
+
+  it("flags PIN auth as legacy/weak", () => {
+    render(<SendConfirmModal {...baseProps} authedAs={null} authMethod="pin" />);
+    expect(screen.getByText(/PIN.*legacy/i)).toBeInTheDocument();
+  });
+
+  it("warns when there is no authentication at all", () => {
+    render(<SendConfirmModal {...baseProps} authedAs={null} authMethod="none" />);
+    expect(screen.getByText(/No authentication/i)).toBeInTheDocument();
+  });
+
+  it("disables the Send button until 'SEND' is typed (type-to-confirm)", () => {
+    const onConfirm = vi.fn();
+    render(<SendConfirmModal {...baseProps} requireTypedConfirmation onConfirm={onConfirm} />);
+    const sendBtn = screen.getByRole("button", { name: /Confirm Send to/ });
+    expect(sendBtn).toBeDisabled();
+    fireEvent.click(sendBtn);
+    expect(onConfirm).not.toHaveBeenCalled();
+
+    // Type the wrong word — still disabled.
+    const input = screen.getByPlaceholderText("SEND");
+    fireEvent.change(input, { target: { value: "yes" } });
+    expect(sendBtn).toBeDisabled();
+
+    // Type SEND (case-insensitive) — enables.
+    fireEvent.change(input, { target: { value: "send" } });
+    expect(sendBtn).not.toBeDisabled();
+    fireEvent.click(sendBtn);
+    expect(onConfirm).toHaveBeenCalledOnce();
   });
 });

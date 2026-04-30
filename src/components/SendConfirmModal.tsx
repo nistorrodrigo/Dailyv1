@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { BRAND } from "../constants/brand";
 
 export interface SendConfirmModalProps {
@@ -20,7 +20,22 @@ export interface SendConfirmModalProps {
   attachmentFilename?: string;
   /** Full HTML body of the email, rendered as a mini preview. */
   html?: string;
+  /** Email of the currently-authenticated user. Shown in the security
+   *  section so the user sees who they're about to send AS. */
+  authedAs?: string | null;
+  /** Auth method label — e.g. "Supabase session" or "PIN (legacy)". */
+  authMethod?: "session" | "pin" | "none";
+  /**
+   * If true (the default), the user must type "SEND" into a confirmation
+   * field before the destructive button enables. Pass false to skip
+   * (e.g. for tests) — but in production this is the safety net that
+   * stops a misclick from firing 4000 emails.
+   */
+  requireTypedConfirmation?: boolean;
 }
+
+/** Word the user must type to enable the destructive Send button. */
+const CONFIRM_PHRASE = "SEND";
 
 /**
  * Pre-flight confirmation dialog before sending the daily email to many
@@ -42,11 +57,30 @@ export default function SendConfirmModal({
   selectedListName,
   attachmentFilename,
   html,
+  authedAs,
+  authMethod = "none",
+  requireTypedConfirmation = true,
 }: SendConfirmModalProps): React.ReactElement | null {
+  const [typed, setTyped] = useState("");
+
+  // Reset the typed confirmation every time the modal opens so an old
+  // value from a previous attempt doesn't persist as a "ready to fire"
+  // state when the user re-opens it.
+  useEffect(() => {
+    if (open) setTyped("");
+  }, [open]);
+
   if (!open) return null;
 
   const topDomains = domains.slice(0, 5);
   const otherDomainCount = domains.slice(5).reduce((s, d) => s + d.count, 0);
+  const phraseMatched = typed.trim().toUpperCase() === CONFIRM_PHRASE;
+  const canConfirm = !requireTypedConfirmation || phraseMatched;
+  // Auth status colours: green = strong (session), amber = weak (PIN), red = none.
+  const authPalette =
+    authMethod === "session" ? { bg: "#edf7ed", fg: "#1a7a3a", label: "Authenticated session" }
+    : authMethod === "pin"   ? { bg: "#fff3e0", fg: "#c97a2c", label: "PIN (legacy)" }
+                             : { bg: "#fdf2f2", fg: "#a4302a", label: "No authentication" };
 
   return (
     <div
@@ -80,6 +114,26 @@ export default function SendConfirmModal({
           </div>
         </div>
         <div style={{ padding: 20 }}>
+          {/* ── Security context ───────────────────────────────── */}
+          <div
+            className="mb-4 p-3 rounded-md"
+            style={{ background: authPalette.bg, border: `1px solid ${authPalette.fg}40` }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+              <span style={{ fontSize: 14 }}>🔒</span>
+              <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: authPalette.fg }}>
+                {authPalette.label}
+              </span>
+            </div>
+            <div className="text-[12px]" style={{ color: "var(--text-primary)" }}>
+              {authedAs
+                ? <>Sending as <strong>{authedAs}</strong></>
+                : authMethod === "pin"
+                  ? "Sending via shared PIN — no user identity recorded."
+                  : "No active session — request will be rejected by the server."}
+            </div>
+          </div>
+
           <div className="mb-4 p-3 rounded-md" style={{ background: "rgba(231,76,60,0.08)", border: "1px solid rgba(231,76,60,0.25)" }}>
             <div className="text-[11px] font-bold uppercase tracking-wide" style={{ color: "#c0392b" }}>
               You are about to send to
@@ -172,6 +226,39 @@ export default function SendConfirmModal({
             </div>
           )}
 
+          {/* Type-to-confirm gate. Forces a deliberate keystroke before the
+              red button enables — defense in depth against a misclick that
+              fires several thousand emails. */}
+          {requireTypedConfirmation && (
+            <div className="mb-4 p-3 rounded-md" style={{ background: "var(--bg-card-alt)", border: "1px solid var(--border-light)" }}>
+              <label className="block text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "var(--text-secondary)" }}>
+                Type <strong style={{ color: "#c0392b" }}>{CONFIRM_PHRASE}</strong> to confirm
+              </label>
+              <input
+                value={typed}
+                onChange={(e) => setTyped(e.target.value)}
+                placeholder={CONFIRM_PHRASE}
+                autoComplete="off"
+                spellCheck={false}
+                style={{
+                  width: "100%",
+                  padding: "8px 10px",
+                  borderRadius: 6,
+                  border: `1px solid ${phraseMatched ? "#1a7a3a" : "var(--border-input)"}`,
+                  background: phraseMatched ? "#edf7ed" : "var(--bg-input)",
+                  color: "var(--text-primary)",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  letterSpacing: 1.5,
+                  fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+                  textTransform: "uppercase",
+                  boxSizing: "border-box",
+                  outline: "none",
+                }}
+              />
+            </div>
+          )}
+
           <div className="flex gap-2 mt-5">
             <button
               onClick={onCancel}
@@ -182,8 +269,14 @@ export default function SendConfirmModal({
             </button>
             <button
               onClick={onConfirm}
-              className="flex-1 py-2.5 rounded-md border-none text-white text-[12px] font-bold cursor-pointer uppercase"
-              style={{ background: "#c0392b" }}
+              disabled={!canConfirm}
+              className="flex-1 py-2.5 rounded-md border-none text-white text-[12px] font-bold uppercase disabled:cursor-not-allowed"
+              style={{
+                background: canConfirm ? "#c0392b" : "#999",
+                cursor: canConfirm ? "pointer" : "not-allowed",
+                opacity: canConfirm ? 1 : 0.6,
+              }}
+              title={canConfirm ? undefined : `Type "${CONFIRM_PHRASE}" above to enable`}
             >
               Confirm Send to {total.toLocaleString()}
             </button>
