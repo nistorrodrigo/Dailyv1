@@ -36,6 +36,31 @@ const AUTH_FAIL_MAX = 10;
 const AUTH_FAIL_WINDOW_SEC = 15 * 60; // 15 minutes
 const ALLOWED_EMAIL_DOMAIN = "latinsecurities.ar";
 
+// Default "From" name when the request doesn't supply one or the value
+// fails validation. Recipients see this in their inbox header.
+const DEFAULT_FROM_NAME = "Latin Securities Daily";
+
+/**
+ * Validate the `fromName` the client wants to use as the From-display
+ * name. Returns the trimmed string if it's safe, or null if the caller
+ * should fall back to the default.
+ *
+ * Rules:
+ *   - Must be a non-empty trimmed string
+ *   - Max 80 characters (RFC 5322 doesn't hard-limit, but anything longer
+ *     is almost certainly garbage / abuse)
+ *   - Must not contain `<`, `>`, `"`, CR or LF — those are the characters
+ *     that could break out of the display-name slot in the From header
+ *     and inject extra headers ("From: Foo\nBcc: attacker@…").
+ */
+function sanitizeFromName(name) {
+  if (typeof name !== "string") return null;
+  const trimmed = name.trim();
+  if (!trimmed || trimmed.length > 80) return null;
+  if (/[<>"\r\n]/.test(trimmed)) return null;
+  return trimmed;
+}
+
 /**
  * Try to authenticate via Supabase JWT in the Authorization header.
  * Returns { ok: true, user } if valid; { ok: false, reason } otherwise.
@@ -68,7 +93,7 @@ export default async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
-  const { html, text, subject, recipients, isTest, listName, dailyDate, attachments, abTest } = req.body;
+  const { html, text, subject, recipients, fromName, isTest, listName, dailyDate, attachments, abTest } = req.body;
 
   // Rate-limit gate. We `peek` BEFORE validating the token — that way a
   // locked-out IP can't use the success/failure timing channel as a
@@ -112,11 +137,17 @@ export default async function handler(req, res) {
   if (!apiKey || !fromEmail) return res.status(500).json({ error: "SendGrid not configured." });
 
   try {
+    // Resolve the display name. Prefer what the client sent (validated),
+    // fall back to the system default. Doing this *after* sanitization
+    // means abusive payloads (header-injection attempts, oversized strings)
+    // silently degrade to the safe default rather than rejecting the send.
+    const resolvedFromName = sanitizeFromName(fromName) || DEFAULT_FROM_NAME;
+
     // Build SendGrid payload. Multipart (text/plain + text/html) — RFC says
     // text/plain must come first. Better deliverability and lets recipients
     // with HTML disabled still see something.
     const sgPayload = {
-      from: { email: fromEmail, name: "Latin Securities Daily" },
+      from: { email: fromEmail, name: resolvedFromName },
       content: text
         ? [
             { type: "text/plain", value: text },

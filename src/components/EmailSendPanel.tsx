@@ -13,6 +13,7 @@ import ABTestSubject from "./ABTestSubject";
 import AttachmentInput, { type EmailAttachment } from "./AttachmentInput";
 import { toast } from "../store/useToastStore";
 import { useCurrentUser } from "../hooks/useCurrentUser";
+import { displayNameFromUser } from "../utils/displayName";
 
 interface EmailSendPanelProps {
   open: boolean;
@@ -60,6 +61,11 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
   // The shared-PIN fallback was removed when we audited auth surface area.
   const authMethod: "session" | "none" = currentUser ? "session" : "none";
   const sendDisabled = sending || !currentUser;
+  // The "From" name we attach to every send. Lets each analyst's mail
+  // show up in the recipient's inbox under their own name instead of a
+  // generic shared label. The server validates and falls back to a
+  // default if missing/invalid, so this is opportunistic — never blocking.
+  const fromName = currentUser ? displayNameFromUser(currentUser.user) : null;
 
   useEffect(() => {
     if (open) {
@@ -161,6 +167,7 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
         headers,
         body: JSON.stringify({
           html, text, subject: subject.trim(), recipients: activeRecipients,
+          fromName,
           dailyDate: date, listName: selectedListName || null,
           attachments: attachment ? [attachment] : undefined,
           abTest: abEnabled && abSubjectB.trim() ? { enabled: true, subjectB: abSubjectB.trim() } : undefined,
@@ -213,6 +220,7 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
           text,
           subject: `[TEST] ${subject.trim()}`,
           recipients: [addr],
+          fromName,
           isTest: true,
           dailyDate: date,
         }),
