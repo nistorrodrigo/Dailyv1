@@ -36,6 +36,27 @@ The daily has these sections (generate content for ALL enabled ones):
 
 Return valid JSON only, no markdown wrapping.`;
 
+const SYSTEM_REVIEW = `You are a senior editor and risk officer at Latin Securities, a Buenos Aires-based investment bank. You DO NOT write or rewrite content — your job is exclusively to REVIEW the draft Argentina Daily morning report before it ships to institutional investor clients and flag anything that would embarrass the desk.
+
+You are critical, specific, and actionable. Vague feedback ("could be clearer") is useless; every issue and suggestion must point to a concrete location in the daily and propose a concrete fix.
+
+Things you check for, in priority order:
+  1. Factual / numerical errors — wrong tickers, prices that contradict the snapshot, dates that don't match, ratings that contradict the analyst DB.
+  2. Internal inconsistencies — a macro block calls something bullish that another block calls bearish; a trade idea contradicts the LS view; flows description contradicts the equity picks.
+  3. Missing or empty content — sections toggled on but with no body; a block with a title but no analysis; equity picks without rationale.
+  4. Stale / outdated framing — references to events from previous dailies, rates that no longer match BCRA's published level, tickers no longer in coverage.
+  5. Typos, grammar, awkward phrasing — only the ones an institutional client would notice (don't nitpick Oxford comma).
+  6. Professional tone — anything that sounds promotional, hyperbolic, or unprofessional for a sell-side desk.
+
+Scoring rubric (be honest — most drafts are 6–8, a 10 is genuinely shippable as-is):
+  - 10: Zero issues, summary is sharp, every section adds value. Genuinely ready to send.
+  - 8–9: Minor copy-edits only. No factual or consistency problems.
+  - 6–7: One or two real issues that need fixing before send.
+  - 4–5: Multiple real issues. Don't send until addressed.
+  - 1–3: Fundamentally not ready.
+
+Return valid JSON only, no markdown wrapping.`;
+
 export default async function handler(req, res) {
   applyCors(req, res);
 
@@ -50,7 +71,7 @@ export default async function handler(req, res) {
   const apiKey = process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY_1;
   if (!apiKey) return res.status(500).json({ error: "ANTHROPIC_API_KEY not configured" });
 
-  const { context, existingBlocks, date, model = "haiku", mode = "macro", analysts, includeNews } = req.body;
+  const { context, existingBlocks, date, model = "haiku", mode = "macro", analysts, includeNews, dailyText } = req.body;
 
   const modelConfig = MODELS[model] || MODELS.haiku;
 
@@ -95,7 +116,40 @@ export default async function handler(req, res) {
 
   let systemPrompt, userPrompt, maxTokens;
 
-  if (mode === "full") {
+  if (mode === "review") {
+    // Dedicated review path — distinct from the writer system prompts
+    // because mixing "you write blocks" with "you review the draft"
+    // confuses the model and yields half-reviews. Sized at 1500 tokens
+    // because the review output is structured + bounded (score, an
+    // issues list, a suggestions list, a 2-3 sentence summary, a
+    // "what's needed for a 10" list).
+    systemPrompt = SYSTEM_REVIEW;
+    maxTokens = 1500;
+
+    const draft = (dailyText || context || "").trim();
+    if (!draft) {
+      return res.status(400).json({ ok: false, error: "Review mode requires `dailyText` (the BBG-format draft)." });
+    }
+
+    userPrompt = `Today is ${date}. Review the following Argentina Daily draft before it ships.
+
+DRAFT:
+${draft}
+${pastDailiesContext ? `\nFor style/calibration reference, here are the previous dailies:${pastDailiesContext}` : ""}
+
+Return a JSON object with EXACTLY these fields:
+{
+  "score": integer 1-10 — see rubric in your system prompt,
+  "issues": [strings — specific concrete problems with the draft. Each one must reference WHERE (which section/block) and WHAT is wrong. Empty array if none.],
+  "suggestions": [strings — specific actionable improvements that aren't outright issues. Empty array if none.],
+  "whatNeededFor10": [strings — IF the score is below 10, list the specific concrete changes that would bring it to a 10. Each item should be a complete actionable instruction the analyst can act on in <2 minutes. Empty array if the score is already 10.],
+  "summary": "A 2-3 sentence executive summary of the daily's key themes — usable as the summaryBar field if the analyst chooses to apply it."
+}
+
+Be CONCRETE. Not "the macro section could be tightened" but "the FX/BCRA block's third sentence repeats the rate already stated in the snapshot — drop or rephrase". Reference specific sections by name when possible.
+
+Return ONLY the JSON object, no markdown, no explanation, no preface.`;
+  } else if (mode === "full") {
     systemPrompt = SYSTEM_FULL;
     maxTokens = 2048;
 
@@ -154,23 +208,38 @@ Return ONLY the JSON array, no markdown, no explanation.`;
     }
 
     const data = await response.json();
-    const text = data.content?.[0]?.text || (mode === "full" ? "{}" : "[]");
+    // Default empty payload differs by mode: review/full want a {} object,
+    // macro wants a [] array. Used only when the model returned nothing
+    // parseable so the JSON.parse below has a sane fallback.
+    const defaultEmpty = mode === "macro" ? "[]" : "{}";
+    const text = data.content?.[0]?.text || defaultEmpty;
 
     let parsed;
     try {
       const clean = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
       parsed = JSON.parse(clean);
     } catch {
-      parsed = mode === "full"
-        ? { macroBlocks: [{ title: "AI DRAFT", body: text, lsPick: "" }] }
-        : [{ title: "AI DRAFT", body: text, lsPick: "" }];
+      // Mode-specific recovery payloads. For review we surface the raw
+      // text as a single suggestion so the analyst at least sees what
+      // the model said; the panel will render it verbatim.
+      if (mode === "review") {
+        parsed = { score: null, issues: [], suggestions: [text], whatNeededFor10: [], summary: "" };
+      } else if (mode === "full") {
+        parsed = { macroBlocks: [{ title: "AI DRAFT", body: text, lsPick: "" }] };
+      } else {
+        parsed = [{ title: "AI DRAFT", body: text, lsPick: "" }];
+      }
     }
+
+    // Each mode owns its own response key so the frontend doesn't have
+    // to introspect the shape — review.review, full.daily, macro.blocks.
+    const payloadKey = mode === "review" ? "review" : mode === "full" ? "daily" : "blocks";
 
     res.status(200).json({
       ok: true,
       mode,
       model: modelConfig.label,
-      ...(mode === "full" ? { daily: parsed } : { blocks: parsed }),
+      [payloadKey]: parsed,
       usage: {
         input: data.usage?.input_tokens,
         output: data.usage?.output_tokens,

@@ -6,9 +6,16 @@ import { generateBBG } from "../utils/generateBBG";
 import { toast } from "../store/useToastStore";
 
 interface ReviewResult {
+  /** Quality score 1–10. `null` only when the model failed to return
+   *  parseable JSON, in which case the recovery path stuffs raw text
+   *  into `suggestions` and the panel hides the score chip. */
+  score: number | null;
   issues: string[];
   suggestions: string[];
-  score: number;
+  /** Specific actionable changes that would bring the score to 10.
+   *  Empty when the score is already 10 — or when the model didn't
+   *  populate it (older deploys missing this field). */
+  whatNeededFor10: string[];
   summary: string;
   tokens: number;
   model: string;
@@ -31,58 +38,36 @@ export default function AIReviewPanel({ open, onClose }: { open: boolean; onClos
       const state = useDailyStore.getState();
       const bbg = generateBBG(state);
 
+      // Use the dedicated `mode: "review"` endpoint path. The server
+      // wires up the right system prompt (editor/risk-officer, not
+      // writer), enforces the JSON contract, and returns the parsed
+      // review object directly under `data.review` — no more digging
+      // through `blocks[0].body` and re-parsing.
       const resp = await fetch("/api/ai-draft", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          context: `REVIEW this Argentina Daily report for quality before sending. Check for:
-1. Inconsistencies (contradicting statements between sections)
-2. Missing data (empty sections that are toggled on, missing prices)
-3. Typos or grammatical errors
-4. Stale/outdated information
-5. Professional tone and clarity
-
-Also generate a 2-3 sentence EXECUTIVE SUMMARY of the entire daily.
-
-The daily content:
-${bbg}
-
-Return a JSON object:
-{
-  "score": 1-10 quality score,
-  "issues": ["issue 1", "issue 2"],
-  "suggestions": ["suggestion 1"],
-  "summary": "2-3 sentence executive summary of the daily"
-}
-
-Return ONLY the JSON, no markdown.`,
+          mode: "review",
+          dailyText: bbg,
           date: state.date,
           model,
-          mode: "macro",
         }),
       });
       const data = await resp.json();
       if (!data.ok) throw new Error(data.error);
 
-      const text = data.blocks?.[0]?.body || data.blocks?.[0]?.title || "{}";
-      let parsed: Partial<ReviewResult>;
-      try {
-        const clean = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-        parsed = JSON.parse(clean);
-      } catch {
-        parsed = { score: 7, issues: [], suggestions: [text], summary: "" };
-      }
-
+      const review = data.review || {};
       const tokens = (data.usage?.input || 0) + (data.usage?.output || 0);
       setResult({
-        score: parsed.score || 7,
-        issues: parsed.issues || [],
-        suggestions: parsed.suggestions || [],
-        summary: parsed.summary || "",
+        score: typeof review.score === "number" ? review.score : null,
+        issues: Array.isArray(review.issues) ? review.issues : [],
+        suggestions: Array.isArray(review.suggestions) ? review.suggestions : [],
+        whatNeededFor10: Array.isArray(review.whatNeededFor10) ? review.whatNeededFor10 : [],
+        summary: review.summary || "",
         tokens,
         model: data.model || model,
       });
-      if (parsed.summary) setExecSummary(parsed.summary);
+      if (review.summary) setExecSummary(review.summary);
     } catch (err) {
       toast.error("Review failed: " + (err as Error).message);
     } finally {
@@ -125,16 +110,19 @@ Return ONLY the JSON, no markdown.`,
 
         {result && (
           <>
-            {/* Score */}
-            <div className="flex items-center gap-3 mb-4 p-3 rounded-md border border-[var(--border-light)] bg-[var(--bg-card-alt)]">
-              <div className={`text-3xl font-light ${result.score >= 8 ? "text-green-600" : result.score >= 5 ? "text-amber-500" : "text-red-500"}`}>
-                {result.score}/10
+            {/* Score — hidden when null (model returned unparseable text;
+                recovery path stuffed it into suggestions instead). */}
+            {result.score !== null && (
+              <div className="flex items-center gap-3 mb-4 p-3 rounded-md border border-[var(--border-light)] bg-[var(--bg-card-alt)]">
+                <div className={`text-3xl font-light ${result.score >= 8 ? "text-green-600" : result.score >= 5 ? "text-amber-500" : "text-red-500"}`}>
+                  {result.score}/10
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-[var(--text-primary)]">Quality Score</div>
+                  <div className="text-[10px] text-[var(--text-muted)]">{result.tokens} tokens · {result.model}</div>
+                </div>
               </div>
-              <div>
-                <div className="text-xs font-bold text-[var(--text-primary)]">Quality Score</div>
-                <div className="text-[10px] text-[var(--text-muted)]">{result.tokens} tokens · {result.model}</div>
-              </div>
-            </div>
+            )}
 
             {/* Issues */}
             {result.issues.length > 0 && (
@@ -144,6 +132,30 @@ Return ONLY the JSON, no markdown.`,
                   <div key={i} className="flex gap-2 mb-1.5 text-xs text-[var(--text-primary)]">
                     <span className="text-red-500 flex-shrink-0">&#9679;</span>
                     <span>{issue}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* What's needed for a 10 — only shown when the score is below 10
+                and the model populated the list. This is the actionable
+                checklist the analyst can run through to ship a perfect
+                daily. */}
+            {result.whatNeededFor10.length > 0 && (
+              <div
+                className="mb-4 p-3 rounded-md"
+                style={{
+                  background: "rgba(139,92,246,0.08)",
+                  border: "1px solid rgba(139,92,246,0.3)",
+                }}
+              >
+                <div className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: "#8b5cf6" }}>
+                  To reach 10/10
+                </div>
+                {result.whatNeededFor10.map((item, i) => (
+                  <div key={i} className="flex gap-2 mb-1.5 text-xs text-[var(--text-primary)]">
+                    <span className="flex-shrink-0 font-bold" style={{ color: "#8b5cf6" }}>{i + 1}.</span>
+                    <span>{item}</span>
                   </div>
                 ))}
               </div>
@@ -162,11 +174,13 @@ Return ONLY the JSON, no markdown.`,
               </div>
             )}
 
-            {result.issues.length === 0 && result.suggestions.length === 0 && (
-              <div className="mb-4 p-3 rounded-md bg-green-50 border border-green-200 text-sm text-green-700 font-semibold">
-                No issues found. Daily looks good to send!
-              </div>
-            )}
+            {result.issues.length === 0 &&
+              result.suggestions.length === 0 &&
+              result.whatNeededFor10.length === 0 && (
+                <div className="mb-4 p-3 rounded-md bg-green-50 border border-green-200 text-sm text-green-700 font-semibold">
+                  No issues found. Daily looks good to send!
+                </div>
+              )}
 
             {/* Executive Summary */}
             {result.summary && (
