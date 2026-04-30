@@ -30,6 +30,7 @@ export default function ABTestSubject({
       </div>
       {enabled && (
         <input
+          aria-label="A/B test variant B subject line"
           value={subjectB}
           onChange={(e: React.ChangeEvent<HTMLInputElement>) => onSubjectBChange(e.target.value)}
           placeholder="Variant B subject line (50% of recipients get this)"

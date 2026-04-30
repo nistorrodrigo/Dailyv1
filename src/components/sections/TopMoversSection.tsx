@@ -38,18 +38,21 @@ export default function TopMoversSection() {
         {topMovers[type].map((m: { ticker: string; chgPct: string; comment: string }, i: number) => (
           <div key={i} style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 6 }}>
             <input
+              aria-label={`${label} ticker`}
               value={m.ticker}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateMover(type, i, "ticker", e.target.value)}
               placeholder="Ticker"
               style={{ ...is, width: 80 }}
             />
             <input
+              aria-label={`${label} change percent`}
               value={m.chgPct}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateMover(type, i, "chgPct", e.target.value)}
               placeholder="%"
               style={{ ...is, width: 60, textAlign: "center" }}
             />
             <input
+              aria-label={`${label} comment`}
               value={m.comment}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateMover(type, i, "comment", e.target.value)}
               placeholder="Comment"

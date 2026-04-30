@@ -114,6 +114,9 @@ export default function LoginGate({ children }: LoginGateProps): React.ReactElem
         ) : (
           <>
         <input
+          aria-label="Work email address"
+          name="email"
+          autoComplete="email"
           type="email"
           value={email}
           onChange={(e) => { setEmail(e.target.value); setError(""); }}
@@ -128,6 +131,9 @@ export default function LoginGate({ children }: LoginGateProps): React.ReactElem
           }}
         />
         <input
+          aria-label="Password"
+          name="password"
+          autoComplete={mode === "signup" ? "new-password" : "current-password"}
           type="password"
           value={password}
           onChange={(e) => { setPassword(e.target.value); setError(""); }}

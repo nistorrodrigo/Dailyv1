@@ -89,6 +89,7 @@ export default function SnapshotSection(): React.ReactElement | null {
               <td style={{ padding: "4px 8px", fontSize: 12, fontWeight: 600, color: "var(--text-primary)" }}>{r.label}</td>
               <td style={{ padding: 3 }}>
                 <input
+                  aria-label={`${r.label} level`}
                   value={snapshot[r.key] || ""}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => update(r.key, e.target.value)}
                   style={{ ...is, textAlign: "center" }}
@@ -98,6 +99,7 @@ export default function SnapshotSection(): React.ReactElement | null {
               <td style={{ padding: 3 }}>
                 {r.chgKey ? (
                   <input
+                    aria-label={`${r.label} change percent`}
                     value={snapshot[r.chgKey] || ""}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => r.chgKey && update(r.chgKey, e.target.value)}
                     style={{ ...is, textAlign: "center", color: (snapshot[r.chgKey] || "").startsWith("-") ? "#c0392b" : "#1a7a3a" }}

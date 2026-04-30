@@ -160,8 +160,8 @@ export default function AnalystsTab() {
           <div key={a.id} style={{ padding: 14, background: "var(--bg-card-alt)", borderRadius: 8, marginBottom: 14, border: "1px solid #eee" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
               <div style={{ display: "flex", gap: 8, flex: 1 }}>
-                <input value={a.name} onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateListItem("analysts", a.id, "name", e.target.value)} placeholder="Name" style={{ ...is, fontWeight: 700, flex: 2 }} />
-                <input value={a.title} onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateListItem("analysts", a.id, "title", e.target.value)} placeholder="Title" style={{ ...is, flex: 2 }} />
+                <input aria-label="Analyst name" value={a.name} onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateListItem("analysts", a.id, "name", e.target.value)} placeholder="Name" style={{ ...is, fontWeight: 700, flex: 2 }} />
+                <input aria-label="Analyst title" value={a.title} onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateListItem("analysts", a.id, "title", e.target.value)} placeholder="Title" style={{ ...is, flex: 2 }} />
               </div>
               <X onClick={() => removeListItem("analysts", a.id)} />
             </div>
@@ -180,7 +180,7 @@ export default function AnalystsTab() {
                 {a.coverage.map((cv: { ticker: string; rating: string; tp: string; last?: string }, ci: number) => (
                   <tr key={ci} style={{ background: ci % 2 === 0 ? "#fff" : "#f8fafc" }}>
                     <td style={{ padding: 3 }}>
-                      <input value={cv.ticker} onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateCoverage(a.id, ci, "ticker", e.target.value.toUpperCase())} style={{ ...is, width: "100%", fontWeight: 700 }} />
+                      <input aria-label="Coverage ticker" value={cv.ticker} onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateCoverage(a.id, ci, "ticker", e.target.value.toUpperCase())} style={{ ...is, width: "100%", fontWeight: 700 }} />
                     </td>
                     <td style={{ padding: 3 }}>
                       <select value={cv.rating} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => updateCoverage(a.id, ci, "rating", e.target.value)} style={{ ...ss, width: "100%", color: rc(cv.rating), fontWeight: 600 }}>
@@ -192,10 +192,10 @@ export default function AnalystsTab() {
                       </select>
                     </td>
                     <td style={{ padding: 3 }}>
-                      <input value={cv.tp} onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateCoverage(a.id, ci, "tp", e.target.value)} onBlur={(e: React.FocusEvent<HTMLInputElement>) => { const v = e.target.value.replace(/[^0-9.]/g, ""); if (v) updateCoverage(a.id, ci, "tp", `US$${parseFloat(v).toFixed(2)}`); }} placeholder="US$0.00" style={{ ...is, width: "100%" }} />
+                      <input aria-label={`${cv.ticker || "Coverage"} target price`} value={cv.tp} onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateCoverage(a.id, ci, "tp", e.target.value)} onBlur={(e: React.FocusEvent<HTMLInputElement>) => { const v = e.target.value.replace(/[^0-9.]/g, ""); if (v) updateCoverage(a.id, ci, "tp", `US$${parseFloat(v).toFixed(2)}`); }} placeholder="US$0.00" style={{ ...is, width: "100%" }} />
                     </td>
                     <td style={{ padding: 3 }}>
-                      <input value={cv.last || ""} onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateCoverage(a.id, ci, "last", e.target.value)} onBlur={(e: React.FocusEvent<HTMLInputElement>) => { const v = e.target.value.replace(/[^0-9.]/g, ""); if (v) updateCoverage(a.id, ci, "last", `US$${parseFloat(v).toFixed(2)}`); }} placeholder="US$0.00" style={{ ...is, width: "100%", color: "#666" }} />
+                      <input aria-label={`${cv.ticker || "Coverage"} last price`} value={cv.last || ""} onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateCoverage(a.id, ci, "last", e.target.value)} onBlur={(e: React.FocusEvent<HTMLInputElement>) => { const v = e.target.value.replace(/[^0-9.]/g, ""); if (v) updateCoverage(a.id, ci, "last", `US$${parseFloat(v).toFixed(2)}`); }} placeholder="US$0.00" style={{ ...is, width: "100%", color: "#666" }} />
                     </td>
                     <td style={{ padding: 3, textAlign: "center" }}>
                       <X onClick={() => deleteCoverage(a.id, ci)} />

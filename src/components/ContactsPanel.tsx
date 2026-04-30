@@ -286,7 +286,9 @@ export default function ContactsPanel({ open, onClose }: ContactsPanelProps): Re
         {view === "contacts" && selectedList && (
           <>
             {/* Search */}
-            <input value={search} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
+            <input
+              aria-label="Search contacts by name or email"
+              value={search} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
               placeholder="Search name or email..."
               className="themed-input w-full px-2.5 py-2 rounded-md border border-[var(--border-input)] text-sm bg-[var(--bg-input)] text-[var(--text-primary)] mb-3" />
 
@@ -403,7 +405,9 @@ export default function ContactsPanel({ open, onClose }: ContactsPanelProps): Re
         <div className="p-4 border-t border-[var(--border-light)]">
           {/* Save selection */}
           <div className="flex gap-2 mb-3">
-            <input value={filterName} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFilterName(e.target.value)}
+            <input
+              aria-label="Saved selection name"
+              value={filterName} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFilterName(e.target.value)}
               placeholder="Save as..."
               className="themed-input flex-1 px-2 py-1.5 rounded border border-[var(--border-input)] text-xs bg-[var(--bg-input)] text-[var(--text-primary)]" />
             <button onClick={saveCurrentSelection} disabled={selectedCount === 0}

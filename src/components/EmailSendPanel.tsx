@@ -294,6 +294,7 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
           </label>
           <div className="flex gap-2">
             <input
+              aria-label="Email subject"
               value={subject}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSubject(e.target.value)}
               className="themed-input flex-1 px-2.5 py-2 rounded-md border border-[var(--border-input)] text-[13px] bg-[var(--bg-input)] text-[var(--text-primary)]"
@@ -376,8 +377,8 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
             Add Recipient
           </label>
           <div style={{ display: "flex", gap: 6 }}>
-            <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Name" style={{ flex: 1, padding: "6px 8px", borderRadius: 4, border: "1px solid #d0d5dd", fontSize: 12 }} />
-            <input value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="email@..." style={{ flex: 2, padding: "6px 8px", borderRadius: 4, border: "1px solid #d0d5dd", fontSize: 12 }} />
+            <input aria-label="New recipient name" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Name" style={{ flex: 1, padding: "6px 8px", borderRadius: 4, border: "1px solid #d0d5dd", fontSize: 12 }} />
+            <input aria-label="New recipient email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="email@..." style={{ flex: 2, padding: "6px 8px", borderRadius: 4, border: "1px solid #d0d5dd", fontSize: 12 }} />
             <button onClick={handleAdd} style={{ padding: "6px 12px", borderRadius: 4, border: "none", background: BRAND.blue, color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>+</button>
           </div>
         </div>
@@ -439,6 +440,7 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
                 )}
               </div>
               <input
+                aria-label="Security PIN"
                 type="password"
                 value={pin}
                 onChange={(e) => {
@@ -510,6 +512,7 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
             </label>
             <div className="flex gap-2">
               <input
+                aria-label="Test email recipient address"
                 value={testEmailAddress}
                 onChange={(e) => setTestEmailAddress(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") performTestSend(); if (e.key === "Escape") setTestFormOpen(false); }}

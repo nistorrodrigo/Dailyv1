@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useId, useState } from "react";
 import { BRAND } from "../constants/brand";
 
 export interface SendConfirmModalProps {
@@ -62,6 +62,7 @@ export default function SendConfirmModal({
   requireTypedConfirmation = true,
 }: SendConfirmModalProps): React.ReactElement | null {
   const [typed, setTyped] = useState("");
+  const confirmInputId = useId();
 
   // Reset the typed confirmation every time the modal opens so an old
   // value from a previous attempt doesn't persist as a "ready to fire"
@@ -231,10 +232,17 @@ export default function SendConfirmModal({
               fires several thousand emails. */}
           {requireTypedConfirmation && (
             <div className="mb-4 p-3 rounded-md" style={{ background: "var(--bg-card-alt)", border: "1px solid var(--border-light)" }}>
-              <label className="block text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "var(--text-secondary)" }}>
+              <label
+                htmlFor={confirmInputId}
+                className="block text-[10px] font-bold uppercase tracking-wide mb-1"
+                style={{ color: "var(--text-secondary)" }}
+              >
                 Type <strong style={{ color: "#c0392b" }}>{CONFIRM_PHRASE}</strong> to confirm
               </label>
               <input
+                id={confirmInputId}
+                name="confirm-send-phrase"
+                aria-label="Type SEND to confirm"
                 value={typed}
                 onChange={(e) => setTyped(e.target.value)}
                 placeholder={CONFIRM_PHRASE}

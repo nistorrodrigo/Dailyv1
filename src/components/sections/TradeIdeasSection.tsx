@@ -108,6 +108,7 @@ export default function TradeIdeasSection() {
                   ))}
                 </select>
                 <input
+                  aria-label={`${p.ticker || "Equity pick"} reason`}
                   value={p.reason}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateEquityPick(idx, "reason", e.target.value)}
                   placeholder="Reason / thesis"
@@ -141,6 +142,7 @@ export default function TradeIdeasSection() {
         {/* Bulk ticker paste — turns "BBAR, VIST, IRS" into N rows in one shot */}
         <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
           <input
+            aria-label="Bulk paste tickers"
             value={bulkPaste}
             onChange={(e) => setBulkPaste(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleBulkPaste(); } }}
@@ -182,12 +184,14 @@ export default function TradeIdeasSection() {
             return (
               <div style={{ display: "flex", gap: 8, alignItems: "flex-start", marginBottom: 8 }}>
                 <input
+                  aria-label="Fixed income trade idea"
                   value={fi.idea}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateFIIdea(idx, "idea", e.target.value)}
                   placeholder="Instrument / Trade"
                   style={{ ...is, width: 220 }}
                 />
                 <input
+                  aria-label="Fixed income trade reason"
                   value={fi.reason}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateFIIdea(idx, "reason", e.target.value)}
                   placeholder="Reason / thesis"
