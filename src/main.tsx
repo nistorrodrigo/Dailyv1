@@ -7,9 +7,14 @@ import LoginGate from './components/LoginGate'
 import { inject } from '@vercel/analytics'
 import useDailyStore from './store/useDailyStore'
 import { setupSupabaseSync } from './lib/supabaseSync'
+import { initSentry, reportError } from './lib/sentry'
 
 // Vercel Analytics
 inject();
+
+// Sentry error tracking. No-ops when VITE_SENTRY_DSN is not configured,
+// so adding the env var in Vercel turns telemetry on without code changes.
+initSentry();
 
 // Initialize Supabase sync after store is ready
 setupSupabaseSync(useDailyStore);
@@ -21,7 +26,7 @@ if (localStorage.getItem("ls-dark-mode") === "1") {
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <ErrorBoundary>
+    <ErrorBoundary onError={(err) => reportError(err)}>
       <LoginGate>
         <App />
       </LoginGate>

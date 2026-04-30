@@ -1,10 +1,8 @@
-// Mass-email send endpoint, gated by a static PIN (env: SEND_EMAIL_PIN).
+// Mass-email send endpoint, gated by a static PIN (env: SEND_EMAIL_PIN)
+// + per-IP rate limiting on failed attempts (Vercel KV / Upstash).
 //
 // Known remaining concerns (intentionally not blocking the daily flow):
 //   - PIN is shared/static. Real auth = a Supabase session token validated here.
-//   - No persistent rate limiting. Failed PINs are logged but not throttled —
-//     a brute-force attempt (10k tries for a 4-digit PIN) is feasible. Use
-//     @vercel/kv or upstash for atomic counters if this becomes a concern.
 //   - Confirmation email always goes to fromEmail, not the human who clicked
 //     send. Pass `confirmTo` from the frontend if you want per-user confirms.
 //   - Errors propagate err.message to the client; SendGrid sometimes includes
@@ -13,6 +11,8 @@
 //     key (kept server-only) is the correct choice.
 
 import { createClient } from "@supabase/supabase-js";
+import { applyCors } from "./_helpers.js";
+import { peekLimit, recordFailure, callerIp } from "./_rateLimit.js";
 
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL,
@@ -23,26 +23,11 @@ const supabase = createClient(
 // the lambda quietly. Vercel itself caps body size, but we want a clear error.
 const MAX_PAYLOAD_BYTES = 5 * 1024 * 1024; // 5 MB before base64; 6.7 MB after.
 
-/**
- * Set strict CORS: only allow same-origin (no header) and explicitly allowlisted
- * origins from CORS_ALLOWED_ORIGINS (comma-separated). Replaces the previous `*`
- * wildcard that let any site on the internet invoke this endpoint.
- */
-function applyCors(req, res) {
-  const allowList = (process.env.CORS_ALLOWED_ORIGINS || "")
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
-  const origin = req.headers.origin;
-  if (origin && allowList.includes(origin)) {
-    res.setHeader("Access-Control-Allow-Origin", origin);
-    res.setHeader("Vary", "Origin");
-  }
-  // Same-origin browser requests need none of these headers; leaving them off
-  // means any unintended cross-origin POST is correctly blocked by the browser.
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-}
+// Lock-out budget for failed-PIN attempts. Generous enough that a legit
+// user can typo a few times; tight enough that a 4-digit PIN brute-force
+// gets stopped well before all 10k combos can be enumerated.
+const PIN_FAIL_MAX = 10;
+const PIN_FAIL_WINDOW_SEC = 15 * 60; // 15 minutes
 
 export default async function handler(req, res) {
   applyCors(req, res);
@@ -52,13 +37,27 @@ export default async function handler(req, res) {
 
   const { html, text, subject, recipients, pin, isTest, listName, dailyDate, attachments, abTest } = req.body;
 
-  // PIN verification. Any failure is logged with caller IP so brute-force
-  // attempts show up in Vercel logs even though we don't have a persistent
-  // rate-limit store. (For real rate limiting use @vercel/kv or upstash.)
+  // Rate-limit gate. We `peek` BEFORE checking the PIN — that way a
+  // locked-out IP can't use the success/failure timing channel as a
+  // signal about whether they got the PIN right. Successful sends do
+  // NOT increment the counter; only failures do.
+  const ip = callerIp(req);
+  const rl = await peekLimit(`pin-fail:${ip}`, PIN_FAIL_MAX);
+  if (!rl.ok) {
+    console.warn(`[send-email] IP ${ip} rate-limited (${rl.count} fails in window)`);
+    res.setHeader("Retry-After", String(rl.resetSec || PIN_FAIL_WINDOW_SEC));
+    return res.status(429).json({
+      error: `Too many failed attempts. Try again in ${Math.ceil((rl.resetSec || PIN_FAIL_WINDOW_SEC) / 60)} minutes.`,
+    });
+  }
+
+  // PIN verification. Any failure increments the rate-limit counter and
+  // is logged with caller IP. Once PIN_FAIL_MAX fails accumulate within
+  // the window, the IP is locked out (handled at the top of this handler).
   const validPin = process.env.SEND_EMAIL_PIN;
   if (!validPin) return res.status(500).json({ error: "SEND_EMAIL_PIN not configured." });
   if (!pin || pin !== validPin) {
-    const ip = req.headers["x-forwarded-for"] || req.socket?.remoteAddress || "unknown";
+    await recordFailure(`pin-fail:${ip}`, PIN_FAIL_WINDOW_SEC);
     console.warn(`[send-email] Invalid PIN attempt from ${ip}, recipients=${recipients?.length || 0}`);
     return res.status(403).json({ error: "Invalid PIN. Email not sent." });
   }
