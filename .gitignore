@@ -32,3 +32,9 @@ Thumbs.db
 
 # tsc output (don't commit type-check dumps)
 tsc_*.txt
+
+# Playwright artifacts
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/

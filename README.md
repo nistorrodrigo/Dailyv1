@@ -49,11 +49,13 @@ vercel dev
 |---|---|
 | `npm run dev` | Vite dev server (UI only, `/api/*` will 404) |
 | `npm run typecheck` | `tsc --noEmit` over the whole repo |
-| `npm test` | Runs the Vitest suite (132 tests) |
+| `npm test` | Runs the Vitest suite (~150 unit + component tests) |
 | `npm run test:watch` | Vitest in watch mode |
+| `npm run test:e2e` | Playwright E2E smoke suite (builds + serves the bundle) |
+| `npm run test:e2e:ui` | Same, but opens the Playwright inspector for debugging |
 | `npm run build` | Production build to `dist/` |
 
-CI on every PR runs typecheck + tests + build (`.github/workflows/ci.yml`).
+CI on every PR runs typecheck + unit tests + build, plus a parallel E2E job that boots the production bundle in headless Chromium and runs `e2e/smoke.spec.ts` (`.github/workflows/ci.yml`).
 
 ---
 
@@ -135,7 +137,8 @@ vercel --prod       # deploy to production
 - **react-window** (virtualised recipient list above 100 rows)
 - **Sentry** (error reporting, opt-in via env var)
 - **Vercel KV / Upstash Redis** (rate limiting, opt-in via env var)
-- **Vitest** + **@testing-library/react** + **happy-dom** (132 tests)
+- **Vitest** + **@testing-library/react** + **happy-dom** (~150 unit + component tests)
+- **Playwright** (E2E smoke suite over the production bundle)
 - **TypeScript 6** strict, 0 errors
 
 ---
@@ -158,8 +161,9 @@ src/
   store/              useDailyStore (zustand), useUIStore, useToastStore
   utils/              generateHTML, generateBBG, dates, prices, ratings, text…
   __tests__/          Vitest suites + RTL component tests + HTML snapshots
+e2e/                  Playwright end-to-end smoke tests
 public/               Static assets (logo, manifest, vite icon)
-.github/workflows/    CI (typecheck + tests + build on every PR)
+.github/workflows/    CI (typecheck + tests + build + E2E on every PR)
 ```
 
 ---
