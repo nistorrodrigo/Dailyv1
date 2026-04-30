@@ -8,9 +8,10 @@
 // failures within the window increment. Once the counter exceeds `max`,
 // further calls are denied until the window expires.
 //
-// We use this only on the PIN-failure path of /api/send-email — successful
-// sends shouldn't be rate-limited. Same address can keep trying with the
-// correct PIN forever; an attacker brute-forcing gets locked out fast.
+// We use this only on the auth-failure path of /api/send-email —
+// successful sends shouldn't be rate-limited. A logged-in user can keep
+// sending forever; an attacker hammering with bad/expired tokens gets
+// locked out fast.
 //
 // Graceful degradation: if Redis isn't configured (no env vars or import
 // fails), the helper returns `{ ok: true, skipped: true }` and logs a

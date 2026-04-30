@@ -23,8 +23,10 @@ export interface SendConfirmModalProps {
   /** Email of the currently-authenticated user. Shown in the security
    *  section so the user sees who they're about to send AS. */
   authedAs?: string | null;
-  /** Auth method label — e.g. "Supabase session" or "PIN (legacy)". */
-  authMethod?: "session" | "pin" | "none";
+  /** Auth method label. "session" = logged in via Supabase JWT (the only
+   *  valid path); "none" = no session (server will reject — usually means
+   *  the JWT expired while the modal was open). */
+  authMethod?: "session" | "none";
   /**
    * If true (the default), the user must type "SEND" into a confirmation
    * field before the destructive button enables. Pass false to skip
@@ -77,11 +79,11 @@ export default function SendConfirmModal({
   const otherDomainCount = domains.slice(5).reduce((s, d) => s + d.count, 0);
   const phraseMatched = typed.trim().toUpperCase() === CONFIRM_PHRASE;
   const canConfirm = !requireTypedConfirmation || phraseMatched;
-  // Auth status colours: green = strong (session), amber = weak (PIN), red = none.
+  // Auth status colours: green = active session, red = no session.
   const authPalette =
-    authMethod === "session" ? { bg: "#edf7ed", fg: "#1a7a3a", label: "Authenticated session" }
-    : authMethod === "pin"   ? { bg: "#fff3e0", fg: "#c97a2c", label: "PIN (legacy)" }
-                             : { bg: "#fdf2f2", fg: "#a4302a", label: "No authentication" };
+    authMethod === "session"
+      ? { bg: "#edf7ed", fg: "#1a7a3a", label: "Authenticated session" }
+      : { bg: "#fdf2f2", fg: "#a4302a", label: "No authentication" };
 
   return (
     <div
@@ -129,9 +131,7 @@ export default function SendConfirmModal({
             <div className="text-[12px]" style={{ color: "var(--text-primary)" }}>
               {authedAs
                 ? <>Sending as <strong>{authedAs}</strong></>
-                : authMethod === "pin"
-                  ? "Sending via shared PIN — no user identity recorded."
-                  : "No active session — request will be rejected by the server."}
+                : "No active session — log out and back in before sending."}
             </div>
           </div>
 

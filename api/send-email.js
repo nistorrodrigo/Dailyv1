@@ -1,15 +1,12 @@
-// Mass-email send endpoint. Two-tier auth, preferred order:
+// Mass-email send endpoint. Auth via Supabase JWT only:
 //
-//   1. Authorization: Bearer <supabase-jwt>  ← what the web app uses
-//      The JWT is validated against Supabase; the user's email must end
-//      in @latinsecurities.ar (matches LoginGate's domain restriction).
+//   Authorization: Bearer <supabase-jwt>
+//   The JWT is validated against Supabase; the user's email must end
+//   in @latinsecurities.ar (matches LoginGate's domain restriction).
 //
-//   2. body.pin == process.env.SEND_EMAIL_PIN  ← legacy / cron fallback
-//      Kept for cron schedulers and any external caller that doesn't
-//      have a Supabase session. Same per-IP rate limiting on failures
-//      as before.
-//
-// Either path lets the request through; both paths fail → 403.
+// Failed attempts are rate-limited per IP (10 / 15 min via Redis when
+// configured). No fallback PIN — the legacy shared-PIN path was removed
+// after confirming no cron jobs or external callers depend on it.
 //
 // Known remaining concerns:
 //   - Confirmation email always goes to fromEmail, not the human who clicked
@@ -32,9 +29,9 @@ const supabase = createClient(
 // the lambda quietly. Vercel itself caps body size, but we want a clear error.
 const MAX_PAYLOAD_BYTES = 5 * 1024 * 1024; // 5 MB before base64; 6.7 MB after.
 
-// Lock-out budget for failed auth attempts (PIN OR token). Generous enough
-// that a legit user can typo a few times; tight enough that a 4-digit PIN
-// brute-force gets stopped well before all 10k combos can be enumerated.
+// Lock-out budget for failed token validations. Generous enough that a
+// legit user can typo their login a few times before getting locked out;
+// tight enough that an attacker with a stolen-but-stale token can't loop.
 const AUTH_FAIL_MAX = 10;
 const AUTH_FAIL_WINDOW_SEC = 15 * 60; // 15 minutes
 const ALLOWED_EMAIL_DOMAIN = "latinsecurities.ar";
@@ -71,13 +68,13 @@ export default async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
-  const { html, text, subject, recipients, pin, isTest, listName, dailyDate, attachments, abTest } = req.body;
+  const { html, text, subject, recipients, isTest, listName, dailyDate, attachments, abTest } = req.body;
 
-  // Rate-limit gate. We `peek` BEFORE attempting auth — that way a
+  // Rate-limit gate. We `peek` BEFORE validating the token — that way a
   // locked-out IP can't use the success/failure timing channel as a
-  // signal about whether their token / PIN guess was right.
+  // signal about whether their token guess was right.
   const ip = callerIp(req);
-  const rl = await peekLimit(`pin-fail:${ip}`, AUTH_FAIL_MAX);
+  const rl = await peekLimit(`auth-fail:${ip}`, AUTH_FAIL_MAX);
   if (!rl.ok) {
     console.warn(`[send-email] IP ${ip} rate-limited (${rl.count} fails in window)`);
     res.setHeader("Retry-After", String(rl.resetSec || AUTH_FAIL_WINDOW_SEC));
@@ -86,27 +83,17 @@ export default async function handler(req, res) {
     });
   }
 
-  // ── Auth: try Supabase token first, fall back to PIN ─────────────
+  // ── Auth: Supabase JWT only ─────────────────────────────────────
   const tokenAuth = await authViaToken(req);
-  let authedUserEmail = null;
-  if (tokenAuth.ok) {
-    authedUserEmail = tokenAuth.user.email;
-  } else {
-    // Fall back to PIN.
-    const validPin = process.env.SEND_EMAIL_PIN;
-    if (!validPin) {
-      return res.status(500).json({ error: "Auth not configured: provide a Supabase session or set SEND_EMAIL_PIN." });
-    }
-    if (!pin || pin !== validPin) {
-      await recordFailure(`pin-fail:${ip}`, AUTH_FAIL_WINDOW_SEC);
-      console.warn(
-        `[send-email] Auth failed from ${ip} ` +
-        `(token: ${tokenAuth.reason}; pin: ${pin ? "wrong" : "missing"}), ` +
-        `recipients=${recipients?.length || 0}`,
-      );
-      return res.status(403).json({ error: "Authentication failed. Log in again or provide a valid PIN." });
-    }
+  if (!tokenAuth.ok) {
+    await recordFailure(`auth-fail:${ip}`, AUTH_FAIL_WINDOW_SEC);
+    console.warn(
+      `[send-email] Auth failed from ${ip} (reason: ${tokenAuth.reason}), ` +
+      `recipients=${recipients?.length || 0}`,
+    );
+    return res.status(403).json({ error: "Your session has expired. Log out and back in to continue." });
   }
+  const authedUserEmail = tokenAuth.user.email;
 
   if (!html || !subject || !recipients?.length) {
     return res.status(400).json({ error: "Missing html, subject, or recipients" });

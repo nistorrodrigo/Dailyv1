@@ -71,12 +71,6 @@ CI on every PR runs typecheck + tests + build (`.github/workflows/ci.yml`).
 | `SENDGRID_FROM_EMAIL` | Vercel + local | "From" address on outgoing mail (e.g. `daily@latinsecurities.ar`) |
 | `ANTHROPIC_API_KEY` | Vercel + local | AI Draft + AI Review tabs |
 
-### Auth fallback (legacy)
-
-| Name | Purpose |
-|---|---|
-| `SEND_EMAIL_PIN` | Static PIN that gates `/api/send-email` when no Supabase session is present. Kept as fallback for cron jobs / external callers. The web app uses Supabase JWT primarily. |
-
 ### Optional
 
 | Name | Set in | Purpose |
@@ -95,14 +89,13 @@ Two-layer auth on the send endpoint (everything else is read-only and rate-limit
 
 1. **Page-level login** (`LoginGate.tsx`) — Supabase email/password, restricted to the `@latinsecurities.ar` domain. Without a valid session you don't see the app at all.
 2. **Send authorization** (`api/send-email.js`):
-   - **Primary**: `Authorization: Bearer <Supabase JWT>` — the server calls `supabase.auth.getUser(token)` and checks the email domain.
-   - **Fallback**: matches `body.pin` against `process.env.SEND_EMAIL_PIN` for cron schedulers and external callers.
-   - **Rate limit**: 10 failed attempts per IP per 15 min via Vercel KV (when configured).
+   - **Required**: `Authorization: Bearer <Supabase JWT>` — the server calls `supabase.auth.getUser(token)` and checks the email domain. No fallback PIN — there is exactly one valid auth path.
+   - **Rate limit**: 10 failed attempts per IP per 15 min via Redis (when `REDIS_URL` is configured).
    - **CORS**: `Access-Control-Allow-Origin` allowlisted via `CORS_ALLOWED_ORIGINS` — defaults to same-origin only.
 
 In the UI:
 - Header chip shows the authenticated user's email at all times.
-- The send-confirmation modal labels the auth method (green = JWT, amber = PIN, red = none) and the user must type `SEND` to enable the destructive button.
+- The send-confirmation modal labels the auth method (green = active session, red = none) and the user must type `SEND` to enable the destructive button.
 - A pre-send re-check refreshes the session in case it expired while the modal was open.
 
 Per-recipient unsubscribe link is rendered in the email footer with the `__LS_RECIPIENT_EMAIL__` substitution token; SendGrid replaces it per-personalization so each recipient gets a pre-filled URL.

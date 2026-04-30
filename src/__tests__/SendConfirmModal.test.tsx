@@ -106,14 +106,10 @@ describe("SendConfirmModal", () => {
     expect(screen.getByText(/rodrigo@latinsecurities\.ar/)).toBeInTheDocument();
   });
 
-  it("flags PIN auth as legacy/weak", () => {
-    render(<SendConfirmModal {...baseProps} authedAs={null} authMethod="pin" />);
-    expect(screen.getByText(/PIN.*legacy/i)).toBeInTheDocument();
-  });
-
   it("warns when there is no authentication at all", () => {
     render(<SendConfirmModal {...baseProps} authedAs={null} authMethod="none" />);
     expect(screen.getByText(/No authentication/i)).toBeInTheDocument();
+    expect(screen.getByText(/log out and back in/i)).toBeInTheDocument();
   });
 
   it("disables the Send button until 'SEND' is typed (type-to-confirm)", () => {
