@@ -146,23 +146,25 @@ export default function Header(): React.ReactElement {
 
   return (
     <>
+      {/* ───── Row 1: identity + ambient status ─────────────────── */}
       <div
-        className="header-content"
+        className="header-identity"
         style={{
           background: "var(--bg-header)",
-          padding: "12px 22px",
+          padding: "10px 22px",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          borderBottom: `3px solid ${BRAND.sky}`,
           gap: 16,
+          flexWrap: "wrap",
+          rowGap: 8,
         }}
       >
-        {/* Brand block */}
-        <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
+        {/* Brand block — never shrinks, so the title is always readable. */}
+        <div style={{ display: "flex", alignItems: "center", gap: 14, flexShrink: 0 }}>
           <img src={LOGO_WHITE_URL} alt="Latin Securities" style={{ height: 34, width: "auto", flexShrink: 0 }} />
           <div style={{ width: 1, height: 32, background: "rgba(255,255,255,0.18)" }} aria-hidden />
-          <div style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
             <span style={{ fontSize: 13, color: "#fff", fontWeight: 700, letterSpacing: 0.4, lineHeight: 1.1 }}>
               Argentina Daily
             </span>
@@ -172,37 +174,89 @@ export default function Header(): React.ReactElement {
           </div>
         </div>
 
-        {/* Action buttons */}
-        <div className="header-buttons" style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "nowrap" }}>
+        {/* Status group — separate space, can wrap below logo on narrow viewports. */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", rowGap: 6 }}>
           <PresenceIndicator />
 
-          {/* Save status (no border, just text) */}
           {(saveStatus === "saved" || saveStatus === "idle") && lastSavedAt && (
-            <span style={{ fontSize: 10, color: BRAND.green, fontWeight: 600, letterSpacing: 0.5, marginRight: 4 }}>
+            <span style={{ fontSize: 10, color: BRAND.green, fontWeight: 600, letterSpacing: 0.5, whiteSpace: "nowrap" }}>
               {"✓"} Saved {timeAgo(lastSavedAt)}
             </span>
           )}
           {saveStatus === "saving" && (
-            <span style={{ fontSize: 10, color: BRAND.orange, fontWeight: 600, letterSpacing: 0.5, marginRight: 4 }}>
+            <span style={{ fontSize: 10, color: BRAND.orange, fontWeight: 600, letterSpacing: 0.5, whiteSpace: "nowrap" }}>
               SAVING…
             </span>
           )}
           {saveStatus === "error" && (
-            <span style={{ fontSize: 10, color: "#e74c3c", fontWeight: 600, marginRight: 4 }}>
+            <span style={{ fontSize: 10, color: "#e74c3c", fontWeight: 600, whiteSpace: "nowrap" }}>
               OFFLINE
             </span>
           )}
 
-          {/* Word count + reading time */}
           {totalWords > 0 && (
             <span
-              style={{ fontSize: 10, color: "rgba(255,255,255,0.55)", fontWeight: 500, letterSpacing: 0.3, marginRight: 4 }}
+              style={{ fontSize: 10, color: "rgba(255,255,255,0.55)", fontWeight: 500, letterSpacing: 0.3, whiteSpace: "nowrap" }}
               title={`${totalWords} words · ~${minutes} min read`}
             >
               {totalWords.toLocaleString()} words · {minutes}m
             </span>
           )}
 
+          {/* Utilities live up here too — Help, dark mode, logout. */}
+          <button
+            onClick={toggleShortcutsOverlay}
+            title="Keyboard shortcuts (?)"
+            aria-label="Keyboard shortcuts"
+            style={{
+              border: "1px solid rgba(255,255,255,0.18)",
+              borderRadius: 6,
+              background: "transparent",
+              color: "#fff",
+              fontSize: 13,
+              padding: "5px 10px",
+              cursor: "pointer",
+              lineHeight: 1,
+              fontWeight: 700,
+            }}
+          >
+            ?
+          </button>
+          <button
+            onClick={toggleDarkMode}
+            title={darkMode ? "Switch to light mode (Ctrl+D)" : "Switch to dark mode (Ctrl+D)"}
+            style={{
+              border: "1px solid rgba(255,255,255,0.18)",
+              borderRadius: 6,
+              background: "transparent",
+              color: "#fff",
+              fontSize: 14,
+              padding: "5px 10px",
+              cursor: "pointer",
+              lineHeight: 1,
+            }}
+          >
+            {darkMode ? "☀" : "☾"}
+          </button>
+          <TBtn onClick={logout} title="Log out">Logout</TBtn>
+        </div>
+      </div>
+
+      {/* ───── Row 2: action toolbar ───────────────────────────── */}
+      <div
+        className="header-toolbar"
+        style={{
+          background: "var(--bg-header)",
+          padding: "8px 22px 12px",
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          flexWrap: "wrap",
+          rowGap: 8,
+          borderBottom: `3px solid ${BRAND.sky}`,
+        }}
+      >
+        <div className="header-buttons" style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", rowGap: 8 }}>
           {/* Undo / Redo */}
           <button
             onClick={doUndo}
@@ -279,45 +333,6 @@ export default function Header(): React.ReactElement {
 
           {/* Primary CTA */}
           <TBtn onClick={() => setOpenPanel("email")} primary>Send Email</TBtn>
-
-          <Divider />
-
-          {/* Utilities */}
-          <button
-            onClick={toggleShortcutsOverlay}
-            title="Keyboard shortcuts (?)"
-            aria-label="Keyboard shortcuts"
-            style={{
-              border: "1px solid rgba(255,255,255,0.18)",
-              borderRadius: 6,
-              background: "transparent",
-              color: "#fff",
-              fontSize: 13,
-              padding: "5px 10px",
-              cursor: "pointer",
-              lineHeight: 1,
-              fontWeight: 700,
-            }}
-          >
-            ?
-          </button>
-          <button
-            onClick={toggleDarkMode}
-            title={darkMode ? "Switch to light mode (Ctrl+D)" : "Switch to dark mode (Ctrl+D)"}
-            style={{
-              border: "1px solid rgba(255,255,255,0.18)",
-              borderRadius: 6,
-              background: "transparent",
-              color: "#fff",
-              fontSize: 14,
-              padding: "5px 10px",
-              cursor: "pointer",
-              lineHeight: 1,
-            }}
-          >
-            {darkMode ? "☀" : "☾"}
-          </button>
-          <TBtn onClick={logout} title="Log out">Logout</TBtn>
         </div>
       </div>
       <HistoryPanel open={openPanel === "history"} onClose={() => setOpenPanel(null)} />
