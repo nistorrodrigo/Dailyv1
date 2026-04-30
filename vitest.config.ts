@@ -16,5 +16,11 @@ export default defineConfig({
     environment: "happy-dom",
     globals: false,
     setupFiles: ["./src/__tests__/setup.ts"],
+    // Vitest's default scan picks up any `*.spec.ts` file, including the
+    // Playwright suite under e2e/. Those import from @playwright/test and
+    // call test.describe() at module scope, which throws under vitest.
+    // Explicit include keeps the scan tight to the unit-test dir.
+    include: ["src/**/*.{test,spec}.{ts,tsx}"],
+    exclude: ["node_modules", "dist", "e2e", ".github"],
   },
 });
