@@ -8,12 +8,7 @@ import MarkdownEditor from "../ui/MarkdownEditor";
 import { CopyPromptBtn, ImproveBtn } from "../ui/AIHelpers";
 import { BRAND } from "../../constants/brand";
 import { toast } from "../../store/useToastStore";
-
-const AI_MODELS = [
-  { key: "haiku", label: "Haiku 4.5", cost: "~$0.002/draft" },
-  { key: "sonnet", label: "Sonnet 4.6", cost: "~$0.012/draft" },
-  { key: "opus", label: "Opus 4.6", cost: "~$0.06/draft" },
-];
+import { AI_MODELS } from "../ui/AIModelPicker";
 
 export default function MacroSection() {
   const { sections, macroBlocks, date, analysts } = useDailyStore(useShallow((s) => ({
@@ -193,7 +188,7 @@ export default function MacroSection() {
                 </button>
               ))}
             </div>
-            <div className="text-[10px] text-[var(--text-muted)] mt-1">{selectedModel?.cost}</div>
+            <div className="text-[10px] text-[var(--text-muted)] mt-1">{selectedModel?.costLabel}/draft</div>
           </div>
 
           {/* Context input */}

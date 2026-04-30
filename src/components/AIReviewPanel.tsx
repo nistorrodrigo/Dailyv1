@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { BRAND } from "../constants/brand";
 import useDailyStore from "../store/useDailyStore";
-import AIModelPicker, { type AIModelKey, AI_MODELS } from "./ui/AIModelPicker";
+import AIModelPicker, { type AIModelKey, AI_MODELS, estimateCost } from "./ui/AIModelPicker";
 import { generateBBG } from "../utils/generateBBG";
 import { toast } from "../store/useToastStore";
 
@@ -17,7 +17,11 @@ interface ReviewResult {
    *  populate it (older deploys missing this field). */
   whatNeededFor10: string[];
   summary: string;
+  /** Combined input + output tokens, for the cost line. */
   tokens: number;
+  /** Computed actual USD cost from the input/output token split, using
+   *  the rate card in AIModelPicker.AI_MODELS. */
+  cost: number;
   model: string;
 }
 
@@ -57,14 +61,16 @@ export default function AIReviewPanel({ open, onClose }: { open: boolean; onClos
       if (!data.ok) throw new Error(data.error);
 
       const review = data.review || {};
-      const tokens = (data.usage?.input || 0) + (data.usage?.output || 0);
+      const inputTokens = data.usage?.input || 0;
+      const outputTokens = data.usage?.output || 0;
       setResult({
         score: typeof review.score === "number" ? review.score : null,
         issues: Array.isArray(review.issues) ? review.issues : [],
         suggestions: Array.isArray(review.suggestions) ? review.suggestions : [],
         whatNeededFor10: Array.isArray(review.whatNeededFor10) ? review.whatNeededFor10 : [],
         summary: review.summary || "",
-        tokens,
+        tokens: inputTokens + outputTokens,
+        cost: estimateCost(model, inputTokens, outputTokens),
         model: data.model || model,
       });
       if (review.summary) setExecSummary(review.summary);
@@ -119,7 +125,10 @@ export default function AIReviewPanel({ open, onClose }: { open: boolean; onClos
                 </div>
                 <div>
                   <div className="text-xs font-bold text-[var(--text-primary)]">Quality Score</div>
-                  <div className="text-[10px] text-[var(--text-muted)]">{result.tokens} tokens · {result.model}</div>
+                  <div className="text-[10px] text-[var(--text-muted)]">
+                    {result.tokens.toLocaleString()} tokens · {result.model}
+                    {result.cost > 0 && <> · ${result.cost.toFixed(4)}</>}
+                  </div>
                 </div>
               </div>
             )}

@@ -3,6 +3,7 @@ import { BRAND } from "../../constants/brand";
 import useDailyStore from "../../store/useDailyStore";
 import { useShallow } from "zustand/react/shallow";
 import { toast } from "../../store/useToastStore";
+import { AI_MODELS } from "../ui/AIModelPicker";
 
 interface DraftBlock {
   id: string;
@@ -27,12 +28,6 @@ interface FullDraft {
   fiBuyer?: string;
   fiSeller?: string;
 }
-
-const AI_MODELS = [
-  { key: "haiku", label: "Haiku 4.5", cost: "$0.002" },
-  { key: "sonnet", label: "Sonnet 4.6", cost: "$0.012" },
-  { key: "opus", label: "Opus 4.6", cost: "$0.06" },
-];
 
 export default function AIDraftTab(): React.ReactElement {
   const { date, analysts } = useDailyStore(useShallow((s) => ({ date: s.date, analysts: s.analysts })));
@@ -168,7 +163,7 @@ export default function AIDraftTab(): React.ReactElement {
               }`}
               style={model === m.key ? { background: "#8b5cf6", borderColor: "#8b5cf6" } : {}}
             >
-              {m.label} <span className="font-normal opacity-70">{m.cost}</span>
+              {m.label} <span className="font-normal opacity-70">{m.costLabel}</span>
             </button>
           ))}
         </div>

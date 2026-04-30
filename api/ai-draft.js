@@ -1,9 +1,17 @@
 import { applyCors } from "./_helpers.js";
 
+// Claude model catalogue. Pricing reflects the Anthropic API rate card
+// as of 2026-04 — see https://docs.claude.com/en/docs/about-claude/models/overview.
+// Kept in sync manually with `src/components/ui/AIModelPicker.tsx`
+// because api/ is plain JS and can't import from src/.
+//
+//   Haiku  4.5 — $1 in / $5 out  per MTok — fastest, near-frontier
+//   Sonnet 4.6 — $3 in / $15 out per MTok — balanced default
+//   Opus   4.7 — $5 in / $25 out per MTok — flagship, agentic-coding tier
 const MODELS = {
-  haiku: { id: "claude-haiku-4-5-20251001", label: "Haiku 4.5", cost: "~$0.002" },
-  sonnet: { id: "claude-sonnet-4-6", label: "Sonnet 4.6", cost: "~$0.012" },
-  opus: { id: "claude-opus-4-6", label: "Opus 4.6", cost: "~$0.06" },
+  haiku: { id: "claude-haiku-4-5-20251001", label: "Haiku 4.5", cost: "~$0.01" },
+  sonnet: { id: "claude-sonnet-4-6", label: "Sonnet 4.6", cost: "~$0.03" },
+  opus: { id: "claude-opus-4-7", label: "Opus 4.7", cost: "~$0.05" },
 };
 
 const SYSTEM_MACRO = `You are a senior Argentina macro analyst at Latin Securities, a Buenos Aires-based investment bank focused on Argentine equities and fixed income.
