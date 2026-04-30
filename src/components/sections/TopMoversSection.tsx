@@ -1,11 +1,9 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import useDailyStore from "../../store/useDailyStore";
-import { Card, X, DashBtn } from "../ui";
+import { Card, X, DashBtn, CompactInput } from "../ui";
 import { BRAND } from "../../constants/brand";
 import { toast } from "../../store/useToastStore";
-
-const is: React.CSSProperties = { padding: "6px 8px", borderRadius: 4, border: "1px solid var(--border-input)", fontSize: 12, boxSizing: "border-box" };
 
 export default function TopMoversSection() {
     const { sections, topMovers, cclRate } = useDailyStore(useShallow((s) => ({ sections: s.sections, topMovers: s.topMovers, cclRate: s.cclRate })));
@@ -37,26 +35,26 @@ export default function TopMoversSection() {
       <Card title={label} color={color}>
         {topMovers[type].map((m: { ticker: string; chgPct: string; comment: string }, i: number) => (
           <div key={i} style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 6 }}>
-            <input
-              aria-label={`${label} ticker`}
+            <CompactInput
+              ariaLabel={`${label} ticker`}
               value={m.ticker}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateMover(type, i, "ticker", e.target.value)}
+              onChange={(e) => updateMover(type, i, "ticker", e.target.value)}
               placeholder="Ticker"
-              style={{ ...is, width: 80 }}
+              style={{ width: 80 }}
             />
-            <input
-              aria-label={`${label} change percent`}
+            <CompactInput
+              ariaLabel={`${label} change percent`}
               value={m.chgPct}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateMover(type, i, "chgPct", e.target.value)}
+              onChange={(e) => updateMover(type, i, "chgPct", e.target.value)}
               placeholder="%"
-              style={{ ...is, width: 60, textAlign: "center" }}
+              style={{ width: 60, textAlign: "center" }}
             />
-            <input
-              aria-label={`${label} comment`}
+            <CompactInput
+              ariaLabel={`${label} comment`}
               value={m.comment}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateMover(type, i, "comment", e.target.value)}
+              onChange={(e) => updateMover(type, i, "comment", e.target.value)}
               placeholder="Comment"
-              style={{ ...is, flex: 1 }}
+              style={{ flex: 1 }}
             />
             <X onClick={() => removeMover(type, i)} />
           </div>

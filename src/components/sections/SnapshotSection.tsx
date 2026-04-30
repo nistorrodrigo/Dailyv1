@@ -1,12 +1,10 @@
 import React, { useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import useDailyStore from "../../store/useDailyStore";
-import { Card } from "../ui";
+import { Card, CompactInput } from "../ui";
 import { BRAND } from "../../constants/brand";
 import type { MarketSnapshot } from "../../types";
 import { toast } from "../../store/useToastStore";
-
-const is: React.CSSProperties = { padding: "6px 8px", borderRadius: 4, border: "1px solid var(--border-input)", fontSize: 12, boxSizing: "border-box", width: "100%", background: "var(--bg-input)", color: "var(--text-primary)" };
 
 type SnapshotKey = keyof MarketSnapshot;
 const rows: { key: SnapshotKey; label: string; chgKey: SnapshotKey | null }[] = [
@@ -88,21 +86,21 @@ export default function SnapshotSection(): React.ReactElement | null {
             <tr key={r.key} style={{ borderBottom: "1px solid var(--border-light)" }}>
               <td style={{ padding: "4px 8px", fontSize: 12, fontWeight: 600, color: "var(--text-primary)" }}>{r.label}</td>
               <td style={{ padding: 3 }}>
-                <input
-                  aria-label={`${r.label} level`}
+                <CompactInput
+                  ariaLabel={`${r.label} level`}
                   value={snapshot[r.key] || ""}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => update(r.key, e.target.value)}
-                  style={{ ...is, textAlign: "center" }}
+                  onChange={(e) => update(r.key, e.target.value)}
+                  style={{ textAlign: "center" }}
                   placeholder="—"
                 />
               </td>
               <td style={{ padding: 3 }}>
                 {r.chgKey ? (
-                  <input
-                    aria-label={`${r.label} change percent`}
+                  <CompactInput
+                    ariaLabel={`${r.label} change percent`}
                     value={snapshot[r.chgKey] || ""}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => r.chgKey && update(r.chgKey, e.target.value)}
-                    style={{ ...is, textAlign: "center", color: (snapshot[r.chgKey] || "").startsWith("-") ? "#c0392b" : "#1a7a3a" }}
+                    onChange={(e) => r.chgKey && update(r.chgKey, e.target.value)}
+                    style={{ textAlign: "center", color: (snapshot[r.chgKey] || "").startsWith("-") ? "#c0392b" : "#1a7a3a" }}
                     placeholder="—"
                   />
                 ) : <span style={{ display: "block", textAlign: "center", color: "var(--text-muted)", fontSize: 11 }}>—</span>}

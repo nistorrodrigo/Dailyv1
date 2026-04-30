@@ -132,7 +132,7 @@ vercel --prod       # deploy to production
 - **Zustand** + **zundo** (state, undo/redo)
 - **Supabase** (auth, draft persistence, email logs)
 - **SendGrid** (mail delivery, list import, suppressions)
-- **TailwindCSS 4** + inline styles (mixed; Tailwind for layout-y stuff, inline for dynamic colours)
+- **TailwindCSS 4** + inline styles (mixed; Tailwind for layout, inline for dynamic colours — see [STYLES.md](./STYLES.md))
 - **@dnd-kit** (drag-to-reorder)
 - **react-window** (virtualised recipient list above 100 rows)
 - **Sentry** (error reporting, opt-in via env var)

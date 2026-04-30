@@ -1,12 +1,22 @@
 import React, { useState, useMemo } from "react";
 import useDailyStore from "../../store/useDailyStore";
-import { Card, X } from "../ui";
+import { Card, X, CompactInput } from "../ui";
 import { BRAND } from "../../constants/brand";
 import { rc } from "../../utils/ratings";
 import { toast } from "../../store/useToastStore";
 
-const is: React.CSSProperties = { padding: "6px 8px", borderRadius: 4, border: "1px solid var(--border-input)", fontSize: 12, boxSizing: "border-box" };
-const ss: React.CSSProperties = { ...is, background: "var(--bg-input)" };
+// `ss` is the kept-around legacy "select-style" shape, used by the
+// native <select> elements which can't go through CompactInput. The
+// per-cell <input> sites use CompactInput directly so the style here
+// shrunk dramatically vs. the previous file.
+const ss: React.CSSProperties = {
+  padding: "6px 8px",
+  borderRadius: 4,
+  border: "1px solid var(--border-input)",
+  fontSize: 12,
+  boxSizing: "border-box",
+  background: "var(--bg-input)",
+};
 
 export default function AnalystsTab() {
   const analysts = useDailyStore((s) => s.analysts);
@@ -160,8 +170,8 @@ export default function AnalystsTab() {
           <div key={a.id} style={{ padding: 14, background: "var(--bg-card-alt)", borderRadius: 8, marginBottom: 14, border: "1px solid #eee" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
               <div style={{ display: "flex", gap: 8, flex: 1 }}>
-                <input aria-label="Analyst name" value={a.name} onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateListItem("analysts", a.id, "name", e.target.value)} placeholder="Name" style={{ ...is, fontWeight: 700, flex: 2 }} />
-                <input aria-label="Analyst title" value={a.title} onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateListItem("analysts", a.id, "title", e.target.value)} placeholder="Title" style={{ ...is, flex: 2 }} />
+                <CompactInput ariaLabel="Analyst name" value={a.name} onChange={(e) => updateListItem("analysts", a.id, "name", e.target.value)} placeholder="Name" style={{ fontWeight: 700, flex: 2 }} />
+                <CompactInput ariaLabel="Analyst title" value={a.title} onChange={(e) => updateListItem("analysts", a.id, "title", e.target.value)} placeholder="Title" style={{ flex: 2 }} />
               </div>
               <X onClick={() => removeListItem("analysts", a.id)} />
             </div>
@@ -180,7 +190,7 @@ export default function AnalystsTab() {
                 {a.coverage.map((cv: { ticker: string; rating: string; tp: string; last?: string }, ci: number) => (
                   <tr key={ci} style={{ background: ci % 2 === 0 ? "#fff" : "#f8fafc" }}>
                     <td style={{ padding: 3 }}>
-                      <input aria-label="Coverage ticker" value={cv.ticker} onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateCoverage(a.id, ci, "ticker", e.target.value.toUpperCase())} style={{ ...is, width: "100%", fontWeight: 700 }} />
+                      <CompactInput ariaLabel="Coverage ticker" value={cv.ticker} onChange={(e) => updateCoverage(a.id, ci, "ticker", e.target.value.toUpperCase())} style={{ fontWeight: 700 }} />
                     </td>
                     <td style={{ padding: 3 }}>
                       <select value={cv.rating} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => updateCoverage(a.id, ci, "rating", e.target.value)} style={{ ...ss, width: "100%", color: rc(cv.rating), fontWeight: 600 }}>
@@ -192,10 +202,10 @@ export default function AnalystsTab() {
                       </select>
                     </td>
                     <td style={{ padding: 3 }}>
-                      <input aria-label={`${cv.ticker || "Coverage"} target price`} value={cv.tp} onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateCoverage(a.id, ci, "tp", e.target.value)} onBlur={(e: React.FocusEvent<HTMLInputElement>) => { const v = e.target.value.replace(/[^0-9.]/g, ""); if (v) updateCoverage(a.id, ci, "tp", `US$${parseFloat(v).toFixed(2)}`); }} placeholder="US$0.00" style={{ ...is, width: "100%" }} />
+                      <CompactInput ariaLabel={`${cv.ticker || "Coverage"} target price`} value={cv.tp} onChange={(e) => updateCoverage(a.id, ci, "tp", e.target.value)} onBlur={(e) => { const v = e.target.value.replace(/[^0-9.]/g, ""); if (v) updateCoverage(a.id, ci, "tp", `US$${parseFloat(v).toFixed(2)}`); }} placeholder="US$0.00" />
                     </td>
                     <td style={{ padding: 3 }}>
-                      <input aria-label={`${cv.ticker || "Coverage"} last price`} value={cv.last || ""} onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateCoverage(a.id, ci, "last", e.target.value)} onBlur={(e: React.FocusEvent<HTMLInputElement>) => { const v = e.target.value.replace(/[^0-9.]/g, ""); if (v) updateCoverage(a.id, ci, "last", `US$${parseFloat(v).toFixed(2)}`); }} placeholder="US$0.00" style={{ ...is, width: "100%", color: "#666" }} />
+                      <CompactInput ariaLabel={`${cv.ticker || "Coverage"} last price`} value={cv.last || ""} onChange={(e) => updateCoverage(a.id, ci, "last", e.target.value)} onBlur={(e) => { const v = e.target.value.replace(/[^0-9.]/g, ""); if (v) updateCoverage(a.id, ci, "last", `US$${parseFloat(v).toFixed(2)}`); }} placeholder="US$0.00" style={{ color: "#666" }} />
                     </td>
                     <td style={{ padding: 3, textAlign: "center" }}>
                       <X onClick={() => deleteCoverage(a.id, ci)} />
