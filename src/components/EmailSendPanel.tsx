@@ -106,9 +106,35 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
     const activeRecipients = recipients.filter((r) => r.active).map((r) => r.email);
     if (!activeRecipients.length) { toast.error("No active recipients selected"); return; }
     if (!subject.trim()) { toast.error("Subject is required"); return; }
-    if (!pin.trim()) { setPinError({ kind: "missing", message: "Enter PIN to send" }); return; }
+    // PIN only required when there's no Supabase session — the JWT is the
+    // primary credential. Without auth configured, fall back to PIN.
+    if (!supabase && !pin.trim()) {
+      setPinError({ kind: "missing", message: "Enter PIN to send" });
+      return;
+    }
     setPinError(null);
     setConfirmOpen(true);
+  };
+
+  /**
+   * Build the headers for /api/send-email. Includes the current Supabase
+   * session as `Authorization: Bearer <jwt>` so the server can authenticate
+   * the user without needing the PIN. The PIN is still sent in the body
+   * as a fallback (the server prefers the token but accepts either).
+   */
+  const buildSendHeaders = async (): Promise<Record<string, string>> => {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (supabase) {
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (data?.session?.access_token) {
+          headers["Authorization"] = `Bearer ${data.session.access_token}`;
+        }
+      } catch {
+        // No session — server will fall back to PIN.
+      }
+    }
+    return headers;
   };
 
   /** Actually fires the send. Called from the confirmation modal after the user clicks "Confirm". */
@@ -121,9 +147,10 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
       const state = useDailyStore.getState();
       const html = generateHTML(state);
       const text = generateBBG(state); // plain-text fallback for the multipart MIME
+      const headers = await buildSendHeaders();
       const resp = await fetch("/api/send-email", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({
           html, text, subject: subject.trim(), recipients: activeRecipients, pin: pin.trim(),
           dailyDate: date, listName: selectedListName || null,
@@ -136,10 +163,11 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
       setSendResult({ type: "success", message: `\u2713 Email sent to ${data.sent} recipient(s)!` });
       setPin("");
     } catch (err) {
-      if ((err as Error).message.includes("Invalid PIN")) {
-        setPinError({ kind: "invalid", message: "Invalid PIN. Try again." });
+      const msg = (err as Error).message;
+      if (msg.includes("Invalid PIN") || msg.includes("Authentication failed")) {
+        setPinError({ kind: "invalid", message: msg });
       } else {
-        setSendResult({ type: "error", message: `Send failed: ${(err as Error).message}` });
+        setSendResult({ type: "error", message: `Send failed: ${msg}` });
       }
     } finally {
       setSending(false);
@@ -154,7 +182,13 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
 
   /** Open the inline "send test to which email?" form. */
   const handleTestEmailClick = (): void => {
-    if (!pin.trim()) { setPinError({ kind: "missing", message: "Enter PIN" }); return; }
+    // PIN no longer required when the user is already logged in via Supabase
+    // — the request will carry their JWT. Only require PIN if there's no
+    // Supabase session (e.g. running without auth configured).
+    if (!supabase && !pin.trim()) {
+      setPinError({ kind: "missing", message: "Enter PIN" });
+      return;
+    }
     setPinError(null);
     setTestEmailAddress(testEmailAddress || defaultTestAddress());
     setTestFormOpen(true);
@@ -171,9 +205,10 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
       const state = useDailyStore.getState();
       const html = generateHTML(state);
       const text = generateBBG(state);
+      const headers = await buildSendHeaders();
       const resp = await fetch("/api/send-email", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({
           html,
           text,
@@ -189,8 +224,9 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
       setSendResult({ type: "success", message: `✓ Test email sent to ${addr}` });
     } catch (err) {
       const msg = (err as Error).message;
-      if (msg?.includes("Invalid PIN")) setPinError({ kind: "invalid", message: "Invalid PIN" });
-      else setSendResult({ type: "error", message: `Test failed: ${msg}` });
+      if (msg?.includes("Invalid PIN") || msg?.includes("Authentication failed")) {
+        setPinError({ kind: "invalid", message: msg });
+      } else setSendResult({ type: "error", message: `Test failed: ${msg}` });
     } finally {
       setSending(false);
     }
@@ -362,42 +398,51 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
             onChange={setAttachment}
           />
 
-          <div className="flex items-baseline justify-between mb-1">
-            <label className="text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide">
-              Security PIN
-            </label>
-            {pin && (
-              <button
-                onClick={() => { sessionStorage.removeItem("ls-send-pin"); setPin(""); }}
-                className="text-[10px] text-[var(--text-muted)] bg-transparent border-none cursor-pointer"
-                title="Clear remembered PIN for this tab"
-              >
-                Forget PIN
-              </button>
-            )}
-          </div>
-          <input
-            type="password"
-            value={pin}
-            onChange={(e) => {
-              setPin(e.target.value);
-              setPinError(null);
-              sessionStorage.setItem("ls-send-pin", e.target.value);
-            }}
-            placeholder="Enter PIN to authorize send"
-            className="themed-input w-full px-2.5 py-2 rounded-md border text-sm bg-[var(--bg-input)] text-[var(--text-primary)]"
-            style={{
-              borderColor: pinError?.kind === "invalid"
-                ? "#e74c3c"
-                : pinError?.kind === "missing"
-                  ? "#e67e22"
-                  : "var(--border-input)",
-            }}
-            onKeyDown={(e) => e.key === "Enter" && handleSendClick()}
-          />
-          <div className="text-[9px] text-[var(--text-muted)] mt-0.5 italic">
-            Remembered for this browser tab; cleared on close.
-          </div>
+          {/* PIN field — only shown when Supabase auth is NOT configured.
+              When the user is logged in via LoginGate, the JWT is sent as
+              a Bearer token and the PIN is unnecessary. */}
+          {!supabase && (
+            <>
+              <div className="flex items-baseline justify-between mb-1">
+                <label className="text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide">
+                  Security PIN
+                </label>
+                {pin && (
+                  <button
+                    onClick={() => { sessionStorage.removeItem("ls-send-pin"); setPin(""); }}
+                    className="text-[10px] text-[var(--text-muted)] bg-transparent border-none cursor-pointer"
+                    title="Clear remembered PIN for this tab"
+                  >
+                    Forget PIN
+                  </button>
+                )}
+              </div>
+              <input
+                type="password"
+                value={pin}
+                onChange={(e) => {
+                  setPin(e.target.value);
+                  setPinError(null);
+                  sessionStorage.setItem("ls-send-pin", e.target.value);
+                }}
+                placeholder="Enter PIN to authorize send"
+                className="themed-input w-full px-2.5 py-2 rounded-md border text-sm bg-[var(--bg-input)] text-[var(--text-primary)]"
+                style={{
+                  borderColor: pinError?.kind === "invalid"
+                    ? "#e74c3c"
+                    : pinError?.kind === "missing"
+                      ? "#e67e22"
+                      : "var(--border-input)",
+                }}
+                onKeyDown={(e) => e.key === "Enter" && handleSendClick()}
+              />
+              <div className="text-[9px] text-[var(--text-muted)] mt-0.5 italic">
+                Remembered for this browser tab; cleared on close.
+              </div>
+            </>
+          )}
+          {/* PIN error renders even without the input — server-side rejections
+              (token expired, etc.) surface here too. */}
           {pinError && (
             <div
               className="text-[11px] mt-1 font-semibold"
@@ -407,28 +452,31 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
             </div>
           )}
         </div>
+        {/* When Supabase auth is configured the JWT is enough; without it
+            we still require a PIN. The button-disabled props below reflect
+            this — no PIN field renders unless we don't have a session. */}
         <div className="flex gap-2">
           <button
             onClick={handleTestEmailClick}
-            disabled={sending || !pin.trim()}
+            disabled={sending || (!supabase && !pin.trim())}
             style={{
               flex: 1, padding: "12px 16px", borderRadius: 6,
               border: `2px solid ${BRAND.orange}`, background: "transparent",
               color: BRAND.orange, fontSize: 12, fontWeight: 700,
-              cursor: sending || !pin.trim() ? "default" : "pointer", textTransform: "uppercase",
-              opacity: sending || !pin.trim() ? 0.5 : 1,
+              cursor: sending || (!supabase && !pin.trim()) ? "default" : "pointer", textTransform: "uppercase",
+              opacity: sending || (!supabase && !pin.trim()) ? 0.5 : 1,
             }}
           >
             {sending ? "..." : "Test Email"}
           </button>
           <button
             onClick={handleSendClick}
-            disabled={sending || !pin.trim()}
+            disabled={sending || (!supabase && !pin.trim())}
             style={{
               flex: 2, padding: "12px 20px", borderRadius: 6,
-              border: "none", background: sending || !pin.trim() ? "#999" : BRAND.blue,
+              border: "none", background: sending || (!supabase && !pin.trim()) ? "#999" : BRAND.blue,
               color: "#fff", fontSize: 13, fontWeight: 700,
-              cursor: sending || !pin.trim() ? "default" : "pointer", textTransform: "uppercase",
+              cursor: sending || (!supabase && !pin.trim()) ? "default" : "pointer", textTransform: "uppercase",
             }}
           >
             {sending ? "Sending..." : "Send Daily Email"}

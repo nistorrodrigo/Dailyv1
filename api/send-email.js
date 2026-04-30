@@ -1,8 +1,17 @@
-// Mass-email send endpoint, gated by a static PIN (env: SEND_EMAIL_PIN)
-// + per-IP rate limiting on failed attempts (Vercel KV / Upstash).
+// Mass-email send endpoint. Two-tier auth, preferred order:
 //
-// Known remaining concerns (intentionally not blocking the daily flow):
-//   - PIN is shared/static. Real auth = a Supabase session token validated here.
+//   1. Authorization: Bearer <supabase-jwt>  ← what the web app uses
+//      The JWT is validated against Supabase; the user's email must end
+//      in @latinsecurities.ar (matches LoginGate's domain restriction).
+//
+//   2. body.pin == process.env.SEND_EMAIL_PIN  ← legacy / cron fallback
+//      Kept for cron schedulers and any external caller that doesn't
+//      have a Supabase session. Same per-IP rate limiting on failures
+//      as before.
+//
+// Either path lets the request through; both paths fail → 403.
+//
+// Known remaining concerns:
 //   - Confirmation email always goes to fromEmail, not the human who clicked
 //     send. Pass `confirmTo` from the frontend if you want per-user confirms.
 //   - Errors propagate err.message to the client; SendGrid sometimes includes
@@ -23,11 +32,38 @@ const supabase = createClient(
 // the lambda quietly. Vercel itself caps body size, but we want a clear error.
 const MAX_PAYLOAD_BYTES = 5 * 1024 * 1024; // 5 MB before base64; 6.7 MB after.
 
-// Lock-out budget for failed-PIN attempts. Generous enough that a legit
-// user can typo a few times; tight enough that a 4-digit PIN brute-force
-// gets stopped well before all 10k combos can be enumerated.
-const PIN_FAIL_MAX = 10;
-const PIN_FAIL_WINDOW_SEC = 15 * 60; // 15 minutes
+// Lock-out budget for failed auth attempts (PIN OR token). Generous enough
+// that a legit user can typo a few times; tight enough that a 4-digit PIN
+// brute-force gets stopped well before all 10k combos can be enumerated.
+const AUTH_FAIL_MAX = 10;
+const AUTH_FAIL_WINDOW_SEC = 15 * 60; // 15 minutes
+const ALLOWED_EMAIL_DOMAIN = "latinsecurities.ar";
+
+/**
+ * Try to authenticate via Supabase JWT in the Authorization header.
+ * Returns { ok: true, user } if valid; { ok: false, reason } otherwise.
+ * `reason` is a short tag for logging — not surfaced to the client.
+ */
+async function authViaToken(req) {
+  const auth = req.headers?.authorization || req.headers?.Authorization;
+  if (!auth || typeof auth !== "string") return { ok: false, reason: "no-header" };
+  const m = /^Bearer\s+(.+)$/i.exec(auth);
+  if (!m) return { ok: false, reason: "malformed" };
+  const token = m[1].trim();
+  if (!token) return { ok: false, reason: "empty-token" };
+
+  try {
+    const { data, error } = await supabase.auth.getUser(token);
+    if (error || !data?.user) return { ok: false, reason: error?.message || "invalid" };
+    const email = data.user.email || "";
+    if (!email.toLowerCase().endsWith("@" + ALLOWED_EMAIL_DOMAIN)) {
+      return { ok: false, reason: `wrong-domain:${email}` };
+    }
+    return { ok: true, user: data.user };
+  } catch (err) {
+    return { ok: false, reason: `getUser-throw:${err?.message || err}` };
+  }
+}
 
 export default async function handler(req, res) {
   applyCors(req, res);
@@ -37,29 +73,39 @@ export default async function handler(req, res) {
 
   const { html, text, subject, recipients, pin, isTest, listName, dailyDate, attachments, abTest } = req.body;
 
-  // Rate-limit gate. We `peek` BEFORE checking the PIN — that way a
+  // Rate-limit gate. We `peek` BEFORE attempting auth — that way a
   // locked-out IP can't use the success/failure timing channel as a
-  // signal about whether they got the PIN right. Successful sends do
-  // NOT increment the counter; only failures do.
+  // signal about whether their token / PIN guess was right.
   const ip = callerIp(req);
-  const rl = await peekLimit(`pin-fail:${ip}`, PIN_FAIL_MAX);
+  const rl = await peekLimit(`pin-fail:${ip}`, AUTH_FAIL_MAX);
   if (!rl.ok) {
     console.warn(`[send-email] IP ${ip} rate-limited (${rl.count} fails in window)`);
-    res.setHeader("Retry-After", String(rl.resetSec || PIN_FAIL_WINDOW_SEC));
+    res.setHeader("Retry-After", String(rl.resetSec || AUTH_FAIL_WINDOW_SEC));
     return res.status(429).json({
-      error: `Too many failed attempts. Try again in ${Math.ceil((rl.resetSec || PIN_FAIL_WINDOW_SEC) / 60)} minutes.`,
+      error: `Too many failed attempts. Try again in ${Math.ceil((rl.resetSec || AUTH_FAIL_WINDOW_SEC) / 60)} minutes.`,
     });
   }
 
-  // PIN verification. Any failure increments the rate-limit counter and
-  // is logged with caller IP. Once PIN_FAIL_MAX fails accumulate within
-  // the window, the IP is locked out (handled at the top of this handler).
-  const validPin = process.env.SEND_EMAIL_PIN;
-  if (!validPin) return res.status(500).json({ error: "SEND_EMAIL_PIN not configured." });
-  if (!pin || pin !== validPin) {
-    await recordFailure(`pin-fail:${ip}`, PIN_FAIL_WINDOW_SEC);
-    console.warn(`[send-email] Invalid PIN attempt from ${ip}, recipients=${recipients?.length || 0}`);
-    return res.status(403).json({ error: "Invalid PIN. Email not sent." });
+  // ── Auth: try Supabase token first, fall back to PIN ─────────────
+  const tokenAuth = await authViaToken(req);
+  let authedUserEmail = null;
+  if (tokenAuth.ok) {
+    authedUserEmail = tokenAuth.user.email;
+  } else {
+    // Fall back to PIN.
+    const validPin = process.env.SEND_EMAIL_PIN;
+    if (!validPin) {
+      return res.status(500).json({ error: "Auth not configured: provide a Supabase session or set SEND_EMAIL_PIN." });
+    }
+    if (!pin || pin !== validPin) {
+      await recordFailure(`pin-fail:${ip}`, AUTH_FAIL_WINDOW_SEC);
+      console.warn(
+        `[send-email] Auth failed from ${ip} ` +
+        `(token: ${tokenAuth.reason}; pin: ${pin ? "wrong" : "missing"}), ` +
+        `recipients=${recipients?.length || 0}`,
+      );
+      return res.status(403).json({ error: "Authentication failed. Log in again or provide a valid PIN." });
+    }
   }
 
   if (!html || !subject || !recipients?.length) {
@@ -147,8 +193,8 @@ export default async function handler(req, res) {
       // Log both
       if (supabase) {
         await supabase.from("email_log").insert([
-          { daily_date: dailyDate, subject: subject + " [A]", recipients_count: groupA.length, list_name: listName, is_test: isTest, sent_by: fromEmail },
-          { daily_date: dailyDate, subject: abTest.subjectB + " [B]", recipients_count: groupB.length, list_name: listName, is_test: isTest, sent_by: fromEmail },
+          { daily_date: dailyDate, subject: subject + " [A]", recipients_count: groupA.length, list_name: listName, is_test: isTest, sent_by: authedUserEmail || fromEmail },
+          { daily_date: dailyDate, subject: abTest.subjectB + " [B]", recipients_count: groupB.length, list_name: listName, is_test: isTest, sent_by: authedUserEmail || fromEmail },
         ]).then(() => {}).catch(() => {});
       }
 
@@ -185,7 +231,7 @@ export default async function handler(req, res) {
         recipients_count: recipients.length,
         list_name: listName || null,
         is_test: isTest || false,
-        sent_by: fromEmail,
+        sent_by: authedUserEmail || fromEmail,
       }).then(() => {}).catch(() => {});
     }
 
