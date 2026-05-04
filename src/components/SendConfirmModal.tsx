@@ -20,6 +20,16 @@ export interface SendConfirmModalProps {
   attachmentFilename?: string;
   /** Full HTML body of the email, rendered as a mini preview. */
   html?: string;
+  /** The daily's `date` field (YYYY-MM-DD). When this doesn't match
+   *  today's local date, the modal renders a date-mismatch warning
+   *  in the security context block. Optional — when omitted, the
+   *  warning never shows. */
+  dailyDate?: string;
+  /** Today's date in local TZ (YYYY-MM-DD). Pulled in from the
+   *  caller rather than re-derived here so the modal stays pure
+   *  and easier to test. Only used to decide whether to render
+   *  the date-mismatch warning. */
+  todayDate?: string;
   /** Email of the currently-authenticated user. Shown in the security
    *  section so the user sees who they're about to send AS. */
   authedAs?: string | null;
@@ -59,6 +69,8 @@ export default function SendConfirmModal({
   selectedListName,
   attachmentFilename,
   html,
+  dailyDate,
+  todayDate,
   authedAs,
   authMethod = "none",
   requireTypedConfirmation = true,
@@ -134,6 +146,32 @@ export default function SendConfirmModal({
                 : "No active session — log out and back in before sending."}
             </div>
           </div>
+
+          {/* Date-mismatch warning. Last visual check before the
+              destructive button — by this point the analyst has typed
+              SEND and is one click away from blasting the daily.
+              Worth nagging again here even though we already showed
+              the banner in EmailSendPanel. */}
+          {dailyDate && todayDate && dailyDate !== todayDate && (
+            <div
+              className="mb-4 p-3 rounded-md"
+              style={{
+                background: "rgba(231,158,76,0.12)",
+                border: "1px solid rgba(231,158,76,0.45)",
+              }}
+            >
+              <div
+                className="text-[11px] font-bold uppercase tracking-wide"
+                style={{ color: "#c97a2c" }}
+              >
+                ⚠ Daily date is not today
+              </div>
+              <div className="text-[12px] mt-1" style={{ color: "var(--text-primary)" }}>
+                This daily is dated <strong>{dailyDate}</strong>. Today is <strong>{todayDate}</strong>.
+                Confirm this is intentional before sending.
+              </div>
+            </div>
+          )}
 
           <div className="mb-4 p-3 rounded-md" style={{ background: "rgba(231,76,60,0.08)", border: "1px solid rgba(231,76,60,0.25)" }}>
             <div className="text-[11px] font-bold uppercase tracking-wide" style={{ color: "#c0392b" }}>

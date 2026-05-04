@@ -1,3 +1,28 @@
+/**
+ * Today's date as `YYYY-MM-DD` in the **browser's local timezone**.
+ *
+ * Why not `new Date().toISOString().split("T")[0]`? That returns UTC.
+ * For an analyst in Buenos Aires (UTC-3) editing at 23:00 local on
+ * April 30, that path gives "2026-05-01" — not what the calendar on
+ * the wall says. We want the date the user is looking at, so we
+ * format with `en-CA` (the only common locale that emits ISO-shape
+ * `YYYY-MM-DD` in local time) and use that consistently.
+ */
+export const todayLocal = (now: Date = new Date()): string =>
+  now.toLocaleDateString("en-CA", { year: "numeric", month: "2-digit", day: "2-digit" });
+
+/**
+ * True iff `iso` (a `YYYY-MM-DD` string) is the current local date.
+ * Returns false for invalid input rather than throwing — the caller
+ * is usually rendering a UI hint and silently treating garbage as
+ * "not today" is safer than a crash.
+ */
+export const isToday = (iso: string | null | undefined, now: Date = new Date()): boolean => {
+  if (!iso || typeof iso !== "string") return false;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return false;
+  return iso === todayLocal(now);
+};
+
 export const formatDate = (iso: string): string => {
   const d = new Date(iso + "T12:00:00");
   return d.toLocaleDateString("en-US", {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatDate, fmtEventDate, fmtTime, fmtRelativeTime } from "../utils/dates";
+import { formatDate, fmtEventDate, fmtTime, fmtRelativeTime, isToday, todayLocal } from "../utils/dates";
 import { parsePrice, calcUpside, fmtUpside, upsideColor } from "../utils/prices";
 import { rc, rb, resolveCorporateBlock } from "../utils/ratings";
 import { nl2br, mdToHtml } from "../utils/text";
@@ -66,6 +66,31 @@ describe("dates", () => {
     expect(fmtRelativeTime(undefined)).toBe("");
     expect(fmtRelativeTime("")).toBe("");
     expect(fmtRelativeTime("not-a-date")).toBe("");
+  });
+
+  it("todayLocal returns YYYY-MM-DD for the local date", () => {
+    // Use a UTC noon time so local-vs-UTC won't disagree on the day
+    // for any reasonable timezone — keeps the test stable across CI
+    // hosts in any region.
+    const noon = new Date("2026-04-30T12:00:00Z");
+    const result = todayLocal(noon);
+    expect(result).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    // The output should be "2026-04-30" everywhere from UTC-12 to UTC+12.
+    expect(result).toBe("2026-04-30");
+  });
+
+  it("isToday matches the local date and rejects invalid input", () => {
+    const noon = new Date("2026-04-30T12:00:00Z");
+    expect(isToday("2026-04-30", noon)).toBe(true);
+    expect(isToday("2026-04-29", noon)).toBe(false);
+    expect(isToday("2026-05-01", noon)).toBe(false);
+    expect(isToday(null, noon)).toBe(false);
+    expect(isToday(undefined, noon)).toBe(false);
+    expect(isToday("", noon)).toBe(false);
+    expect(isToday("not-a-date", noon)).toBe(false);
+    // Non-strict shapes that look like ISO must also be rejected.
+    expect(isToday("2026-4-30", noon)).toBe(false);
+    expect(isToday("2026/04/30", noon)).toBe(false);
   });
 });
 

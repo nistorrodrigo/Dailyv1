@@ -1,4 +1,5 @@
 import type { DailyState } from "../types";
+import { isToday, todayLocal } from "./dates";
 
 /** Runtime store shape — DailyState plus the `flows` extension field
  *  that lives on the store but isn't part of the bare DailyState type.
@@ -26,8 +27,20 @@ type StateWithFlows = DailyState & {
  * False positives are not — every check here must be precise enough
  * that the analyst can't argue with it.
  */
-export function preflightReview(state: StateWithFlows): string[] {
+export function preflightReview(state: StateWithFlows, now: Date = new Date()): string[] {
   const issues: string[] = [];
+
+  // ── Date sanity ───────────────────────────────────────────────
+  // Most-likely-to-be-wrong field. Catches the "I forgot to click
+  // New Daily" case before the analyst spends an AI call to find
+  // out the rest of the daily references stale data.
+  if (!isToday(state.date, now)) {
+    issues.push(
+      `Daily date is "${state.date}", but today is "${todayLocal(now)}". ` +
+        `If this is intentional (e.g. drafting a backlog daily), ignore. ` +
+        `Otherwise update the date in the General section.`,
+    );
+  }
 
   // ── Summary bar ───────────────────────────────────────────────
   if (!state.summaryBar?.trim()) {

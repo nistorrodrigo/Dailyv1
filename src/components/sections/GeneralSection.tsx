@@ -3,6 +3,7 @@ import { useShallow } from "zustand/react/shallow";
 import useDailyStore from "../../store/useDailyStore";
 import { Card, Inp } from "../ui";
 import { BRAND } from "../../constants/brand";
+import { isToday, todayLocal } from "../../utils/dates";
 
 const SHORTCUTS = [
   ["Ctrl+S", "Copy HTML"],
@@ -19,9 +20,37 @@ export default function GeneralSection() {
   const setField = useDailyStore((s) => s.setField);
   const [showShortcuts, setShowShortcuts] = useState<boolean>(false);
 
+  const today = todayLocal();
+  const dateMatchesToday = isToday(date);
+
   return (
     <Card title="General" color={BRAND.navy}>
       <Inp label="Date" value={date} onChange={(v) => setField("date", v)} placeholder="YYYY-MM-DD" />
+      {/* Date sanity check — surfaces immediately when the analyst is
+          editing yesterday's draft (didn't click "New Daily") or made
+          a typo in the date. Two-state chip: green when matches today,
+          amber + "Use today" quick-fix button when it doesn't.
+          The button only appears when the mismatch is actionable
+          (the value is a valid date that's just not today). */}
+      <div className="flex items-center gap-2 -mt-1.5 mb-2.5 text-[11px]">
+        {dateMatchesToday ? (
+          <span style={{ color: "#1a7a3a" }}>✓ Matches today's date</span>
+        ) : (
+          <>
+            <span style={{ color: "#c97a2c" }}>
+              ⚠ Date is not today ({today})
+            </span>
+            <button
+              onClick={() => setField("date", today)}
+              className="px-1.5 py-0.5 rounded text-[10px] font-bold border bg-transparent cursor-pointer"
+              style={{ borderColor: "#c97a2c", color: "#c97a2c" }}
+              title="Update the daily's date to today"
+            >
+              Use today
+            </button>
+          </>
+        )}
+      </div>
       <Inp label="Summary Bar" value={summaryBar} onChange={(v) => setField("summaryBar", v)} multi rows={3} placeholder="Top-level summary line..." />
       <div className="flex justify-end">
         <button

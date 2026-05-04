@@ -13,10 +13,29 @@ function makeState(overrides: Partial<StateForReview> = {}): StateForReview {
   return { ...DEFAULT_STATE, ...overrides };
 }
 
+/** Fixed "today" injected into preflightReview so date-related checks
+ *  are deterministic. Use `dateForToday` whenever a test wants the
+ *  daily's date check to PASS — anything else will trigger the date
+ *  warning and pollute unrelated assertions. */
+const dateForToday = "2026-04-30";
+const fixedNow = new Date("2026-04-30T12:00:00Z");
+
 describe("preflightReview", () => {
+  it("flags a date that doesn't match today", () => {
+    const state = makeState({ date: "2026-04-25", summaryBar: "x" });
+    const issues = preflightReview(state, fixedNow);
+    expect(issues.find((i) => /not\s*today|2026-04-25/i.test(i))).toBeDefined();
+  });
+
+  it("does NOT flag the date when it matches today", () => {
+    const state = makeState({ date: dateForToday, summaryBar: "x" });
+    const issues = preflightReview(state, fixedNow);
+    expect(issues.find((i) => /not\s*today/i.test(i))).toBeUndefined();
+  });
+
   it("flags an empty Summary Bar", () => {
-    const state = makeState({ summaryBar: "" });
-    const issues = preflightReview(state);
+    const state = makeState({ date: dateForToday, summaryBar: "" });
+    const issues = preflightReview(state, fixedNow);
     expect(issues).toEqual(expect.arrayContaining([expect.stringMatching(/Summary Bar/i)]));
   });
 
@@ -90,6 +109,9 @@ describe("preflightReview", () => {
 
   it("returns no issues for a structurally complete daily", () => {
     const state = makeState({
+      // Pin to fixedNow's date so the date sanity check can't leak
+      // into this assertion when the test runs near midnight local.
+      date: dateForToday,
       summaryBar: "Markets digest BCRA decision; equities flat.",
       macroBlocks: [
         { id: "1", title: "FX / BCRA", body: "BCRA cut by 100bps. Reserves stable.", lsPick: "Long ARGENT 35" },
@@ -103,7 +125,7 @@ describe("preflightReview", () => {
       watchToday: ["BCRA decision at 5pm", "Treasury auction"],
       signatures: [{ id: "1", name: "Rodrigo Nistor", role: "Sales", email: "rodrigo@latinsecurities.ar" }],
     });
-    const issues = preflightReview(state);
+    const issues = preflightReview(state, fixedNow);
     expect(issues).toEqual([]);
   });
 });

@@ -6,7 +6,7 @@ import { supabase } from "../lib/supabase";
 import useDailyStore from "../store/useDailyStore";
 import { generateHTML } from "../utils/generateHTML";
 import { generateBBG } from "../utils/generateBBG";
-import { formatDate, fmtRelativeTime } from "../utils/dates";
+import { formatDate, fmtRelativeTime, isToday, todayLocal } from "../utils/dates";
 import SendConfirmModal from "./SendConfirmModal";
 import RecipientList, { type Recipient } from "./RecipientList";
 import ABTestSubject from "./ABTestSubject";
@@ -314,6 +314,43 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
             </div>
           </div>
         )}
+        {/* Date mismatch banner — fires when the daily's `date` field
+            doesn't equal today's local date. Most common cause: the
+            analyst opened the panel against yesterday's draft without
+            clicking "New Daily" first. Fixing the date here also
+            updates the auto-derived subject below. */}
+        {!isToday(date) && (
+          <div
+            className="mb-3 p-3 rounded-md text-[12px]"
+            style={{
+              background: "rgba(231,158,76,0.12)",
+              color: "#c97a2c",
+              border: "1px solid rgba(231,158,76,0.45)",
+            }}
+          >
+            <div className="flex items-start gap-2">
+              <span className="font-bold">⚠</span>
+              <div className="flex-1 leading-snug">
+                <div className="font-bold">Daily date is not today</div>
+                <div className="mt-1 text-[11px]" style={{ color: "var(--text-primary)" }}>
+                  This daily is dated <strong>{date}</strong>; today is <strong>{todayLocal()}</strong>. The subject below will say <em>{formatDate(date)}</em>.
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  const t = todayLocal();
+                  useDailyStore.getState().setField("date", t);
+                  setSubject(`Argentina Daily - ${formatDate(t)}`);
+                }}
+                className="text-[10px] px-2 py-1 rounded font-bold border bg-transparent cursor-pointer flex-shrink-0"
+                style={{ borderColor: "#c97a2c", color: "#c97a2c" }}
+                title="Update both the daily's date AND the subject to today"
+              >
+                Use today
+              </button>
+            </div>
+          </div>
+        )}
         <div style={{ marginBottom: 16 }}>
           <label className="block mb-1 text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide">
             Subject
@@ -588,6 +625,8 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
         selectedListName={selectedListName || undefined}
         attachmentFilename={attachment?.filename}
         html={confirmOpen ? generateHTML(useDailyStore.getState()) : undefined}
+        dailyDate={date}
+        todayDate={todayLocal()}
         authedAs={currentUser?.user.email || null}
         authMethod={authMethod}
       />
