@@ -4,7 +4,7 @@ import { findMostRecentDailyBefore } from "../lib/dailyApi";
 import { supabase } from "../lib/supabase";
 import { DEFAULT_STATE } from "../constants/defaultState";
 import { toast } from "../store/useToastStore";
-import { todayLocal } from "../utils/dates";
+import { todayLocal, addDaysLocal } from "../utils/dates";
 import { carryForwardYesterday } from "../utils/carryForward";
 
 export default function DuplicateYesterdayBtn(): React.ReactElement {
@@ -41,16 +41,8 @@ export default function DuplicateYesterdayBtn(): React.ReactElement {
       // Show the analyst exactly which date we're carrying forward
       // from — important when it's not literally yesterday (Mon
       // morning click should be obvious that it's pulling Friday).
-      const litYesterday = (() => {
-        const y = new Date(today + "T12:00:00");
-        y.setDate(y.getDate() - 1);
-        return y.toLocaleDateString("en-CA", {
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit",
-        });
-      })();
-      const sourceLabel = sourceDate === litYesterday ? `yesterday (${sourceDate})` : `${sourceDate}`;
+      const sourceLabel =
+        sourceDate === addDaysLocal(today, -1) ? `yesterday (${sourceDate})` : `${sourceDate}`;
       const confirmMsg =
         `Carry forward setup from ${sourceLabel} to ${today}?\n\n` +
         `KEPT: analyst coverage, signatures, section layout, macro estimates structure, ` +

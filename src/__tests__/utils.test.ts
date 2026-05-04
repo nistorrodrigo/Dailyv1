@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatDate, fmtEventDate, fmtTime, fmtRelativeTime, isToday, todayLocal } from "../utils/dates";
+import { formatDate, fmtEventDate, fmtTime, fmtRelativeTime, isToday, todayLocal, addDaysLocal } from "../utils/dates";
 import { parsePrice, calcUpside, fmtUpside, upsideColor } from "../utils/prices";
 import { rc, rb, resolveCorporateBlock } from "../utils/ratings";
 import { nl2br, mdToHtml } from "../utils/text";
@@ -77,6 +77,23 @@ describe("dates", () => {
     expect(result).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     // The output should be "2026-04-30" everywhere from UTC-12 to UTC+12.
     expect(result).toBe("2026-04-30");
+  });
+
+  it("addDaysLocal shifts a YYYY-MM-DD date by N days", () => {
+    expect(addDaysLocal("2026-04-30", -1)).toBe("2026-04-29");
+    expect(addDaysLocal("2026-04-30", -7)).toBe("2026-04-23");
+    expect(addDaysLocal("2026-04-30", 1)).toBe("2026-05-01");
+    // Year and month boundaries — the noon anchor + setDate handles these.
+    expect(addDaysLocal("2026-12-31", 1)).toBe("2027-01-01");
+    expect(addDaysLocal("2026-03-01", -1)).toBe("2026-02-28");
+    // Leap year (2028 is divisible by 4 and not by 100).
+    expect(addDaysLocal("2028-03-01", -1)).toBe("2028-02-29");
+  });
+
+  it("addDaysLocal returns empty string for invalid input", () => {
+    expect(addDaysLocal("", 1)).toBe("");
+    expect(addDaysLocal("not-a-date", 1)).toBe("");
+    expect(addDaysLocal("2026/04/30", 1)).toBe("");
   });
 
   it("isToday matches the local date and rejects invalid input", () => {

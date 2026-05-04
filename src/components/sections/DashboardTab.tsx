@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { BRAND } from "../../constants/brand";
 import { displayNameFromEmail } from "../../utils/displayName";
 import { authedFetch } from "../../lib/authedFetch";
@@ -102,15 +102,42 @@ export default function DashboardTab() {
           );
         })}
       </div>
-      {/* Weekly digest — WoW comparison rolling up the last 14 days */}
-      <WeeklyDigest />
-
-      {/* Per-daily performance — open/click rates per individual send */}
-      <PerDailyStats />
-
-      {/* Email Tracking — aggregate event log */}
+      <PerDailySection />
       <EmailTracking />
     </div>
+  );
+}
+
+/** Shared per-daily-stats fetch — both `WeeklyDigest` and the per-row
+ *  table need the same 20 rows. Co-locating the fetch in the parent
+ *  collapses two round-trips into one and gives both children the
+ *  same loading/error state to render against. */
+function PerDailySection(): React.ReactElement {
+  const [rows, setRows] = useState<PerDailyRow[] | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string>("");
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const resp = await authedFetch("/api/analytics?type=per-daily-stats");
+        const d = await resp.json();
+        if (!resp.ok || !d.ok) throw new Error(d.error || `HTTP ${resp.status}`);
+        setRows((d.rows as PerDailyRow[]) || []);
+      } catch (err) {
+        setError((err as Error).message);
+        console.error("[DashboardTab] per-daily-stats fetch failed:", err);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  return (
+    <>
+      <WeeklyDigest rows={rows} loading={loading} error={error} />
+      <PerDailyStats rows={rows} loading={loading} error={error} />
+    </>
   );
 }
 
@@ -132,30 +159,16 @@ interface PerDailyRow {
   clickRate: number;
 }
 
+interface DailyStatsProps {
+  rows: PerDailyRow[] | null;
+  loading: boolean;
+  error: string;
+}
+
 /** Per-daily performance breakdown. Joins email_log with email_events to
  *  show open/click rates for each individual send rather than the
  *  aggregate stats in the EmailTracking widget below. */
-function PerDailyStats(): React.ReactElement {
-  const [rows, setRows] = useState<PerDailyRow[] | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string>("");
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const resp = await authedFetch("/api/analytics?type=per-daily-stats");
-        const d = await resp.json();
-        if (!resp.ok || !d.ok) throw new Error(d.error || `HTTP ${resp.status}`);
-        setRows((d.rows as PerDailyRow[]) || []);
-      } catch (err) {
-        setError((err as Error).message);
-        console.error("[DashboardTab] per-daily-stats fetch failed:", err);
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, []);
-
+function PerDailyStats({ rows, loading, error }: DailyStatsProps): React.ReactElement {
   const fmtPct = (x: number) =>
     x > 0 ? `${(x * 100).toFixed(x >= 0.1 ? 0 : 1)}%` : "—";
 
@@ -357,6 +370,13 @@ function bucketByWeek(rows: PerDailyRow[], now: Date = new Date()): {
   };
 }
 
+/** Three flavours of delta the digest needs to render:
+ *  - "count": raw integer change (sends went from 5 to 7 → "+2")
+ *  - "rate-pp": percentage-point change of an already-percent metric
+ *               (open rate from 30% to 33% → "+3pp")
+ *  - "ratio": relative percent change of a count (recipients up 5% → "+5%") */
+type DeltaKind = "count" | "rate-pp" | "ratio";
+
 /** Render a single stat with WoW delta. The delta is colour-coded:
  *  green for "better this week", red for "worse", muted for flat or
  *  no comparison data. Inline-styled because the colour is data-driven. */
@@ -364,13 +384,13 @@ function WeeklyStat({
   label,
   value,
   delta,
-  isPercent,
+  kind,
   higherIsBetter = true,
 }: {
   label: string;
   value: string;
   delta: number | null;
-  isPercent: boolean;
+  kind: DeltaKind;
   higherIsBetter?: boolean;
 }): React.ReactElement {
   // No prior-week data → don't render a delta indicator at all.
@@ -380,11 +400,13 @@ function WeeklyStat({
   const deltaSign = noDelta ? 0 : Math.sign(delta!);
   const isGood = higherIsBetter ? deltaSign > 0 : deltaSign < 0;
   const deltaColor = noDelta || deltaSign === 0 ? "var(--text-muted)" : isGood ? "#1a7a3a" : "#c0392b";
-  const fmtDelta = (d: number) => {
-    if (isPercent) return `${d > 0 ? "+" : ""}${(d * 100).toFixed(d >= 0.01 ? 0 : 1)}pp`;
-    const abs = Math.abs(d);
-    const pct = abs >= 1 ? Math.round(d) : (d * 100).toFixed(0);
-    return `${d > 0 ? "+" : ""}${pct}${isPercent ? "%" : ""}`;
+
+  const fmtDelta = (d: number): string => {
+    const sign = d > 0 ? "+" : "";
+    if (kind === "count") return `${sign}${Math.round(d)}`;
+    if (kind === "rate-pp") return `${sign}${(d * 100).toFixed(d >= 0.01 ? 0 : 1)}pp`;
+    // ratio: d is a fraction like 0.05 meaning 5%
+    return `${sign}${(d * 100).toFixed(d >= 0.01 ? 0 : 1)}%`;
   };
 
   return (
@@ -410,70 +432,46 @@ function WeeklyStat({
  *  rate, avg CTR. Each card shows the WoW delta colour-coded green
  *  (better) or red (worse). Sits above the per-daily table on the
  *  Dashboard so the analyst gets the trend before the row-by-row
- *  detail. */
-function WeeklyDigest(): React.ReactElement {
-  const [rows, setRows] = useState<PerDailyRow[] | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string>("");
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const resp = await authedFetch("/api/analytics?type=per-daily-stats");
-        const d = await resp.json();
-        if (!resp.ok || !d.ok) throw new Error(d.error || `HTTP ${resp.status}`);
-        setRows((d.rows as PerDailyRow[]) || []);
-      } catch (err) {
-        setError((err as Error).message);
-        console.error("[DashboardTab] weekly digest fetch failed:", err);
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, []);
-
-  if (loading) {
-    return (
-      <div className="p-4 rounded-lg border border-[var(--border-light)] bg-[var(--bg-card)] mt-5">
-        <div className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider mb-3">
-          Weekly Digest
-        </div>
-        <p className="text-xs text-[var(--text-muted)]">Loading…</p>
-      </div>
-    );
-  }
-  if (error) {
-    return (
-      <div className="p-4 rounded-lg border border-[var(--border-light)] bg-[var(--bg-card)] mt-5">
-        <div className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider mb-3">
-          Weekly Digest
-        </div>
-        <p className="text-xs text-red-500">Failed to load: {error}</p>
-      </div>
-    );
-  }
-  if (!rows || rows.length === 0) {
-    return (
-      <div className="p-4 rounded-lg border border-[var(--border-light)] bg-[var(--bg-card)] mt-5">
-        <div className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider mb-3">
-          Weekly Digest
-        </div>
-        <p className="text-xs text-[var(--text-muted)]">
-          No sends yet — the digest will populate after the first week of data.
-        </p>
-      </div>
-    );
-  }
-
-  const { thisWeek, prevWeek } = bucketByWeek(rows);
-  const sendsDelta = prevWeek.sends > 0 ? thisWeek.sends - prevWeek.sends : null;
-  const recipientsDelta = prevWeek.totalRecipients > 0
-    ? (thisWeek.totalRecipients - prevWeek.totalRecipients) / prevWeek.totalRecipients
-    : null;
-  const openDelta = prevWeek.avgOpenRate > 0 ? thisWeek.avgOpenRate - prevWeek.avgOpenRate : null;
-  const clickDelta = prevWeek.avgClickRate > 0 ? thisWeek.avgClickRate - prevWeek.avgClickRate : null;
+ *  detail. Receives `rows` from the parent — the parent's single
+ *  fetch feeds both this and the per-row table. */
+function WeeklyDigest({ rows, loading, error }: DailyStatsProps): React.ReactElement {
+  // Memoise so the bucket pass + 4 deltas don't recompute on every
+  // parent re-render. Cheap (≤20 rows) but the dependency makes the
+  // intent explicit and protects us if the row cap grows.
+  const buckets = useMemo(() => (rows ? bucketByWeek(rows) : null), [rows]);
 
   const fmtPct = (x: number) => (x > 0 ? `${(x * 100).toFixed(x >= 0.1 ? 0 : 1)}%` : "—");
+
+  // Single shell — branch only the body. Same pattern as PerDailyStats.
+  let body: React.ReactNode;
+  if (loading) {
+    body = <p className="text-xs text-[var(--text-muted)]">Loading…</p>;
+  } else if (error) {
+    body = <p className="text-xs text-red-500">Failed to load: {error}</p>;
+  } else if (!rows || rows.length === 0 || !buckets) {
+    body = (
+      <p className="text-xs text-[var(--text-muted)]">
+        No sends yet — the digest will populate after the first week of data.
+      </p>
+    );
+  } else {
+    const { thisWeek, prevWeek } = buckets;
+    const sendsDelta = prevWeek.sends > 0 ? thisWeek.sends - prevWeek.sends : null;
+    const recipientsDelta = prevWeek.totalRecipients > 0
+      ? (thisWeek.totalRecipients - prevWeek.totalRecipients) / prevWeek.totalRecipients
+      : null;
+    const openDelta = prevWeek.avgOpenRate > 0 ? thisWeek.avgOpenRate - prevWeek.avgOpenRate : null;
+    const clickDelta = prevWeek.avgClickRate > 0 ? thisWeek.avgClickRate - prevWeek.avgClickRate : null;
+
+    body = (
+      <div className="flex gap-3 flex-wrap">
+        <WeeklyStat label="Sends" value={thisWeek.sends.toString()} delta={sendsDelta} kind="count" />
+        <WeeklyStat label="Recipients" value={thisWeek.totalRecipients.toLocaleString()} delta={recipientsDelta} kind="ratio" />
+        <WeeklyStat label="Avg Open Rate" value={fmtPct(thisWeek.avgOpenRate)} delta={openDelta} kind="rate-pp" />
+        <WeeklyStat label="Avg CTR" value={fmtPct(thisWeek.avgClickRate)} delta={clickDelta} kind="rate-pp" />
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 rounded-lg border border-[var(--border-light)] bg-[var(--bg-card)] mt-5">
@@ -483,36 +481,11 @@ function WeeklyDigest(): React.ReactElement {
         </div>
         <div className="text-[10px] text-[var(--text-muted)] italic">Last 7 days vs prior 7</div>
       </div>
-      <div className="flex gap-3 flex-wrap">
-        <WeeklyStat
-          label="Sends"
-          value={thisWeek.sends.toString()}
-          delta={sendsDelta}
-          isPercent={false}
-        />
-        <WeeklyStat
-          label="Recipients"
-          value={thisWeek.totalRecipients.toLocaleString()}
-          delta={recipientsDelta}
-          isPercent={true}
-        />
-        <WeeklyStat
-          label="Avg Open Rate"
-          value={fmtPct(thisWeek.avgOpenRate)}
-          delta={openDelta}
-          isPercent={true}
-        />
-        <WeeklyStat
-          label="Avg CTR"
-          value={fmtPct(thisWeek.avgClickRate)}
-          delta={clickDelta}
-          isPercent={true}
-        />
-      </div>
+      {body}
     </div>
   );
 }
 
-// Exported only for unit tests in __tests__/dashboardTab.test.ts.
+// Exported only for the unit tests in `__tests__/bucketByWeek.test.ts`.
 export { bucketByWeek };
 export type { PerDailyRow, WeeklyMetrics };

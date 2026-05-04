@@ -43,11 +43,14 @@ const TEST_USER_NAME = "Rodrigo Nistor";
  * include real JWTs because the API isn't being hit.
  */
 async function injectSession(page: import("@playwright/test").Page) {
+  // `window.__TEST_SESSION__` is declared globally in
+  // `src/hooks/useCurrentUser.ts` (gate against the hook's escape
+  // hatch). The browser-context body of `addInitScript` runs under
+  // the same TS project, so the property is typed and no cast is
+  // needed here.
   await page.addInitScript(
     ({ email }) => {
-      // The hook reads window.__TEST_SESSION__ on mount; if present,
-      // it short-circuits the Supabase getSession() round-trip.
-      (window as unknown as Record<string, unknown>).__TEST_SESSION__ = {
+      window.__TEST_SESSION__ = {
         user: {
           id: "test-user-id",
           email,
@@ -55,17 +58,14 @@ async function injectSession(page: import("@playwright/test").Page) {
           app_metadata: {},
           aud: "authenticated",
           created_at: "2026-01-01T00:00:00Z",
-        },
+        } as unknown as import("@supabase/supabase-js").User,
         session: {
           access_token: "fake-jwt-for-e2e",
           refresh_token: "fake-refresh",
           expires_in: 3600,
           token_type: "bearer",
-          user: {
-            id: "test-user-id",
-            email,
-          },
-        },
+          user: { id: "test-user-id", email },
+        } as unknown as import("@supabase/supabase-js").Session,
       };
     },
     { email: TEST_USER_EMAIL },

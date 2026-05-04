@@ -1,3 +1,10 @@
+/** ISO-shape (`YYYY-MM-DD`) format of a `Date` in the **browser's
+ *  local timezone**. Internal building block for `todayLocal` and
+ *  `addDaysLocal` — exported so it's testable but most callers want
+ *  one of those wrappers, not this raw formatter. */
+const formatLocalDate = (d: Date): string =>
+  d.toLocaleDateString("en-CA", { year: "numeric", month: "2-digit", day: "2-digit" });
+
 /**
  * Today's date as `YYYY-MM-DD` in the **browser's local timezone**.
  *
@@ -8,8 +15,29 @@
  * format with `en-CA` (the only common locale that emits ISO-shape
  * `YYYY-MM-DD` in local time) and use that consistently.
  */
-export const todayLocal = (now: Date = new Date()): string =>
-  now.toLocaleDateString("en-CA", { year: "numeric", month: "2-digit", day: "2-digit" });
+export const todayLocal = (now: Date = new Date()): string => formatLocalDate(now);
+
+/**
+ * Shift a `YYYY-MM-DD` date by `n` calendar days (negative for past)
+ * and return the result in the same `YYYY-MM-DD` shape, using
+ * local-TZ semantics. Anchors at noon of the source date so DST
+ * transitions can't push the result into the wrong day.
+ *
+ * Examples:
+ *   addDaysLocal("2026-04-30", -1)  → "2026-04-29"
+ *   addDaysLocal("2026-04-30", -7)  → "2026-04-23"
+ *   addDaysLocal("2026-12-31", 1)   → "2027-01-01"
+ *
+ * Returns "" for invalid input rather than throwing — the same
+ * forgiving shape the rest of the date helpers use, lets callers
+ * inline this in JSX without conditional checks.
+ */
+export const addDaysLocal = (iso: string, n: number): string => {
+  if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return "";
+  const d = new Date(iso + "T12:00:00");
+  d.setDate(d.getDate() + n);
+  return formatLocalDate(d);
+};
 
 /**
  * True iff `iso` (a `YYYY-MM-DD` string) is the current local date.

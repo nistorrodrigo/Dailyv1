@@ -1,5 +1,6 @@
 import { supabase } from "./supabase";
 import type { DailyState } from "../types";
+import { addDaysLocal } from "../utils/dates";
 
 interface DailyRecord {
   id: string;
@@ -89,16 +90,8 @@ export async function findMostRecentDailyBefore(
   maxLookbackDays: number = 7,
 ): Promise<{ date: string; record: DailyRecord } | null> {
   if (!supabase) return null;
-  // Anchor at noon to keep date arithmetic free of DST edges.
-  const anchor = new Date(today + "T12:00:00");
   for (let offset = 1; offset <= maxLookbackDays; offset++) {
-    const probe = new Date(anchor);
-    probe.setDate(probe.getDate() - offset);
-    const probeDate = probe.toLocaleDateString("en-CA", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    });
+    const probeDate = addDaysLocal(today, -offset);
     const record = await loadDaily(probeDate);
     if (record?.state) return { date: probeDate, record };
   }
