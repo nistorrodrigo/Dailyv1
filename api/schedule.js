@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { applyCors } from "./_helpers.js";
+import { applyCors, requireAuth } from "./_helpers.js";
 
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL,
@@ -10,6 +10,18 @@ export default async function handler(req, res) {
   applyCors(req, res);
 
   if (req.method === "OPTIONS") return res.status(200).end();
+
+  // ── Auth gate ────────────────────────────────────────────────────
+  // GET leaks the desk's scheduled-send config (recipient list ID +
+  // name, send time, last-sent timestamp). POST lets anyone schedule
+  // a daily blast to the institutional list. Both require a valid
+  // analyst session — same JWT pattern as analytics, ai-draft, and
+  // send-email.
+  const auth = await requireAuth(req);
+  if (!auth.ok) {
+    console.warn(`[schedule] auth failed: ${auth.reason}`);
+    return res.status(401).json({ ok: false, error: "Authentication required" });
+  }
 
   if (req.method === "GET") {
     const { data, error } = await supabase.from("schedule").select("*").limit(1).single();

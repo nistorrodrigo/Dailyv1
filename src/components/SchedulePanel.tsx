@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { BRAND } from "../constants/brand";
 import { fetchSendGridLists, type SendGridList } from "../lib/sendgridApi";
+import { authedFetch } from "../lib/authedFetch";
+import { todayLocal } from "../utils/dates";
 
 interface SchedulePanelProps {
   open: boolean;
@@ -36,12 +38,14 @@ export default function SchedulePanel({ open, onClose }: SchedulePanelProps): Re
     setResult(null);
     (async () => {
       try {
-        const resp = await fetch("/api/schedule");
+        const resp = await authedFetch("/api/schedule");
         const data = await resp.json();
         if (!resp.ok || !data.ok) throw new Error(data.error || `HTTP ${resp.status}`);
         const s = data.schedule;
-        // If last scheduled date already passed, reset to today
-        const today = new Date().toISOString().split("T")[0];
+        // If last scheduled date already passed, reset to today's
+        // local date (NOT toISOString — that's UTC and can roll over
+        // a day for analysts editing late at night).
+        const today = todayLocal();
         if (s.scheduled_date && s.scheduled_date < today) {
           s.enabled = false;
           s.scheduled_date = today;
@@ -73,9 +77,8 @@ export default function SchedulePanel({ open, onClose }: SchedulePanelProps): Re
     setSaving(true);
     setResult(null);
     try {
-      const resp = await fetch("/api/schedule", {
+      const resp = await authedFetch("/api/schedule", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...schedule, enabled: true }),
       });
       const data = await resp.json();
@@ -92,9 +95,8 @@ export default function SchedulePanel({ open, onClose }: SchedulePanelProps): Re
   const handleCancel = async (): Promise<void> => {
     setSaving(true);
     try {
-      const resp = await fetch("/api/schedule", {
+      const resp = await authedFetch("/api/schedule", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...schedule, enabled: false }),
       });
       const data = await resp.json();
@@ -110,7 +112,7 @@ export default function SchedulePanel({ open, onClose }: SchedulePanelProps): Re
 
   if (!open) return null;
 
-  const today = new Date().toISOString().split("T")[0];
+  const today = todayLocal();
 
   return (
     <div className="fixed top-0 right-0 bottom-0 w-[400px] bg-[var(--bg-card)] shadow-[var(--shadow-panel)] z-[1000] flex flex-col panel-slide">
