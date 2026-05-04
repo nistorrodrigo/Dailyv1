@@ -193,12 +193,21 @@ export default function WorkflowPanel({ open, onClose, onOpenSendEmail }: Workfl
                 >
                   <span>{step.label}</span>
                   {!step.done && (
+                    // Median (real, from past sessions) wins over the
+                    // heuristic when ≥3 samples exist. The "median"
+                    // tag tells the analyst the number is calibrated
+                    // to their own pace, not a global default.
                     <span
                       className="text-[10px] font-normal flex-shrink-0"
                       style={{ color: "var(--text-muted)" }}
-                      title="Heuristic time on a typical morning"
+                      title={
+                        step.medianMinutes != null
+                          ? `Median over your last sessions: ${step.medianMinutes.toFixed(1)} minutes`
+                          : "Heuristic time on a typical morning (no per-session data yet)"
+                      }
                     >
-                      ~{step.estMinutes}m
+                      {step.medianMinutes != null ? "median" : "~"}
+                      {step.effectiveMinutes}m
                     </span>
                   )}
                 </div>

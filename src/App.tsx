@@ -2,6 +2,7 @@ import { Suspense, lazy } from "react";
 import useUIStore from "./store/useUIStore";
 import useKeyboardShortcuts from "./hooks/useKeyboardShortcuts";
 import useUnsavedChangesGuard from "./hooks/useUnsavedChangesGuard";
+import { useStepTimingsTracker } from "./hooks/useStepTimingsTracker";
 import type { UIState } from "./types";
 import Header from "./components/Header";
 import Toaster from "./components/Toaster";
@@ -33,6 +34,12 @@ export default function App() {
   const setTab = useUIStore((s) => s.setTab);
   useKeyboardShortcuts();
   useUnsavedChangesGuard();
+  // Records every workflow step's pending → done duration to the
+  // persistent timings store. Mounted at App level (not inside the
+  // chip / panel) so each transition is recorded exactly once,
+  // regardless of which surfaces happen to be reading workflow
+  // progress at the same time.
+  useStepTimingsTracker();
 
   return (
     <div className="min-h-screen bg-[var(--bg-page)] font-sans">

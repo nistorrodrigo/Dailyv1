@@ -1,5 +1,6 @@
 import { useShallow } from "zustand/react/shallow";
 import useDailyStore from "../store/useDailyStore";
+import useStepTimingsStore from "../store/useStepTimingsStore";
 import { isToday } from "../utils/dates";
 
 /** A single step in the morning workflow. The shape is shared between
@@ -17,13 +18,19 @@ export interface WorkflowStep {
    *  `id="section-<key>"`. Steps that don't map to a section
    *  (e.g. "Send Email" — that's a panel button) leave this empty. */
   anchor?: string;
-  /** Heuristic minutes typically spent on this step. Used to power
-   *  the "time to ready" estimate in the Header chip and panel.
-   *  Done steps contribute 0; pending steps contribute their
-   *  default. These are rough — a real session may take 2× or
-   *  0.5× depending on the day. The estimate is a guidepost, not a
-   *  contract. */
+  /** Heuristic minutes typically spent on this step. Used as the
+   *  fallback for the "time to ready" estimate when there's no
+   *  per-analyst session history yet. */
   estMinutes: number;
+  /** Median duration in minutes from the analyst's own past sessions
+   *  (rolling 30-day window, ≥3 samples required). `null` when there
+   *  isn't enough history to override the heuristic — the panel
+   *  shows just `~estMinutes` in that case. */
+  medianMinutes: number | null;
+  /** Best-available estimate: `medianMinutes` when present, else
+   *  `estMinutes`. This is what the chip subtitle and panel time
+   *  totals sum from. */
+  effectiveMinutes: number;
 }
 
 /**
@@ -73,10 +80,23 @@ export function useWorkflowProgress(): {
     })),
   );
 
+  // Subscribe to the timings store so this hook re-renders when a
+  // new median lands (e.g. the analyst just completed a step and the
+  // tracker recorded it). Reading via the function selector keeps the
+  // shape stable per call.
+  const timingsHistory = useStepTimingsStore((st) => st.history);
+  const medianFor = useStepTimingsStore((st) => st.medianFor);
+
   const sectionOn = (key: string) => Boolean(s.sections.find((x) => x.key === key)?.on);
   const recapOn = sectionOn("yesterdayRecap");
 
-  const steps: WorkflowStep[] = [
+  // Build the raw steps first (without the timing-augmented fields),
+  // then map to enhance each with `medianMinutes` and
+  // `effectiveMinutes`. Two-pass keeps the inline definitions
+  // readable — every step would otherwise repeat the same
+  // `medianMinutes: medianFor(...)` plumbing.
+  type RawStep = Omit<WorkflowStep, "medianMinutes" | "effectiveMinutes">;
+  const rawSteps: RawStep[] = [
     {
       id: "date",
       label: "Date is today",
@@ -181,9 +201,25 @@ export function useWorkflowProgress(): {
     },
   ];
 
+  // Reference `timingsHistory` so the linter sees the dependency —
+  // calling `medianFor` reads from it indirectly, and we want the
+  // hook to re-render when it changes. (The selector subscription
+  // above is what actually triggers the re-render; this is just a
+  // belt-and-braces noop reference for clarity.)
+  void timingsHistory;
+
+  const steps: WorkflowStep[] = rawSteps.map((step) => {
+    const median = medianFor(step.id);
+    return {
+      ...step,
+      medianMinutes: median,
+      effectiveMinutes: median != null ? Math.round(median) : step.estMinutes,
+    };
+  });
+
   const doneCount = steps.filter((x) => x.done).length;
   const estimatedMinutesRemaining = steps
     .filter((x) => !x.done)
-    .reduce((sum, x) => sum + x.estMinutes, 0);
+    .reduce((sum, x) => sum + x.effectiveMinutes, 0);
   return { steps, doneCount, total: steps.length, estimatedMinutesRemaining };
 }
