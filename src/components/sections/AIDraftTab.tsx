@@ -3,7 +3,7 @@ import { BRAND } from "../../constants/brand";
 import useDailyStore from "../../store/useDailyStore";
 import { useShallow } from "zustand/react/shallow";
 import { toast } from "../../store/useToastStore";
-import { AI_MODELS } from "../ui/AIModelPicker";
+import { AI_MODELS, estimateCost, type AIModelKey } from "../ui/AIModelPicker";
 
 interface DraftBlock {
   id: string;
@@ -34,7 +34,7 @@ export default function AIDraftTab(): React.ReactElement {
   const setField = useDailyStore((s) => s.setField);
   const macroBlocks = useDailyStore((s) => s.macroBlocks);
 
-  const [model, setModel] = useState("sonnet");
+  const [model, setModel] = useState<AIModelKey>("sonnet");
   const [context, setContext] = useState("");
   const [includeNews, setIncludeNews] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -42,6 +42,10 @@ export default function AIDraftTab(): React.ReactElement {
   const [summaryDraft, setSummaryDraft] = useState("");
   const [flowsDraft, setFlowsDraft] = useState<{ eqBuyer: string; eqSeller: string; fiBuyer: string; fiSeller: string } | null>(null);
   const [generated, setGenerated] = useState(false);
+  // Last-call usage stats — surfaced after a successful generation so
+  // the analyst can see the actual cost vs. the picker's pre-flight
+  // estimate. Cleared at the start of each new generate call.
+  const [lastUsage, setLastUsage] = useState<{ tokens: number; cost: number; modelLabel: string } | null>(null);
 
   const handleGenerate = async () => {
     setLoading(true);
@@ -49,6 +53,7 @@ export default function AIDraftTab(): React.ReactElement {
     setSummaryDraft("");
     setFlowsDraft(null);
     setGenerated(false);
+    setLastUsage(null);
     try {
       const resp = await fetch("/api/ai-draft", {
         method: "POST",
@@ -87,8 +92,12 @@ export default function AIDraftTab(): React.ReactElement {
       setDraft(blocks);
       setGenerated(true);
 
-      const tokens = data.usage ? data.usage.input + data.usage.output : 0;
-      toast.success(`Draft generated with ${data.model} (${tokens} tokens). Review below.`);
+      const inputTokens = data.usage?.input || 0;
+      const outputTokens = data.usage?.output || 0;
+      const tokens = inputTokens + outputTokens;
+      const cost = estimateCost(model, inputTokens, outputTokens);
+      setLastUsage({ tokens, cost, modelLabel: data.model || model });
+      toast.success(`Draft generated with ${data.model} (${tokens.toLocaleString()} tokens · $${cost.toFixed(4)}). Review below.`);
     } catch (err) {
       toast.error("AI Draft failed: " + ((err as Error).message));
     } finally {
@@ -201,6 +210,15 @@ export default function AIDraftTab(): React.ReactElement {
         >
           {loading ? "Generating full daily draft..." : "Generate AI Draft"}
         </button>
+
+        {/* Real cost badge — shown after a successful generation, gives
+            the analyst the actual spend rather than the picker's
+            pre-flight estimate. */}
+        {lastUsage && (
+          <div className="mt-2 text-[10px] text-[var(--text-muted)] text-center">
+            Last call: {lastUsage.tokens.toLocaleString()} tokens · {lastUsage.modelLabel} · ${lastUsage.cost.toFixed(4)}
+          </div>
+        )}
       </div>
 
       {/* Draft Review */}

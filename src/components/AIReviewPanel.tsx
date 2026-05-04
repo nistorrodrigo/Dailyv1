@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { BRAND } from "../constants/brand";
 import useDailyStore from "../store/useDailyStore";
 import AIModelPicker, { type AIModelKey, AI_MODELS, estimateCost } from "./ui/AIModelPicker";
 import { generateBBG } from "../utils/generateBBG";
+import { preflightReview } from "../utils/preflightReview";
 import { toast } from "../store/useToastStore";
 
 interface ReviewResult {
@@ -26,14 +27,41 @@ interface ReviewResult {
 }
 
 export default function AIReviewPanel({ open, onClose }: { open: boolean; onClose: () => void }): React.ReactElement | null {
-  const [model, setModel] = useState<AIModelKey>("haiku");
+  // Default to Sonnet 4.6 — the review prompt benefits noticeably from
+  // sonnet's stronger judgement over haiku's speed (better at spotting
+  // subtle inconsistencies, less prone to vague "could be tightened"
+  // feedback). The cost gap is ~$0.02/call which is trivial vs. the
+  // editorial value at the desk's send cadence.
+  const [model, setModel] = useState<AIModelKey>("sonnet");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ReviewResult | null>(null);
   const [execSummary, setExecSummary] = useState("");
+  // Preflight issues found locally without an API call. Cleared on
+  // open and after a successful review. If non-empty, we surface them
+  // above the "Review" button as a chance for the analyst to fix
+  // before paying for an LLM round-trip.
+  const [preflightIssues, setPreflightIssues] = useState<string[]>([]);
+  // Threshold above which we suggest fixing locally first before
+  // running AI. 3 chosen as a balance — under that, the daily is
+  // probably "mostly there" and the AI can still add value finding
+  // subtler issues; above that, AI feedback gets diluted.
+  const PREFLIGHT_BLOCK_THRESHOLD = 3;
+
+  // Run the local preflight scan on every open and re-run it whenever
+  // the user clicks "Re-check". Cheap (synchronous, no API call) so we
+  // do it eagerly rather than deferring to an explicit user action.
+  const runPreflight = () => {
+    const state = useDailyStore.getState();
+    setPreflightIssues(preflightReview(state));
+  };
+  useEffect(() => {
+    if (open) runPreflight();
+  }, [open]);
 
   if (!open) return null;
 
   const selectedModel = AI_MODELS.find(m => m.key === model)!;
+  const tooManyPreflightIssues = preflightIssues.length >= PREFLIGHT_BLOCK_THRESHOLD;
 
   const handleReview = async () => {
     setLoading(true);
@@ -99,6 +127,41 @@ export default function AIReviewPanel({ open, onClose }: { open: boolean; onClos
           AI reviews your daily for consistency, typos, missing data, and generates an executive summary.
         </p>
 
+        {/* Local pre-flight checks — run synchronously, no API call.
+            Catches the obvious "toggled on but empty" gaps that an
+            analyst can fix in 30 seconds without spending tokens. */}
+        <div className="mb-4 p-3 rounded-md border border-[var(--border-light)] bg-[var(--bg-card-alt)]">
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-[11px] font-bold text-[var(--text-secondary)] uppercase tracking-wide">
+              Quick checks <span className="text-[var(--text-muted)] font-normal normal-case">(no API call)</span>
+            </div>
+            <button
+              onClick={runPreflight}
+              className="bg-transparent border-none text-[10px] font-semibold text-[var(--color-sky)] cursor-pointer"
+              title="Re-run after fixing items"
+            >
+              Re-check
+            </button>
+          </div>
+          {preflightIssues.length === 0 ? (
+            <div className="text-[12px] text-green-600 font-semibold">
+              ✓ No obvious gaps. Daily looks structurally complete.
+            </div>
+          ) : (
+            <>
+              <div className="text-[11px] text-[var(--text-muted)] mb-2">
+                Found {preflightIssues.length} item{preflightIssues.length === 1 ? "" : "s"} you can fix without AI:
+              </div>
+              {preflightIssues.map((msg, i) => (
+                <div key={i} className="flex gap-2 mb-1 text-[12px] text-[var(--text-primary)]">
+                  <span className="text-amber-500 flex-shrink-0">⚠</span>
+                  <span>{msg}</span>
+                </div>
+              ))}
+            </>
+          )}
+        </div>
+
         <div className="mb-4">
           <label className="block mb-1 text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide">Model</label>
           <AIModelPicker value={model} onChange={setModel} />
@@ -108,11 +171,21 @@ export default function AIReviewPanel({ open, onClose }: { open: boolean; onClos
         <button
           onClick={handleReview}
           disabled={loading}
-          className="w-full py-3 rounded-md border-none text-white text-sm font-bold cursor-pointer uppercase disabled:opacity-50 mb-4"
+          className="w-full py-3 rounded-md border-none text-white text-sm font-bold cursor-pointer uppercase disabled:opacity-50 mb-2"
           style={{ background: loading ? "#999" : "#8b5cf6" }}
+          title={tooManyPreflightIssues ? "Recommended: fix the quick-check items above first" : undefined}
         >
-          {loading ? "Reviewing..." : "Review Daily Before Send"}
+          {loading
+            ? "Reviewing..."
+            : tooManyPreflightIssues
+              ? "Run AI Review Anyway"
+              : "Review Daily Before Send"}
         </button>
+        {tooManyPreflightIssues && !loading && (
+          <div className="mb-4 text-[10px] text-[var(--text-muted)] text-center italic">
+            Tip: fixing the {preflightIssues.length} items above first makes the AI feedback more useful (and saves a call).
+          </div>
+        )}
 
         {result && (
           <>

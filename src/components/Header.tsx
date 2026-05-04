@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, Suspense, lazy } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { useStore } from "zustand";
 import { BRAND, LOGO_WHITE_URL } from "../constants/brand";
@@ -9,17 +9,25 @@ import { generateHTML } from "../utils/generateHTML";
 import { generateBBG } from "../utils/generateBBG";
 import { fmtEventDate } from "../utils/dates";
 import { getDailyTextMetrics, readingTimeMinutes } from "../utils/textMetrics";
-import HistoryPanel from "./HistoryPanel";
-import TemplatesPanel from "./TemplatesPanel";
 import EmailSendPanel from "./EmailSendPanel";
+import ContactsPanel from "./ContactsPanel";
 import DuplicateYesterdayBtn from "./DuplicateYesterdayBtn";
-import DiffPanel from "./DiffPanel";
-import SchedulePanel from "./SchedulePanel";
 import { logout } from "./LoginGate";
 import PresenceIndicator from "./PresenceIndicator";
-import AIReviewPanel from "./AIReviewPanel";
-import ContactsPanel from "./ContactsPanel";
 import { useCurrentUser } from "../hooks/useCurrentUser";
+
+// Lazy-load the panels that keep no cross-open state. The slide-in
+// pattern is designed for "open, do one thing, close" — losing internal
+// state between opens is acceptable, and deferring the JS until the
+// first time the analyst clicks the corresponding button shaves
+// ~30-40 KB off the initial bundle. EmailSendPanel and ContactsPanel
+// stay eagerly imported because they keep imported-recipient lists
+// across open/close cycles which would be costly to re-fetch.
+const HistoryPanel = lazy(() => import("./HistoryPanel"));
+const TemplatesPanel = lazy(() => import("./TemplatesPanel"));
+const DiffPanel = lazy(() => import("./DiffPanel"));
+const SchedulePanel = lazy(() => import("./SchedulePanel"));
+const AIReviewPanel = lazy(() => import("./AIReviewPanel"));
 
 type PanelName = "history" | "templates" | "email" | "diff" | "schedule" | "ai-review" | "contacts" | null;
 
@@ -375,13 +383,21 @@ export default function Header(): React.ReactElement {
           <TBtn onClick={() => setOpenPanel("email")} primary>Send Email</TBtn>
         </div>
       </div>
-      <HistoryPanel open={openPanel === "history"} onClose={() => setOpenPanel(null)} />
-      <TemplatesPanel open={openPanel === "templates"} onClose={() => setOpenPanel(null)} />
+      {/* Eager panels — keep state across open/close cycles. */}
       <EmailSendPanel open={openPanel === "email"} onClose={() => setOpenPanel(null)} />
-      <DiffPanel open={openPanel === "diff"} onClose={() => setOpenPanel(null)} />
-      <SchedulePanel open={openPanel === "schedule"} onClose={() => setOpenPanel(null)} />
-      <AIReviewPanel open={openPanel === "ai-review"} onClose={() => setOpenPanel(null)} />
       <ContactsPanel open={openPanel === "contacts"} onClose={() => setOpenPanel(null)} />
+
+      {/* Lazy panels — only mount when actually opened. fallback={null}
+          because the panel slide-in animation handles the visual
+          "appearing" gracefully; an explicit spinner would feel
+          janky for what's typically a sub-second download. */}
+      <Suspense fallback={null}>
+        {openPanel === "history" && <HistoryPanel open onClose={() => setOpenPanel(null)} />}
+        {openPanel === "templates" && <TemplatesPanel open onClose={() => setOpenPanel(null)} />}
+        {openPanel === "diff" && <DiffPanel open onClose={() => setOpenPanel(null)} />}
+        {openPanel === "schedule" && <SchedulePanel open onClose={() => setOpenPanel(null)} />}
+        {openPanel === "ai-review" && <AIReviewPanel open onClose={() => setOpenPanel(null)} />}
+      </Suspense>
     </>
   );
 }

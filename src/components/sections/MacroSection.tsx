@@ -23,7 +23,7 @@ export default function MacroSection() {
   const [aiLoading, setAiLoading] = useState<boolean>(false);
   const [aiContext, setAiContext] = useState<string>("");
   const [showAiInput, setShowAiInput] = useState<boolean>(false);
-  const [aiModel, setAiModel] = useState<string>("haiku");
+  const [aiModel, setAiModel] = useState<string>("sonnet");
   const [aiMode, setAiMode] = useState<"macro" | "full">("macro");
   const [includeNews, setIncludeNews] = useState<boolean>(true);
 
