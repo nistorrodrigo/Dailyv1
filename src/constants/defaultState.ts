@@ -19,11 +19,13 @@ export const DEFAULT_STATE: DailyState & { flows: { global: string; local: strin
   sections: [
     { key: "snapshot", label: "Market Snapshot", on: true },
     { key: "watchToday", label: "What to Watch Today", on: true },
+    { key: "marketComment", label: "Market Comment", on: true },
     { key: "macro", label: "Macro / Political", on: true },
     { key: "tradeIdeas", label: "Trade Ideas", on: true },
     { key: "flows", label: "Market Color", on: true },
     { key: "corporate", label: "Corporate", on: true },
     { key: "research", label: "Research Reports", on: true },
+    { key: "latestReports", label: "Latest Research Reports", on: true },
     { key: "topMovers", label: "Top Movers", on: false },
     { key: "tweets", label: "Market Intelligence", on: false },
     { key: "latam", label: "LatAm Context", on: false },
@@ -70,6 +72,8 @@ export const DEFAULT_STATE: DailyState & { flows: { global: string; local: strin
   researchReports: [
     { id: "rr1", type: "Macro", title: "", author: "", body: "", link: "" },
   ],
+  marketComment: "",
+  latestReports: [],
   signatures: [
     { id: "s1", name: "Rodrigo Nistor", role: "Institutional Sales", email: "rodrigo.nistor@latinsecurities.ar" },
   ],

@@ -69,8 +69,10 @@ function secHdr(title: string, id?: string): string {
 // Section label map for TOC
 const SEC_LABELS: Record<string, string> = {
   snapshot: "Market Snapshot", watchToday: "What to Watch Today",
+  marketComment: "Market Comment",
   macro: "Macro / Political", tradeIdeas: "Trade Ideas", flows: "Market Color",
   corporate: "Corporate", research: "Research Reports",
+  latestReports: "Latest Research Reports",
   topMovers: "Top Movers", tweets: "Market Intelligence", latam: "LatAm Context",
   bcra: "BCRA Dashboard", events: "Upcoming", macroEstimates: "Macro Estimates",
   chart: "Chart of the Day",
@@ -119,6 +121,11 @@ function generateHTMLImpl(s: DailyState, mode: string = "full", template: string
   const watchItems = (s.watchToday || []).filter((w: string) => w.trim());
   const watchToday = s.sections.find(x => x.key === "watchToday")?.on && watchItems.length ? secHdr("What to Watch Today") + '<tr><td style="padding:0 40px 8px;">' + watchItems.map((w: string) => '<div style="padding:6px 0;font-size:13.5px;line-height:1.55;color:' + DS.text + ';"><span style="color:#e67e22;font-weight:700;margin-right:8px;">&#9656;</span>' + w + '</div>').join("") + '</td></tr>' : "";
 
+  // MARKET COMMENT — single free-form prose block.
+  const marketComment = s.sections.find(x => x.key === "marketComment")?.on && s.marketComment?.trim()
+    ? secHdr("Market Comment") + '<tr><td style="padding:0 40px 8px;"><div style="font-size:13.5px;line-height:1.65;color:' + DS.text + ';text-align:justify;">' + nl2br(s.marketComment) + '</div></td></tr>'
+    : "";
+
   // LATAM CONTEXT
   const latam = s.sections.find(x => x.key === "latam")?.on && s.latam ? secHdr("LatAm Context") + '<tr><td style="padding:0 40px 8px;"><div style="font-size:13.5px;line-height:1.65;color:' + DS.text + ';text-align:justify;">' + nl2br(s.latam) + '</div></td></tr>' : "";
 
@@ -143,6 +150,24 @@ function generateHTMLImpl(s: DailyState, mode: string = "full", template: string
 
   // RESEARCH
   const research = s.sections.find(x => x.key === "research")?.on && s.researchReports?.length ? secHdr("Research Reports") + '<tr><td style="padding:0 40px 8px;">' + (s.researchReports || []).filter(r => r.title).map(r => '<div style="margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid ' + DS.borderLight + ';"><div style="margin-bottom:3px;"><span style="font-size:10px;font-weight:700;color:' + DS.accent + ';text-transform:uppercase;letter-spacing:1px;">' + r.type + '</span></div><div style="font-size:13.5px;font-weight:700;color:' + DS.navy + ';margin-bottom:2px;">' + r.title + '</div>' + (r.author ? '<div style="font-size:11.5px;color:' + DS.textMuted + ';font-style:italic;margin-bottom:4px;">' + r.author + '</div>' : '') + (r.body ? '<div style="font-size:13px;line-height:1.6;color:' + DS.text + ';text-align:justify;">' + nl2br(r.body) + '</div>' : '') + (r.link ? '<a href="' + r.link + '" style="font-size:12px;color:' + DS.accent + ';text-decoration:none;">Read report &#8594;</a>' : '') + '</div>').join("") + '</td></tr>' : "";
+
+  // LATEST RESEARCH REPORTS — compact list of recent LS publications.
+  // Same shape as `research` but no body — single row per report
+  // with type tag + title + author + (optional) date + link.
+  const latestReportsRows = (s.latestReports || []).filter(r => r.title?.trim());
+  const latestReports = s.sections.find(x => x.key === "latestReports")?.on && latestReportsRows.length
+    ? secHdr("Latest Research Reports") + '<tr><td style="padding:0 40px 8px;">' + latestReportsRows.map(r => {
+        const tag = r.type?.trim() ? '<span style="display:inline-block;font-size:9.5px;font-weight:700;color:' + DS.accent + ';text-transform:uppercase;letter-spacing:1px;background:' + DS.bgAlt + ';padding:2px 8px;border-radius:3px;margin-right:8px;vertical-align:middle;">' + r.type + '</span>' : '';
+        const titleEl = r.link?.trim()
+          ? '<a href="' + r.link + '" style="color:' + DS.navy + ';text-decoration:none;font-weight:700;">' + r.title + '</a>'
+          : '<span style="color:' + DS.navy + ';font-weight:700;">' + r.title + '</span>';
+        const meta = [r.author?.trim(), r.publishedDate?.trim()].filter(Boolean).join(" · ");
+        return '<div style="padding:7px 0;border-bottom:1px solid ' + DS.borderLight + ';font-size:13px;line-height:1.5;">' +
+          tag + titleEl +
+          (meta ? '<div style="font-size:11px;color:' + DS.textMuted + ';font-style:italic;margin-top:2px;margin-left:0;">' + meta + '</div>' : '') +
+          '</div>';
+      }).join("") + '</td></tr>'
+    : "";
 
   // TOP MOVERS
   const topMoversGainers: typeof s.topMovers.gainers = s.topMovers?.gainers?.filter(m => m.ticker) || [];
@@ -177,7 +202,7 @@ function generateHTMLImpl(s: DailyState, mode: string = "full", template: string
   const sig = s.signatures.map(x => '<div style="margin-bottom:6px;"><span style="font-size:13px;font-weight:600;color:' + DS.navy + ';">' + x.name + '</span><span style="font-size:12px;color:' + DS.textLight + ';margin-left:6px;">' + x.role + '</span><br><span style="font-size:12px;color:' + DS.accent + ';">' + x.email + '</span></div>').join("");
 
   // SECTION MAP
-  const sectionMap: Record<string, string> = { snapshot, watchToday, macro, tradeIdeas: trade, flows: flow, corporate: corp, research, topMovers, tweets, latam, bcra, events, macroEstimates: mEst, chart };
+  const sectionMap: Record<string, string> = { snapshot, watchToday, marketComment, macro, tradeIdeas: trade, flows: flow, corporate: corp, research, latestReports, topMovers, tweets, latam, bcra, events, macroEstimates: mEst, chart };
   const enabledSections = s.sections.filter(x => x.on);
 
   // Build Table of Contents
@@ -189,8 +214,10 @@ function generateHTMLImpl(s: DailyState, mode: string = "full", template: string
     tradeIdeas: s.equityPicks.filter(p => p.ticker).map(p => p.ticker).join(", ") + (s.fiIdeas.filter(f => f.idea).length ? " + " + s.fiIdeas.filter(f => f.idea).length + " FI ideas" : ""),
     flows: "EQ: Buy " + (s.eqBuyer || "...").substring(0, 30) + " | FI: Buy " + (s.fiBuyer || "...").substring(0, 30),
     macroEstimates: s.macroRows.length + " metrics, " + s.macroCols.join("/"),
+    marketComment: s.marketComment?.trim() ? s.marketComment.trim().slice(0, 80) + (s.marketComment.length > 80 ? "…" : "") : "",
     corporate: s.corpBlocks.map(c => (c.tickers || []).join("/")).filter(Boolean).join(", "),
     research: (s.researchReports || []).filter(r => r.title).map(r => r.title).join(", "),
+    latestReports: (s.latestReports || []).filter(r => r.title).map(r => r.title).join(", "),
     topMovers: topMoversGainers.map(m => m.ticker + " +" + m.chgPct + "%").concat(topMoversLosers.map(m => m.ticker + " " + m.chgPct + "%")).join(", "),
     tweets: s.tweets?.length ? s.tweets.length + " posts" : "",
     bcra: s.bcraData ? Object.keys(s.bcraData).length + " indicators" : "",

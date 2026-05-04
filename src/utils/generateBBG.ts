@@ -82,6 +82,12 @@ export function generateBBG(s: DailyState): string {
     watchItems.forEach((w: string) => L.push(`• ${w}`));
   }
 
+  // ─── MARKET COMMENT (free-form prose block) ──────────────
+  if (isOn(s, "marketComment") && s.marketComment?.trim()) {
+    L.push("", "💬 MARKET COMMENT");
+    L.push(truncate(s.marketComment, 600));
+  }
+
   // ─── MACRO / POLITICAL (every block) ──────────────────────
   if (isOn(s, "macro")) {
     const macroBlocks = s.macroBlocks.filter((b) => b.body || b.lsPick || (b.newsLinks && b.newsLinks.length));
@@ -196,6 +202,22 @@ export function generateBBG(s: DailyState): string {
       reports.forEach((r) => {
         const meta = [r.type, r.author].filter(Boolean).join(" · ");
         L.push(`• ${r.title || "(untitled)"}${meta ? ` (${meta})` : ""}`);
+        if (r.link) L.push(`  ↗ ${r.link}`);
+      });
+    }
+  }
+
+  // ─── LATEST RESEARCH REPORTS ──────────────────────────────
+  // Compact "what we just published" digest. No body — just title +
+  // author + link, one line per report. Use this when the desk wants
+  // to point clients at recent publications without quoting them.
+  if (isOn(s, "latestReports")) {
+    const reports = (s.latestReports || []).filter((r) => r.title?.trim());
+    if (reports.length) {
+      L.push("", "📑 LATEST REPORTS");
+      reports.forEach((r) => {
+        const meta = [r.type, r.author, r.publishedDate].filter(Boolean).join(" · ");
+        L.push(`• ${r.title}${meta ? ` (${meta})` : ""}`);
         if (r.link) L.push(`  ↗ ${r.link}`);
       });
     }

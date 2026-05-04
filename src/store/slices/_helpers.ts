@@ -4,6 +4,7 @@ import type {
   MacroBlock,
   CorpBlock,
   ResearchReport,
+  LatestReport,
   Signature,
   Analyst,
   ChartImage,
@@ -17,6 +18,7 @@ export type ListField =
   | "macroBlocks"
   | "corpBlocks"
   | "researchReports"
+  | "latestReports"
   | "signatures"
   | "analysts"
   | "equityPicks"
@@ -30,6 +32,7 @@ export type ListItem =
   | MacroBlock
   | CorpBlock
   | ResearchReport
+  | LatestReport
   | Signature
   | Analyst;
 

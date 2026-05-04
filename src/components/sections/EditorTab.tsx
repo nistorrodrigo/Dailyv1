@@ -6,6 +6,7 @@ import FlowsSection from "./FlowsSection";
 import MacroEstimatesSection from "./MacroEstimatesSection";
 import CorporateSection from "./CorporateSection";
 import ResearchSection from "./ResearchSection";
+import LatestReportsSection from "./LatestReportsSection";
 import SignaturesSection from "./SignaturesSection";
 import TopMoversSection from "./TopMoversSection";
 import TweetsSection from "./TweetsSection";
@@ -16,6 +17,7 @@ import ChartSection from "./ChartSection";
 import SnapshotSection from "./SnapshotSection";
 import WatchTodaySection from "./WatchTodaySection";
 import LatAmSection from "./LatAmSection";
+import MarketCommentSection from "./MarketCommentSection";
 import LivePreviewPanel from "../LivePreviewPanel";
 import LazySection from "../ui/LazySection";
 import useDailyStore from "../../store/useDailyStore";
@@ -23,11 +25,13 @@ import useDailyStore from "../../store/useDailyStore";
 const SECTION_COMPONENTS: Record<string, React.ComponentType> = {
   snapshot: SnapshotSection,
   watchToday: WatchTodaySection,
+  marketComment: MarketCommentSection,
   macro: MacroSection,
   tradeIdeas: TradeIdeasSection,
   flows: FlowsSection,
   corporate: CorporateSection,
   research: ResearchSection,
+  latestReports: LatestReportsSection,
   topMovers: TopMoversSection,
   tweets: TweetsSection,
   latam: LatAmSection,

@@ -76,6 +76,25 @@ export interface ResearchReport {
   link: string;
 }
 
+/** Compact "what we just published" listing — title + author + link
+ *  with no embedded body. Distinct from `ResearchReport` (which the
+ *  Research Reports section uses to drop the full text into the
+ *  daily). Use this when the analyst just wants to point clients at
+ *  recent LS publications without quoting them in line. */
+export interface LatestReport {
+  id: string;
+  /** Optional report type tag. Free-form string rather than a strict
+   *  union so the desk can use whatever taxonomy they already track
+   *  (e.g. "Banks 1Q26", "FX strategy", "Sovereign curve"). */
+  type: string;
+  title: string;
+  author: string;
+  /** ISO date the report was published (YYYY-MM-DD). Optional
+   *  because some uploads don't have it; rendered when present. */
+  publishedDate?: string;
+  link: string;
+}
+
 export interface Signature {
   id: string;
   name: string;
@@ -162,6 +181,16 @@ export interface DailyState {
   macroRows: MacroRow[];
   corpBlocks: CorpBlock[];
   researchReports: ResearchReport[];
+  /** Free-form market commentary block — single prose section the
+   *  analyst writes in their own voice. Different from `macroBlocks`
+   *  (which are reactions to specific data prints) — this one is the
+   *  "desk colour / opinion" piece that often goes after the
+   *  snapshot. Empty string when the section is off or not used. */
+  marketComment: string;
+  /** Compact list of recent LS publications surfaced in today's
+   *  daily. Title + author + link only — no body. See
+   *  `researchReports` for the full-embed variant. */
+  latestReports: LatestReport[];
   signatures: Signature[];
   analysts: Analyst[];
   disclaimer: string;
