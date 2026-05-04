@@ -207,6 +207,7 @@ export default function Header(): React.ReactElement {
 
           {totalWords > 0 && (
             <span
+              className="header-wordcount"
               style={{ fontSize: 10, color: "rgba(255,255,255,0.55)", fontWeight: 500, letterSpacing: 0.3, whiteSpace: "nowrap" }}
               title={`${totalWords} words · ~${minutes} min read`}
             >
@@ -245,7 +246,10 @@ export default function Header(): React.ReactElement {
               }}>
                 {(currentUser.user.email || "?").charAt(0).toUpperCase()}
               </span>
-              <span style={{ fontSize: 11, color: "#fff", fontWeight: 500 }}>
+              <span
+                className="header-user-chip-text"
+                style={{ fontSize: 11, color: "#fff", fontWeight: 500 }}
+              >
                 {(currentUser.user.email || "").split("@")[0]}
               </span>
             </div>
