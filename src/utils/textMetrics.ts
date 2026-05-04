@@ -51,7 +51,10 @@ export function getDailyTextMetrics(s: DailyState): TextMetrics {
     if (n) perSection[key] = (perSection[key] || 0) + n;
   };
 
+  add("headline", countWords(s.headline));
   add("summary", countWords(s.summaryBar));
+  add("yesterdayRecap", countWords(s.yesterdayRecap));
+  add("marketComment", countWords(s.marketComment));
   add("watch", (s.watchToday || []).reduce((acc, w) => acc + countWords(w), 0));
   add("latam", countWords(s.latam));
 
@@ -59,7 +62,7 @@ export function getDailyTextMetrics(s: DailyState): TextMetrics {
     add("macro", countWords(b.title) + countWords(b.body) + countWords(b.lsPick));
   });
 
-  s.equityPicks.forEach((p) => add("equity", countWords(p.reason)));
+  s.equityPicks.forEach((p) => add("equity", countWords(p.reason) + countWords(p.exitTrigger)));
   s.fiIdeas.forEach((f) => add("fi", countWords(f.idea) + countWords(f.reason)));
 
   s.corpBlocks.forEach((c) => {
@@ -69,6 +72,13 @@ export function getDailyTextMetrics(s: DailyState): TextMetrics {
 
   (s.researchReports || []).forEach((r) => {
     add("research", countWords(r.title) + countWords(r.body));
+  });
+
+  // Latest Reports — title + author only (no body by design); resolved
+  // analyst name is already in the catalogue, free-text author is
+  // counted directly.
+  (s.latestReports || []).forEach((r) => {
+    add("latestReports", countWords(r.title) + countWords(r.author));
   });
 
   (s.tweets || []).forEach((t) => add("tweets", countWords(t.content)));

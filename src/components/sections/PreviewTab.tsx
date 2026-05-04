@@ -5,6 +5,7 @@ import useDailyStore from "../../store/useDailyStore";
 import useUIStore from "../../store/useUIStore";
 import { generateHTML } from "../../utils/generateHTML";
 import { generateBBG } from "../../utils/generateBBG";
+import { getDailyTextMetrics, readingTimeMinutes } from "../../utils/textMetrics";
 
 export default function PreviewTab() {
   const ref = useRef<HTMLIFrameElement>(null);
@@ -15,6 +16,11 @@ export default function PreviewTab() {
   const [html, setHtml] = useState<string>("");
   const [bbg, setBbg] = useState<string>("");
   const [emailTemplate, setEmailTemplate] = useState<string>("formal");
+  // Subscribe to the live state so the badge re-renders when the
+  // analyst flips back to Editor, makes a change, and returns. The
+  // metrics util memoizes by state ref so this is cheap.
+  const wordCount = useDailyStore((s) => getDailyTextMetrics(s).total);
+  const readMinutes = readingTimeMinutes(wordCount);
 
   useEffect(() => {
     const state = useDailyStore.getState();
@@ -94,6 +100,36 @@ export default function PreviewTab() {
           {copiedLabel === previewMode ? "\u2713 Copied!" : `Copy ${previewMode === "html" ? "HTML" : "BBG"}`}
         </button>
       </div>
+      {/* Reading-time + word count \u2014 institutional readers eyeball
+          this before opening, so it pays to keep an eye on it. ~220
+          WPM is the comfortable scanning pace; >5 min means the daily
+          probably needs trimming. */}
+      {wordCount > 0 && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            marginBottom: 12,
+            fontSize: 11,
+            color: "var(--text-muted)",
+          }}
+        >
+          <span style={{ fontWeight: 700, color: "var(--text-secondary)" }}>
+            {readMinutes} min read
+          </span>
+          <span style={{ opacity: 0.5 }}>\u00b7</span>
+          <span>{wordCount.toLocaleString()} words</span>
+          {readMinutes >= 6 && (
+            <>
+              <span style={{ opacity: 0.5 }}>\u00b7</span>
+              <span style={{ color: "#c97a2c", fontWeight: 600 }}>
+                long \u2014 consider trimming
+              </span>
+            </>
+          )}
+        </div>
+      )}
       {previewMode === "html" ? (
         <div style={{
           background: "#fff", borderRadius: 8, overflow: "hidden",
