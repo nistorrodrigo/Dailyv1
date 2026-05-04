@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { BRAND } from "../../constants/brand";
 import { displayNameFromEmail } from "../../utils/displayName";
+import { authedFetch } from "../../lib/authedFetch";
 
 const StatCard = ({ label, value, color = BRAND.navy }: { label: string; value: string | number; color?: string }) => (
   <div className="p-4 rounded-lg border border-[var(--border-light)] bg-[var(--bg-card)] flex-1 min-w-[120px]">
@@ -24,7 +25,7 @@ export default function DashboardTab() {
   useEffect(() => {
     (async () => {
       try {
-        const resp = await fetch("/api/analytics");
+        const resp = await authedFetch("/api/analytics");
         const d = await resp.json() as AnalyticsData & { error?: string };
         if (!resp.ok || !d.ok) throw new Error(d.error || `HTTP ${resp.status}`);
         setData(d);
@@ -139,7 +140,7 @@ function PerDailyStats(): React.ReactElement {
   useEffect(() => {
     (async () => {
       try {
-        const resp = await fetch("/api/analytics?type=per-daily-stats");
+        const resp = await authedFetch("/api/analytics?type=per-daily-stats");
         const d = await resp.json();
         if (!resp.ok || !d.ok) throw new Error(d.error || `HTTP ${resp.status}`);
         setRows((d.rows as PerDailyRow[]) || []);
@@ -223,7 +224,7 @@ function EmailTracking(): React.ReactElement {
   const loadTracking = async () => {
     setTrackingError("");
     try {
-      const resp = await fetch("/api/analytics?type=email-events");
+      const resp = await authedFetch("/api/analytics?type=email-events");
       const d = await resp.json();
       if (!resp.ok || !d.ok) throw new Error(d.error || `HTTP ${resp.status}`);
       setTracking(d);

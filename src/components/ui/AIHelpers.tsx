@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import useDailyStore from "../../store/useDailyStore";
 import useUIStore from "../../store/useUIStore";
 import { toast } from "../../store/useToastStore";
+import { authedFetch } from "../../lib/authedFetch";
 
 interface CopyPromptBtnProps {
   section: string;
@@ -61,9 +62,8 @@ export function ImproveBtn({ text, onImprove, context = "macro/political section
     if (!text.trim()) { toast.info("Write something first, then click Improve"); return; }
     setLoading(true);
     try {
-      const resp = await fetch("/api/ai-draft", {
+      const resp = await authedFetch("/api/ai-draft", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           context: `IMPROVE THIS TEXT for the ${context} of an Argentina Daily report. Make it more professional, concise, and factual. Keep the same information but improve the writing quality. Return ONLY the improved text, no JSON, no explanation.\n\nOriginal text:\n${text}`,
           date: new Date().toISOString().split("T")[0],

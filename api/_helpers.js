@@ -77,3 +77,53 @@ export async function fetchWithRetry(url, init = {}, opts = {}) {
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
+
+/**
+ * Validate a Supabase JWT from the Authorization header. Returns
+ * `{ ok: true, user }` if the token is valid AND the user's email
+ * domain is in the configured allowlist (defaults to the LS domain);
+ * `{ ok: false, reason }` otherwise.
+ *
+ * Use from any endpoint that returns analyst-private data or burns
+ * paid third-party APIs. The pattern:
+ *
+ *   const auth = await requireAuth(req);
+ *   if (!auth.ok) return res.status(401).json({ error: "Auth required" });
+ *
+ * `reason` is intentionally short and server-side-only — never echo
+ * it to the client. The client should always see a generic 401.
+ *
+ * Lazily creates the Supabase client on first call so endpoints that
+ * never use auth (the rare public ones) don't pay the import cost.
+ */
+let _supabaseAuth;
+const ALLOWED_EMAIL_DOMAIN = "latinsecurities.ar";
+
+export async function requireAuth(req) {
+  const auth = req.headers?.authorization || req.headers?.Authorization;
+  if (!auth || typeof auth !== "string") return { ok: false, reason: "no-header" };
+  const m = /^Bearer\s+(.+)$/i.exec(auth);
+  if (!m) return { ok: false, reason: "malformed" };
+  const token = m[1].trim();
+  if (!token) return { ok: false, reason: "empty-token" };
+
+  if (!_supabaseAuth) {
+    const { createClient } = await import("@supabase/supabase-js");
+    const url = process.env.VITE_SUPABASE_URL;
+    const key = process.env.VITE_SUPABASE_ANON_KEY;
+    if (!url || !key) return { ok: false, reason: "supabase-not-configured" };
+    _supabaseAuth = createClient(url, key);
+  }
+
+  try {
+    const { data, error } = await _supabaseAuth.auth.getUser(token);
+    if (error || !data?.user) return { ok: false, reason: error?.message || "invalid" };
+    const email = data.user.email || "";
+    if (!email.toLowerCase().endsWith("@" + ALLOWED_EMAIL_DOMAIN)) {
+      return { ok: false, reason: `wrong-domain:${email}` };
+    }
+    return { ok: true, user: data.user };
+  } catch (err) {
+    return { ok: false, reason: `getUser-throw:${err?.message || err}` };
+  }
+}

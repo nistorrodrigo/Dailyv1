@@ -4,6 +4,7 @@ import useDailyStore from "../../store/useDailyStore";
 import { useShallow } from "zustand/react/shallow";
 import { toast } from "../../store/useToastStore";
 import { AI_MODELS, estimateCost, type AIModelKey } from "../ui/AIModelPicker";
+import { authedFetch } from "../../lib/authedFetch";
 
 interface DraftBlock {
   id: string;
@@ -55,9 +56,8 @@ export default function AIDraftTab(): React.ReactElement {
     setGenerated(false);
     setLastUsage(null);
     try {
-      const resp = await fetch("/api/ai-draft", {
+      const resp = await authedFetch("/api/ai-draft", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           context,
           date,

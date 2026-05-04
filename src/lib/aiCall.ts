@@ -1,4 +1,5 @@
 import type { AIModelKey } from "../components/ui/AIModelPicker";
+import { authedFetch } from "./authedFetch";
 
 interface AICallOptions {
   prompt: string;
@@ -13,9 +14,8 @@ interface AICallResult {
 }
 
 export async function aiCall({ prompt, model = "haiku", maxTokens = 1024 }: AICallOptions): Promise<AICallResult> {
-  const resp = await fetch("/api/ai-draft", {
+  const resp = await authedFetch("/api/ai-draft", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       context: prompt,
       date: new Date().toISOString().split("T")[0],

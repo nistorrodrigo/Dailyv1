@@ -5,6 +5,7 @@ import AIModelPicker, { type AIModelKey, AI_MODELS, estimateCost } from "./ui/AI
 import { generateBBG } from "../utils/generateBBG";
 import { preflightReview } from "../utils/preflightReview";
 import { toast } from "../store/useToastStore";
+import { authedFetch } from "../lib/authedFetch";
 
 interface ReviewResult {
   /** Quality score 1–10. `null` only when the model failed to return
@@ -75,9 +76,8 @@ export default function AIReviewPanel({ open, onClose }: { open: boolean; onClos
       // writer), enforces the JSON contract, and returns the parsed
       // review object directly under `data.review` — no more digging
       // through `blocks[0].body` and re-parsing.
-      const resp = await fetch("/api/ai-draft", {
+      const resp = await authedFetch("/api/ai-draft", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           mode: "review",
           dailyText: bbg,

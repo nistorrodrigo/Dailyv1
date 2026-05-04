@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { applyCors } from "./_helpers.js";
+import { applyCors, requireAuth } from "./_helpers.js";
 
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL,
@@ -8,9 +8,24 @@ const supabase = createClient(
 
 export default async function handler(req, res) {
   applyCors(req, res);
-  res.setHeader("Cache-Control", "s-maxage=30, stale-while-revalidate=60");
+
+  if (req.method === "OPTIONS") return res.status(200).end();
 
   if (!supabase) return res.status(500).json({ error: "Supabase not configured" });
+
+  // ── Auth gate ────────────────────────────────────────────────────
+  // Every analytics branch returns analyst-private data: send history
+  // with sender emails, recipient open/click events with subscriber
+  // email addresses, etc. Without this gate any anonymous request to
+  // /api/analytics?type=email-events would scrape the institutional
+  // distribution list. Cache-Control is `private` so the Vercel CDN
+  // never serves an authed response to a different user.
+  const auth = await requireAuth(req);
+  if (!auth.ok) {
+    console.warn(`[analytics] auth failed: ${auth.reason}`);
+    return res.status(401).json({ error: "Authentication required" });
+  }
+  res.setHeader("Cache-Control", "private, max-age=15, stale-while-revalidate=30");
 
   const { type, date } = req.query;
 

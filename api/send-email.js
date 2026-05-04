@@ -284,6 +284,11 @@ export default async function handler(req, res) {
 
     res.status(200).json({ ok: true, sent: recipients.length });
   } catch (err) {
-    res.status(500).json({ ok: false, error: err.message });
+    // Log the full detail server-side for debugging, but return a
+    // generic message to the client. SendGrid's error bodies sometimes
+    // include API-key fingerprints, sub-user IDs, or internal allowlist
+    // hints that we don't want surfaced to the browser.
+    console.error("[send-email] send failed:", err?.message || err);
+    res.status(500).json({ ok: false, error: "Send failed. Check the server logs and try again." });
   }
 }

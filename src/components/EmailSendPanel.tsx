@@ -14,6 +14,7 @@ import AttachmentInput, { type EmailAttachment } from "./AttachmentInput";
 import { toast } from "../store/useToastStore";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import { displayNameFromUser, displayNameFromEmail } from "../utils/displayName";
+import { authedFetch } from "../lib/authedFetch";
 
 interface EmailSendPanelProps {
   open: boolean;
@@ -89,7 +90,7 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
       // the time the panel was closed.
       (async () => {
         try {
-          const resp = await fetch(`/api/analytics?type=email-log&date=${encodeURIComponent(date)}`);
+          const resp = await authedFetch(`/api/analytics?type=email-log&date=${encodeURIComponent(date)}`);
           const data = await resp.json();
           if (!resp.ok || !data.ok) {
             setLastSendToday(null);
@@ -151,26 +152,6 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
     setConfirmOpen(true);
   };
 
-  /**
-   * Build the headers for /api/send-email. The user is already gated by
-   * LoginGate, so a Supabase session is expected. We attach it as
-   * `Authorization: Bearer <jwt>` — the server validates this against
-   * Supabase before accepting the send.
-   */
-  const buildSendHeaders = async (): Promise<Record<string, string>> => {
-    const headers: Record<string, string> = { "Content-Type": "application/json" };
-    if (!supabase) return headers;
-    try {
-      const { data } = await supabase.auth.getSession();
-      if (data?.session?.access_token) {
-        headers["Authorization"] = `Bearer ${data.session.access_token}`;
-      }
-    } catch {
-      // Caller will get a 403 from the server with a "log out and back in" hint.
-    }
-    return headers;
-  };
-
   /** Actually fires the send. Called from the confirmation modal after the user clicks "Confirm". */
   const performSend = async (): Promise<void> => {
     setConfirmOpen(false);
@@ -191,10 +172,8 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
       const state = useDailyStore.getState();
       const html = generateHTML(state);
       const text = generateBBG(state); // plain-text fallback for the multipart MIME
-      const headers = await buildSendHeaders();
-      const resp = await fetch("/api/send-email", {
+      const resp = await authedFetch("/api/send-email", {
         method: "POST",
-        headers,
         body: JSON.stringify({
           html, text, subject: subject.trim(), recipients: activeRecipients,
           fromName,
@@ -241,10 +220,8 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
       const state = useDailyStore.getState();
       const html = generateHTML(state);
       const text = generateBBG(state);
-      const headers = await buildSendHeaders();
-      const resp = await fetch("/api/send-email", {
+      const resp = await authedFetch("/api/send-email", {
         method: "POST",
-        headers,
         body: JSON.stringify({
           html,
           text,
@@ -561,7 +538,7 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
             setShowLogs(!showLogs);
             if (!showLogs && emailLogs.length === 0) {
               try {
-                const resp = await fetch("/api/analytics?type=email-log");
+                const resp = await authedFetch("/api/analytics?type=email-log");
                 const data = await resp.json();
                 if (!resp.ok || !data.ok) throw new Error(data.error || `HTTP ${resp.status}`);
                 setEmailLogs(data.logs);

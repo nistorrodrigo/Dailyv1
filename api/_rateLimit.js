@@ -47,6 +47,13 @@ async function getClient() {
  * us reject without giving the attacker timing signal about whether
  * their input was correct.
  *
+ * Note on the threshold: we lock out only when `count > max`, not
+ * `count >= max`. So with `max = 10` you actually get 11 failed
+ * attempts before the lock kicks in. This is intentional — it gives
+ * a legitimate user one extra "I obviously typoed my password" attempt
+ * before the wall, while still bounding the attacker to a small
+ * constant within the window.
+ *
  * @returns {Promise<{ok: boolean, count: number, resetSec?: number, skipped?: boolean}>}
  */
 export async function peekLimit(key, max) {

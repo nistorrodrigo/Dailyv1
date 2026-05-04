@@ -9,6 +9,7 @@ import { CopyPromptBtn, ImproveBtn } from "../ui/AIHelpers";
 import { BRAND } from "../../constants/brand";
 import { toast } from "../../store/useToastStore";
 import { AI_MODELS } from "../ui/AIModelPicker";
+import { authedFetch } from "../../lib/authedFetch";
 
 export default function MacroSection() {
   const { sections, macroBlocks, date, analysts } = useDailyStore(useShallow((s) => ({
@@ -34,9 +35,8 @@ export default function MacroSection() {
 
     setAiLoading(true);
     try {
-      const resp = await fetch("/api/ai-draft", {
+      const resp = await authedFetch("/api/ai-draft", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           context: aiContext,
           existingBlocks: macroBlocks.filter((b) => b.body),
