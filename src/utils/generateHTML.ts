@@ -299,7 +299,10 @@ function generateHTMLImpl(s: DailyState, mode: string = "full", template: string
     + sectionContent
 
     // SIGNATURE
-    + '<tr><td style="padding:24px 40px 0;border-top:1px solid ' + DS.border + ';"><img src="' + logo + '" alt="Latin Securities" width="120" height="32" style="width:120px;height:32px;display:block;margin-bottom:14px;border:0;outline:none;text-decoration:none;-ms-interpolation-mode:bicubic;" />' + sig + '</td></tr>'
+    // Width/height match the source PNG's 3.98:1 aspect (1600×402).
+    // 120×30 is the correct fit; 120×32 was vertically squashing the
+    // glyphs ~6% — analysts described it as "looking cut off".
+    + '<tr><td style="padding:24px 40px 0;border-top:1px solid ' + DS.border + ';"><img src="' + logo + '" alt="Latin Securities" width="120" height="30" style="width:120px;height:30px;display:block;margin-bottom:14px;border:0;outline:none;text-decoration:none;-ms-interpolation-mode:bicubic;" />' + sig + '</td></tr>'
 
     // FOOTER
     + '<tr><td style="padding:20px 40px 24px;"><div style="border-top:1px solid ' + DS.borderLight + ';padding-top:16px;"><div style="font-size:10px;font-weight:600;color:' + DS.textMuted + ';text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Latin Securities S.A.</div><div style="font-size:9.5px;color:' + DS.textMuted + ';line-height:1.6;">Arenales 707, 6th Floor \u00B7 Buenos Aires, Argentina \u00B7 <a href="https://www.latinsecurities.com.ar" style="color:' + DS.accent + ';text-decoration:none;">latinsecurities.com.ar</a></div><div style="font-size:10px;color:' + DS.textMuted + ';line-height:1.6;margin-top:10px;">Don\'t want these emails? <a href="' + unsubscribeUrl() + '" style="color:' + DS.accent + ';text-decoration:underline;">Unsubscribe</a>.</div><div style="font-size:9px;color:#b0b0b0;line-height:1.5;margin-top:10px;">' + (s.disclaimer || 'This material has been prepared by Latin Securities S.A. for informational purposes only.') + ' \u00A9 ' + new Date().getFullYear() + ' Latin Securities S.A. All rights reserved.</div></div></td></tr>'

@@ -25,12 +25,17 @@ function fmtNewsLinks(links: NewsLink[] | undefined, indent = "  "): string[] {
  * Generate the Bloomberg-flavoured plain-text version of the daily.
  *
  * Format goals:
- *   - Scannable in a chat window (emoji section markers, blank lines between).
- *   - Substantial enough to stand alone (the previous version aggressively
- *     truncated to ~150-200 chars per section, leaving readers without
- *     context — now we give per-section excerpts of up to ~400 chars and
- *     iterate over ALL items in a section instead of just the first).
- *   - Still well under Bloomberg IB's chat limits (~5k chars).
+ *   - Scannable in a chat window (emoji section markers, blank lines
+ *     between).
+ *   - Reproduce the analyst's prose verbatim. Earlier versions
+ *     aggressively truncated each block (~200-400 chars) and tacked
+ *     on "…" — institutional readers got half-paragraphs, and the AI
+ *     reviewer (which feeds off this same string) flagged them as
+ *     "text appears cut off mid-sentence", which they were.
+ *   - The previous head-line cap was a single overall trim aimed at
+ *     BBG IB's ~5k-char chat ceiling. We now skip per-field trims
+ *     and only collapse multiline bodies into single lines (BBG
+ *     chat-paste behaviour likes paragraph-per-line).
  *
  * Result is memoized by state reference: zustand returns a new state
  * object only when something actually changed, so WeakMap-keyed caching
@@ -39,11 +44,13 @@ function fmtNewsLinks(links: NewsLink[] | undefined, indent = "  "): string[] {
  */
 const bbgCache = new WeakMap<DailyState, string>();
 
-const truncate = (s: string, max: number): string => {
-  const cleaned = (s || "").replace(/\s+/g, " ").trim();
-  if (cleaned.length <= max) return cleaned;
-  return cleaned.slice(0, max - 1).trimEnd() + "…";
-};
+/**
+ * Collapse internal whitespace (newlines, multiple spaces) to a
+ * single space so a paragraph copy-pastes as one line in BBG chat.
+ * No length cap — analysts asked for full prose, and the AI review
+ * relies on seeing whole sentences.
+ */
+const oneLine = (s: string): string => (s || "").replace(/\s+/g, " ").trim();
 
 const isOn = (s: DailyState, key: string): boolean =>
   Boolean(s.sections.find((x) => x.key === key)?.on);
@@ -64,7 +71,7 @@ export function generateBBG(s: DailyState): string {
   // priority as in the email HTML.
   if (isOn(s, "yesterdayRecap") && s.yesterdayRecap?.trim()) {
     L.push("", "📋 YESTERDAY IN REVIEW");
-    L.push(truncate(s.yesterdayRecap, 700));
+    L.push(oneLine(s.yesterdayRecap));
   }
 
   // ─── SNAPSHOT (compact one-liner) ─────────────────────────
@@ -94,7 +101,7 @@ export function generateBBG(s: DailyState): string {
   // ─── MARKET COMMENT (free-form prose block) ──────────────
   if (isOn(s, "marketComment") && s.marketComment?.trim()) {
     L.push("", "💬 MARKET COMMENT");
-    L.push(truncate(s.marketComment, 600));
+    L.push(oneLine(s.marketComment));
   }
 
   // ─── MACRO / POLITICAL (every block) ──────────────────────
@@ -105,8 +112,8 @@ export function generateBBG(s: DailyState): string {
       macroBlocks.forEach((b, i) => {
         const title = (b.title || "").trim();
         if (title) L.push(`▸ ${title.toUpperCase()}`);
-        if (b.body) L.push(`  ${truncate(b.body, 380)}`);
-        if (b.lsPick) L.push(`  💡 LS view: ${truncate(b.lsPick, 200)}`);
+        if (b.body) L.push(`  ${oneLine(b.body)}`);
+        if (b.lsPick) L.push(`  💡 LS view: ${oneLine(b.lsPick)}`);
         for (const line of fmtNewsLinks(b.newsLinks)) L.push(line);
         if (i < macroBlocks.length - 1) L.push("");
       });
@@ -128,13 +135,13 @@ export function generateBBG(s: DailyState): string {
         const ups = info ? fmtUpside(info.tp, info.last) : "";
         const meta = [rating, tp ? `TP ${tp}` : "", ups].filter(Boolean).join(" · ");
         L.push(`• ${p.ticker}${meta ? ` — ${meta}` : ""}`);
-        if (p.reason) L.push(`  ${truncate(p.reason, 200)}`);
+        if (p.reason) L.push(`  ${oneLine(p.reason)}`);
         // Surface the explicit invalidation trigger when the analyst
         // set one — the same "Change my mind:" framing renders in the
         // HTML email. Indented further than the reason so it reads
         // as subordinate to the thesis.
         if (p.exitTrigger?.trim()) {
-          L.push(`    Change my mind: ${truncate(p.exitTrigger, 180)}`);
+          L.push(`    Change my mind: ${oneLine(p.exitTrigger)}`);
         }
       });
     }
@@ -144,7 +151,7 @@ export function generateBBG(s: DailyState): string {
       L.push("", "📎 FIXED INCOME");
       fi.forEach((f) => {
         L.push(`• ${f.idea}`);
-        if (f.reason) L.push(`  ${truncate(f.reason, 200)}`);
+        if (f.reason) L.push(`  ${oneLine(f.reason)}`);
       });
     }
   }
@@ -175,7 +182,7 @@ export function generateBBG(s: DailyState): string {
         L.push(`▸ ${tickers || "—"} — ${r.headline || "(untitled)"}`);
         if (meta) L.push(`  ${meta}${r.analyst ? ` — ${r.analyst}` : ""}`);
         else if (r.analyst) L.push(`  ${r.analyst}`);
-        if (r.body) L.push(`  ${truncate(r.body, 280)}`);
+        if (r.body) L.push(`  ${oneLine(r.body)}`);
         if (r.link) L.push(`  ↗ Full report: ${r.link}`);
         for (const line of fmtNewsLinks(c.newsLinks)) L.push(line);
         if (i < blocks.length - 1) L.push("");
@@ -186,7 +193,7 @@ export function generateBBG(s: DailyState): string {
   // ─── LATAM CONTEXT ────────────────────────────────────────
   if (isOn(s, "latam") && s.latam) {
     L.push("", "🌎 LATAM");
-    L.push(truncate(s.latam, 500));
+    L.push(oneLine(s.latam));
   }
 
   // ─── TOP MOVERS ───────────────────────────────────────────

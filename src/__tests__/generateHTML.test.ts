@@ -107,15 +107,17 @@ describe("generateHTML", () => {
     // Previously height:32px width:auto in the header — Outlook ignored
     // width:auto and rendered the intrinsic 400px-wide logo, clipping it.
     // Fix: explicit width AND height in both HTML attrs and inline style,
-    // matching the logo's 4:1 aspect ratio for the header (logo-white.png)
-    // and ~3.7:1 for the footer (logo.png).
+    // matching the logo's 3.98:1 aspect ratio (1600×402 source PNG).
+    // Header → 180×45, signature → 120×30. The earlier 120×32 squashed
+    // the signature glyphs ~6% vertically — analysts described it as
+    // "looking cut off".
     const html = generateHTML(DEFAULT_STATE);
     expect(html).toContain('width="180"');
     expect(html).toContain('height="45"');
     expect(html).toContain("width:180px;height:45px");
     // Footer logo (smaller).
     expect(html).toContain('width="120"');
-    expect(html).toContain('height="32"');
+    expect(html).toContain('height="30"');
     // Old bugs we don't want to regress to.
     expect(html).not.toContain("opacity:0.6");
     expect(html).not.toContain("width:auto");
