@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import { BRAND } from "../constants/brand";
 import { fetchSendGridLists, type SendGridList } from "../lib/sendgridApi";
 import { authedFetch } from "../lib/authedFetch";
-import { todayLocal } from "../utils/dates";
+import { todayLocal, fmtRelativeTime } from "../utils/dates";
+import { displayNameFromEmail } from "../utils/displayName";
 
 interface SchedulePanelProps {
   open: boolean;
@@ -20,6 +21,17 @@ interface ScheduleObject {
   last_sent_date?: string;
 }
 
+/** Subset of email_log we render in the "already sent" banner. */
+interface SentLogRow {
+  id: string;
+  daily_date: string;
+  recipients_count: number;
+  list_name?: string | null;
+  is_test: boolean;
+  sent_at: string;
+  sent_by?: string | null;
+}
+
 interface ResultMessage {
   type: "success" | "error";
   message: string;
@@ -31,6 +43,11 @@ export default function SchedulePanel({ open, onClose }: SchedulePanelProps): Re
   const [saving, setSaving] = useState<boolean>(false);
   const [sgLists, setSgLists] = useState<SendGridList[]>([]);
   const [result, setResult] = useState<ResultMessage | null>(null);
+  // Most recent NON-test send for the currently-selected scheduled
+  // date. Used to render the "already sent" banner so the analyst
+  // doesn't accidentally schedule a duplicate blast for a day that
+  // already shipped.
+  const [alreadySent, setAlreadySent] = useState<SentLogRow | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -59,6 +76,38 @@ export default function SchedulePanel({ open, onClose }: SchedulePanelProps): Re
       }
     })();
   }, [open]);
+
+  // Whenever the selected scheduled_date changes (or the panel opens),
+  // check whether email_log has a non-test send for that date already.
+  // The banner that renders below uses this to nudge the analyst
+  // before they schedule a duplicate blast. Cheap query — narrow
+  // filter, max 10 rows, just one DB hit.
+  useEffect(() => {
+    if (!open || !schedule?.scheduled_date) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const resp = await authedFetch(
+          `/api/analytics?type=email-log&date=${encodeURIComponent(schedule.scheduled_date)}`,
+        );
+        const data = await resp.json();
+        if (cancelled) return;
+        if (!resp.ok || !data.ok) {
+          // Non-fatal — just don't render the banner.
+          setAlreadySent(null);
+          return;
+        }
+        const logs = (data.logs as SentLogRow[] | undefined) || [];
+        const realSend = logs.find((l) => !l.is_test && l.daily_date === schedule.scheduled_date) || null;
+        setAlreadySent(realSend);
+      } catch {
+        if (!cancelled) setAlreadySent(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, schedule?.scheduled_date]);
 
   const loadLists = async (): Promise<void> => {
     try {
@@ -124,6 +173,32 @@ export default function SchedulePanel({ open, onClose }: SchedulePanelProps): Re
         {loading && <p className="text-sm text-[var(--text-muted)] text-center py-4">Loading...</p>}
         {schedule && (
           <>
+            {/* Already-sent warning. Renders when the email_log already
+                has a non-test send for the scheduled_date — same nudge
+                pattern as the EmailSendPanel "today already sent"
+                banner. Doesn't block scheduling (re-sends are
+                legitimate, e.g. a corrected blast), just makes sure
+                the analyst knows what they're about to duplicate. */}
+            {alreadySent && (
+              <div
+                className="mb-4 p-3 rounded-md text-[12px]"
+                style={{
+                  background: "rgba(231,158,76,0.12)",
+                  color: "#c97a2c",
+                  border: "1px solid rgba(231,158,76,0.45)",
+                }}
+              >
+                <div className="font-bold mb-1">⚠ Daily for {alreadySent.daily_date} already sent</div>
+                <div className="text-[11px]" style={{ color: "var(--text-primary)" }}>
+                  {fmtRelativeTime(alreadySent.sent_at)}
+                  {alreadySent.sent_by ? <> by <strong>{displayNameFromEmail(alreadySent.sent_by)}</strong></> : null}
+                  {" "}to <strong>{alreadySent.recipients_count.toLocaleString()}</strong> recipient{alreadySent.recipients_count === 1 ? "" : "s"}
+                  {alreadySent.list_name ? <> ({alreadySent.list_name})</> : null}.
+                  {" "}Scheduling another blast for the same date will be a duplicate.
+                </div>
+              </div>
+            )}
+
             {/* Status */}
             {schedule.enabled && (
               <div className="mb-4 p-3 rounded-md border border-green-300 bg-green-50">
