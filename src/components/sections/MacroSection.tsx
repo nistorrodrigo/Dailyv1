@@ -10,6 +10,7 @@ import { BRAND } from "../../constants/brand";
 import { toast } from "../../store/useToastStore";
 import { AI_MODELS, estimateCost, type AIModelKey } from "../ui/AIModelPicker";
 import { authedFetch } from "../../lib/authedFetch";
+import { MACRO_BLOCK_TEMPLATES } from "../../constants/macroBlockTemplates";
 
 export default function MacroSection() {
   const { sections, macroBlocks, date, analysts } = useDailyStore(useShallow((s) => ({
@@ -27,6 +28,9 @@ export default function MacroSection() {
   const [aiModel, setAiModel] = useState<AIModelKey>("sonnet");
   const [aiMode, setAiMode] = useState<"macro" | "full">("macro");
   const [includeNews, setIncludeNews] = useState<boolean>(true);
+  // Template picker open/closed state. Toggled by the "+ From template"
+  // button below the existing add-block control.
+  const [showTemplates, setShowTemplates] = useState<boolean>(false);
   // Last-call usage so the post-toast badge can show actual spend
   // alongside tokens — the AIModelPicker's pre-flight cost is just an
   // estimate; this is what the call really cost.
@@ -140,6 +144,14 @@ export default function MacroSection() {
           </DashBtn>
         </div>
         <button
+          onClick={() => setShowTemplates((v) => !v)}
+          className="px-4 py-2.5 rounded-md border-2 border-dashed font-semibold text-xs cursor-pointer"
+          style={{ borderColor: BRAND.teal, color: BRAND.teal, background: showTemplates ? "rgba(35,162,158,0.08)" : "transparent" }}
+          title="Pick a recurring block type and pre-fill the title + body skeleton"
+        >
+          {showTemplates ? "Close templates" : "From template"}
+        </button>
+        <button
           onClick={() => setShowAiInput(!showAiInput)}
           disabled={aiLoading}
           className="px-4 py-2.5 rounded-md border-2 border-dashed font-semibold text-xs cursor-pointer disabled:opacity-50"
@@ -148,6 +160,44 @@ export default function MacroSection() {
           {aiLoading ? "Generating..." : "AI Draft"}
         </button>
       </div>
+
+      {/* Template picker — recurring-block library. Each entry
+          pre-fills a new macroBlock with title + body skeleton +
+          lsPick stub. Designed to compress the cold-start time on
+          predictable block types (BCRA decision, Treasury auction,
+          CPI print, etc.) — fill the brackets, ship. */}
+      {showTemplates && (
+        <div className="mb-3 p-3 rounded-md border border-[var(--border-light)]" style={{ background: "var(--bg-card-alt)" }}>
+          <div className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-secondary)] mb-2">
+            Pick a template
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            {MACRO_BLOCK_TEMPLATES.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => {
+                  addListItem("macroBlocks", {
+                    id: `tpl-${t.id}-${Date.now()}`,
+                    title: t.title,
+                    body: t.body,
+                    lsPick: t.lsPick,
+                  });
+                  setShowTemplates(false);
+                  toast.success(`Inserted "${t.label}" template — fill in the brackets.`);
+                }}
+                className="text-left p-2.5 rounded-md border bg-transparent cursor-pointer hover:bg-[var(--bg-hover)]"
+                style={{ borderColor: "var(--border-light)" }}
+              >
+                <div className="text-[12px] font-bold text-[var(--text-primary)] mb-0.5">{t.label}</div>
+                <div className="text-[10px] text-[var(--text-muted)] leading-snug">{t.description}</div>
+              </button>
+            ))}
+          </div>
+          <div className="mt-2 text-[10px] text-[var(--text-muted)] italic">
+            Bodies use [bracketed prompts] — replace each with the day's data.
+          </div>
+        </div>
+      )}
 
       {showAiInput && (
         <div className="p-3 rounded-md border border-[var(--border-light)] mt-2" style={{ background: "var(--bg-card-alt)" }}>
