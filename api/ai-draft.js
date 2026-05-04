@@ -246,7 +246,16 @@ Return a JSON object with EXACTLY these fields:
   "score": integer 1-10 — see rubric in your system prompt,
   "issues": [strings — specific concrete problems with the draft. Each one must reference WHERE (which section/block) and WHAT is wrong. Empty array if none.],
   "suggestions": [strings — specific actionable improvements that aren't outright issues. Empty array if none.],
-  "whatNeededFor10": [strings — IF the score is below 10, list the specific concrete changes that would bring it to a 10. Each item should be a complete actionable instruction the analyst can act on in <2 minutes. Empty array if the score is already 10.],
+  "whatNeededFor10": [
+    objects of shape {"text": "...", "targetSection": "<key>"} — IF the score is below 10, list the specific concrete changes that would bring it to a 10. Each item must be a complete actionable instruction the analyst can act on in <2 minutes. Empty array if the score is already 10.
+    "targetSection" must be exactly one of these keys (so the UI can deep-link to the right editor section):
+      "general"  — for date / disclaimer / overall structure
+      "headline" — for the subject-line headline field
+      "summaryBar" — for the top "Today —" one-liner
+      "yesterdayRecap" | "snapshot" | "watchToday" | "marketComment" | "macro" | "tradeIdeas" | "flows" | "corporate" | "research" | "latestReports" | "topMovers" | "tweets" | "latam" | "bcra" | "events" | "macroEstimates" | "chart"
+      "signatures" — for the analyst signatures block
+    If the item genuinely doesn't map to a single section (cross-cutting concerns), use "general".
+  ],
   "summary": "A 2-3 sentence executive summary of the daily's key themes — usable as the summaryBar field if the analyst chooses to apply it."
 }
 

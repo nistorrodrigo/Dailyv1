@@ -1,11 +1,59 @@
 import React, { useEffect, useState } from "react";
 import { BRAND } from "../constants/brand";
 import useDailyStore from "../store/useDailyStore";
+import useUIStore from "../store/useUIStore";
 import AIModelPicker, { type AIModelKey, AI_MODELS, estimateCost } from "./ui/AIModelPicker";
 import { generateBBG } from "../utils/generateBBG";
 import { preflightReview } from "../utils/preflightReview";
 import { toast } from "../store/useToastStore";
 import { authedFetch } from "../lib/authedFetch";
+
+/** A single "to reach 10/10" item. The model returns these as objects
+ *  with both the human-readable instruction and a section key the UI
+ *  can deep-link to. Strings are accepted for backwards compat with
+ *  responses generated before the structured shape rolled out. */
+interface NeededItem {
+  text: string;
+  /** Section key matching the editor anchors (`section-${key}`).
+   *  Optional — old responses just have free-form text; new ones tag
+   *  every item so the panel can render a Jump button. */
+  targetSection?: string;
+}
+
+/** Normalize whatNeededFor10 from either the legacy flat-string shape
+ *  or the new structured shape into the `NeededItem` union. Defensive
+ *  against partial / repaired JSON. */
+function normalizeNeededItems(raw: unknown): NeededItem[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((item): NeededItem | null => {
+      if (typeof item === "string") return { text: item };
+      if (item && typeof item === "object" && typeof (item as { text?: unknown }).text === "string") {
+        const obj = item as { text: string; targetSection?: unknown };
+        return {
+          text: obj.text,
+          targetSection: typeof obj.targetSection === "string" ? obj.targetSection : undefined,
+        };
+      }
+      return null;
+    })
+    .filter((x): x is NeededItem => x !== null);
+}
+
+/** Map a section key returned by the AI to the editor's DOM anchor id.
+ *  Most keys map 1-to-1 to `section-<key>`; a few aliases land on
+ *  general anchors so the analyst still gets scrolled somewhere
+ *  reasonable when the AI picks an unusual target. */
+function anchorForSection(key: string | undefined): string | null {
+  if (!key) return null;
+  const aliases: Record<string, string> = {
+    headline: "section-general",
+    summaryBar: "section-general",
+    general: "section-general",
+    signatures: "section-signatures",
+  };
+  return aliases[key] || `section-${key}`;
+}
 
 interface ReviewResult {
   /** Quality score 1–10. `null` only when the model failed to return
@@ -16,8 +64,9 @@ interface ReviewResult {
   suggestions: string[];
   /** Specific actionable changes that would bring the score to 10.
    *  Empty when the score is already 10 — or when the model didn't
-   *  populate it (older deploys missing this field). */
-  whatNeededFor10: string[];
+   *  populate it (older deploys missing this field). Items may be
+   *  flat strings (legacy) or `{text, targetSection}` (new). */
+  whatNeededFor10: NeededItem[];
   summary: string;
   /** Combined input + output tokens, for the cost line. */
   tokens: number;
@@ -44,6 +93,28 @@ const DELTA_STYLES: Record<"up" | "down" | "flat", { background: string; color: 
 };
 
 export default function AIReviewPanel({ open, onClose }: { open: boolean; onClose: () => void }): React.ReactElement | null {
+  const setTab = useUIStore((s) => s.setTab);
+
+  // Switch to the Editor tab and scroll to the right section anchor.
+  // Same scroll-with-highlight pattern WorkflowPanel uses, kept inline
+  // here rather than factored out — the shared helper would have to
+  // know about `setTab` from a different store and there are only
+  // two callers today.
+  const goToSection = (anchorId: string): void => {
+    setTab("edit");
+    onClose();
+    requestAnimationFrame(() => {
+      const el = document.getElementById(anchorId);
+      if (!el) return;
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+      el.style.transition = "box-shadow 200ms ease";
+      el.style.boxShadow = `0 0 0 3px ${BRAND.sky}`;
+      setTimeout(() => {
+        el.style.boxShadow = "";
+      }, 1200);
+    });
+  };
+
   // Default to Sonnet 4.6 — the review prompt benefits noticeably from
   // sonnet's stronger judgement over haiku's speed (better at spotting
   // subtle inconsistencies, less prone to vague "could be tightened"
@@ -157,7 +228,7 @@ export default function AIReviewPanel({ open, onClose }: { open: boolean; onClos
       const review = data.review || {};
       const inputTokens = data.usage?.input || 0;
       const outputTokens = data.usage?.output || 0;
-      const whatNeededFor10 = Array.isArray(review.whatNeededFor10) ? review.whatNeededFor10 : [];
+      const whatNeededFor10 = normalizeNeededItems(review.whatNeededFor10);
       setResult({
         score: typeof review.score === "number" ? review.score : null,
         issues: Array.isArray(review.issues) ? review.issues : [],
@@ -362,35 +433,56 @@ export default function AIReviewPanel({ open, onClose }: { open: boolean; onClos
                 </div>
                 {result.whatNeededFor10.map((item, i) => {
                   const done = addressed[i] === true;
+                  const anchor = anchorForSection(item.targetSection);
                   return (
-                    <button
-                      key={i}
-                      type="button"
-                      onClick={() =>
-                        setAddressed((prev) => {
-                          const next = [...prev];
-                          next[i] = !next[i];
-                          return next;
-                        })
-                      }
-                      className="w-full flex items-start gap-2 mb-1.5 text-left text-xs cursor-pointer bg-transparent border-none p-0"
-                      style={{
-                        color: done ? "var(--text-muted)" : "var(--text-primary)",
-                        textDecoration: done ? "line-through" : "none",
-                      }}
-                    >
-                      <span
-                        className="flex-shrink-0 inline-flex items-center justify-center w-4 h-4 rounded border text-[10px] font-bold mt-[1px]"
+                    <div key={i} className="flex items-start gap-2 mb-1.5">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setAddressed((prev) => {
+                            const next = [...prev];
+                            next[i] = !next[i];
+                            return next;
+                          })
+                        }
+                        className="flex items-start gap-2 flex-1 text-left text-xs cursor-pointer bg-transparent border-none p-0"
                         style={{
-                          borderColor: "#8b5cf6",
-                          background: done ? "#8b5cf6" : "transparent",
-                          color: done ? "white" : "#8b5cf6",
+                          color: done ? "var(--text-muted)" : "var(--text-primary)",
+                          textDecoration: done ? "line-through" : "none",
                         }}
                       >
-                        {done ? "✓" : i + 1}
-                      </span>
-                      <span>{item}</span>
-                    </button>
+                        <span
+                          className="flex-shrink-0 inline-flex items-center justify-center w-4 h-4 rounded border text-[10px] font-bold mt-[1px]"
+                          style={{
+                            borderColor: "#8b5cf6",
+                            background: done ? "#8b5cf6" : "transparent",
+                            color: done ? "white" : "#8b5cf6",
+                          }}
+                        >
+                          {done ? "✓" : i + 1}
+                        </span>
+                        <span>{item.text}</span>
+                      </button>
+                      {/* Jump-to-section button — closes the panel,
+                          switches to the Editor tab, scrolls + flashes
+                          the target section. Hidden when the AI didn't
+                          tag a target (legacy responses) or it's
+                          already addressed. */}
+                      {anchor && !done && (
+                        <button
+                          type="button"
+                          onClick={() => goToSection(anchor)}
+                          title={`Jump to ${item.targetSection ?? "section"} in the editor`}
+                          className="flex-shrink-0 text-[10px] font-bold border-none cursor-pointer rounded px-2 py-0.5 mt-[1px]"
+                          style={{
+                            background: "rgba(139,92,246,0.15)",
+                            color: "#8b5cf6",
+                          }}
+                        >
+                          Jump →
+                        </button>
+                      )}
+                    </div>
                   );
                 })}
                 {allAddressed && (
