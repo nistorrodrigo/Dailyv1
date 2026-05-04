@@ -2,10 +2,57 @@ import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 import { temporal } from "zundo";
 import { DEFAULT_STATE, STORAGE_KEY } from "../constants/defaultState";
+import type { Section } from "../types";
 import type { DailyStore } from "./slices/_helpers";
 import { createDocumentSlice } from "./slices/document";
 import { createContentSlice } from "./slices/content";
 import { createWidgetsSlice } from "./slices/widgets";
+
+/**
+ * Bring a hydrated state up to the current section catalogue.
+ *
+ * As we ship new section types (yesterdayRecap, marketComment,
+ * latestReports, etc.), the analyst's localStorage still holds an
+ * older `sections` array that doesn't contain the new keys —
+ * meaning the new toggles never appear in SectionToggleList and
+ * the new sections render as if they didn't exist.
+ *
+ * Run this every time the persisted state is rehydrated. We
+ * iterate over `DEFAULT_STATE.sections` (the canonical current
+ * catalogue), keeping the analyst's `on` value when their
+ * persisted array already has that key, and inserting the new
+ * default for any key they're missing. Order follows the default
+ * catalogue so newly-added sections slot in at the position the
+ * code intends, not "appended at the bottom".
+ *
+ * Also seeds defaults for newly-added scalar/list state fields
+ * (headline, marketComment, latestReports, yesterdayRecap) when
+ * a hydrated state is missing them — same reasoning, the
+ * persisted shape pre-dates these fields.
+ */
+function migrateState(persisted: Partial<DailyStore> | undefined): Partial<DailyStore> | undefined {
+  if (!persisted) return persisted;
+
+  // Section catalogue merge — preserve the analyst's `on` choices
+  // where they exist; default to the catalogue's `on` for new keys.
+  const persistedByKey = new Map<string, Section>(
+    (persisted.sections || []).map((s) => [s.key, s]),
+  );
+  const mergedSections = DEFAULT_STATE.sections.map((s) => persistedByKey.get(s.key) || s);
+
+  return {
+    ...persisted,
+    sections: mergedSections,
+    // Seed scalar/list fields the persisted shape might predate.
+    // Only fill when the persisted value is `undefined` — preserve
+    // empty strings / empty arrays the analyst may have explicitly
+    // set.
+    headline: persisted.headline ?? DEFAULT_STATE.headline,
+    marketComment: persisted.marketComment ?? DEFAULT_STATE.marketComment,
+    latestReports: persisted.latestReports ?? DEFAULT_STATE.latestReports,
+    yesterdayRecap: persisted.yesterdayRecap ?? DEFAULT_STATE.yesterdayRecap,
+  };
+}
 
 /**
  * The Daily document store. Composes three feature slices:
@@ -46,7 +93,24 @@ const useDailyStore = create<DailyStore>()(
         }),
         {
           name: STORAGE_KEY,
-          version: 1,
+          // Bump every time the section catalogue or top-level
+          // schema gains a new key. The `migrate` callback runs
+          // when the persisted version is below the current — and
+          // also via the `merge` hook for already-up-to-date
+          // states (in case a session pre-dates a section being
+          // added without a version bump, like the marketComment /
+          // latestReports / yesterdayRecap / headline additions
+          // that landed at version 1).
+          version: 2,
+          migrate: (persisted) => migrateState(persisted as Partial<DailyStore> | undefined) as Partial<DailyStore>,
+          // `merge` runs every rehydration regardless of version.
+          // Defensive belt-and-braces: if a persisted state at the
+          // current version is somehow missing a section we added
+          // mid-version, the merge still patches it.
+          merge: (persisted, current) => ({
+            ...current,
+            ...(migrateState(persisted as Partial<DailyStore> | undefined) || {}),
+          }),
         },
       ),
       { name: "DailyBuilder" },
