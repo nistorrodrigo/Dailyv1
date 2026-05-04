@@ -3,6 +3,7 @@ import useDailyStore from "../../store/useDailyStore";
 import useUIStore from "../../store/useUIStore";
 import { toast } from "../../store/useToastStore";
 import { authedFetch } from "../../lib/authedFetch";
+import { estimateCost } from "./AIModelPicker";
 
 interface CopyPromptBtnProps {
   section: string;
@@ -83,6 +84,14 @@ export function ImproveBtn({ text, onImprove, context = "macro/political section
         ).join("\n\n");
         if (improved) {
           onImprove(improved);
+          // Surface real cost — Improve always uses Haiku, so this is
+          // typically <$0.005 per click but the analyst should still
+          // see it accumulate when clicking through several blocks.
+          const inputTokens = data.usage?.input || 0;
+          const outputTokens = data.usage?.output || 0;
+          const cost = estimateCost("haiku", inputTokens, outputTokens);
+          const tokens = inputTokens + outputTokens;
+          toast.success(`Improved (${tokens.toLocaleString()} tokens · $${cost.toFixed(4)})`);
           return;
         }
       }

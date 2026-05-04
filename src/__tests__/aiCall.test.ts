@@ -33,6 +33,9 @@ describe("aiCall", () => {
     expect(result.text).toBe("T1\nB1\n\nT2\nB2");
     expect(result.tokens).toBe(300);
     expect(result.model).toBe("haiku");
+    // Cost from rate card (Haiku $1 in / $5 out per MTok):
+    // 100/1e6 + 200×5/1e6 = 0.0001 + 0.001 = 0.0011
+    expect(result.cost).toBeCloseTo(0.0011, 6);
   });
 
   it("posts to /api/ai-draft with the right body", async () => {
@@ -65,6 +68,7 @@ describe("aiCall", () => {
     const result = await aiCall({ prompt: "x" });
     expect(result.text).toBe("");
     expect(result.tokens).toBe(0);
+    expect(result.cost).toBe(0);
   });
 
   it("skips empty title/body when joining", async () => {

@@ -8,7 +8,7 @@ import MarkdownEditor from "../ui/MarkdownEditor";
 import { CopyPromptBtn, ImproveBtn } from "../ui/AIHelpers";
 import { BRAND } from "../../constants/brand";
 import { toast } from "../../store/useToastStore";
-import { AI_MODELS } from "../ui/AIModelPicker";
+import { AI_MODELS, estimateCost, type AIModelKey } from "../ui/AIModelPicker";
 import { authedFetch } from "../../lib/authedFetch";
 
 export default function MacroSection() {
@@ -24,9 +24,13 @@ export default function MacroSection() {
   const [aiLoading, setAiLoading] = useState<boolean>(false);
   const [aiContext, setAiContext] = useState<string>("");
   const [showAiInput, setShowAiInput] = useState<boolean>(false);
-  const [aiModel, setAiModel] = useState<string>("sonnet");
+  const [aiModel, setAiModel] = useState<AIModelKey>("sonnet");
   const [aiMode, setAiMode] = useState<"macro" | "full">("macro");
   const [includeNews, setIncludeNews] = useState<boolean>(true);
+  // Last-call usage so the post-toast badge can show actual spend
+  // alongside tokens — the AIModelPicker's pre-flight cost is just an
+  // estimate; this is what the call really cost.
+  const [lastUsage, setLastUsage] = useState<{ tokens: number; cost: number } | null>(null);
 
   if (!sections.find((x) => x.key === "macro")?.on) return null;
 
@@ -76,8 +80,12 @@ export default function MacroSection() {
       setShowAiInput(false);
       setAiContext("");
 
-      const tokens = data.usage ? data.usage.input + data.usage.output : 0;
-      toast.success(`${aiMode === "full" ? "Full daily" : "Macro blocks"} drafted with ${data.model} (${tokens} tokens)`);
+      const inputTokens = data.usage?.input || 0;
+      const outputTokens = data.usage?.output || 0;
+      const tokens = inputTokens + outputTokens;
+      const cost = estimateCost(aiModel, inputTokens, outputTokens);
+      setLastUsage({ tokens, cost });
+      toast.success(`${aiMode === "full" ? "Full daily" : "Macro blocks"} drafted with ${data.model} (${tokens.toLocaleString()} tokens · $${cost.toFixed(4)})`);
     } catch (err: unknown) {
       toast.error("AI Draft failed: " + (err instanceof Error ? err.message : String(err)));
     } finally {
@@ -188,7 +196,14 @@ export default function MacroSection() {
                 </button>
               ))}
             </div>
-            <div className="text-[10px] text-[var(--text-muted)] mt-1">{selectedModel?.costLabel}/draft</div>
+            <div className="text-[10px] text-[var(--text-muted)] mt-1">
+              Estimated: {selectedModel?.costLabel}/draft
+              {lastUsage && (
+                <span className="ml-2">
+                  · Last call: {lastUsage.tokens.toLocaleString()} tokens · ${lastUsage.cost.toFixed(4)}
+                </span>
+              )}
+            </div>
           </div>
 
           {/* Context input */}
