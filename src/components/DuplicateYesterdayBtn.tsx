@@ -1,6 +1,6 @@
 import React from "react";
 import useDailyStore from "../store/useDailyStore";
-import { loadDaily } from "../lib/dailyApi";
+import { findMostRecentDailyBefore } from "../lib/dailyApi";
 import { supabase } from "../lib/supabase";
 import { DEFAULT_STATE } from "../constants/defaultState";
 import { toast } from "../store/useToastStore";
@@ -9,17 +9,7 @@ import { carryForwardYesterday } from "../utils/carryForward";
 
 export default function DuplicateYesterdayBtn(): React.ReactElement {
   const handleDuplicate = async (): Promise<void> => {
-    // Use local-TZ "yesterday" so the analyst at 23:00 BUE on the 30th
-    // pulls the 29th, not the 1st of the next month (which is what
-    // toISOString would give them since UTC has already rolled over).
     const today = todayLocal();
-    const yesterday = new Date(today + "T12:00:00");
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yDate = yesterday.toLocaleDateString("en-CA", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    });
 
     if (!supabase) {
       // Without Supabase, just reset with today's date keeping the
@@ -37,13 +27,32 @@ export default function DuplicateYesterdayBtn(): React.ReactElement {
     }
 
     try {
-      const daily = await loadDaily(yDate);
-      if (!daily?.state) {
-        toast.info(`No daily found for ${yDate}. Try loading from History instead.`);
+      // Walk backward up to 7 days to find the most recent daily that
+      // actually exists. Handles weekends (Mon → Fri, skipping Sat/Sun)
+      // and Argentine feriados (no calendar needed; the DB is the
+      // source of truth — empty days have no row to load).
+      const found = await findMostRecentDailyBefore(today, 7);
+      if (!found) {
+        toast.info(`No daily found in the last 7 days. Try loading from History instead.`);
         return;
       }
+      const { date: sourceDate, record } = found;
+
+      // Show the analyst exactly which date we're carrying forward
+      // from — important when it's not literally yesterday (Mon
+      // morning click should be obvious that it's pulling Friday).
+      const litYesterday = (() => {
+        const y = new Date(today + "T12:00:00");
+        y.setDate(y.getDate() - 1);
+        return y.toLocaleDateString("en-CA", {
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        });
+      })();
+      const sourceLabel = sourceDate === litYesterday ? `yesterday (${sourceDate})` : `${sourceDate}`;
       const confirmMsg =
-        `Carry forward setup from ${yDate} to ${today}?\n\n` +
+        `Carry forward setup from ${sourceLabel} to ${today}?\n\n` +
         `KEPT: analyst coverage, signatures, section layout, macro estimates structure, ` +
         `macro block titles, equity-pick tickers.\n\n` +
         `RESET: summary bar, macro bodies, pick rationales, FI ideas, flows, events, ` +
@@ -58,12 +67,12 @@ export default function DuplicateYesterdayBtn(): React.ReactElement {
       // strings so carry-forward's `seed.flows` defaults take over.
       const yesterdayWithFlows = {
         flows: { global: "", local: "", positioning: "" },
-        ...(daily.state as unknown as Record<string, unknown>),
+        ...(record.state as unknown as Record<string, unknown>),
       } as Parameters<typeof carryForwardYesterday>[0];
       useDailyStore.setState(carryForwardYesterday(yesterdayWithFlows, today));
-      toast.success(`Setup carried forward from ${yDate}. Fill in today's content.`);
+      toast.success(`Setup carried forward from ${sourceLabel}. Fill in today's content.`);
     } catch (err) {
-      toast.error("Failed to load yesterday: " + (err as Error).message);
+      toast.error("Failed to load: " + (err as Error).message);
     }
   };
 

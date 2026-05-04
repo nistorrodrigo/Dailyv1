@@ -66,3 +66,41 @@ export async function duplicateDaily(sourceDate: string, targetDate: string): Pr
   if (!source) throw new Error("Source daily not found");
   return saveDaily(targetDate, { ...source.state, date: targetDate });
 }
+
+/**
+ * Find the most recent daily that exists strictly before `today` —
+ * walking backward up to `maxLookbackDays` calendar days, loading
+ * each candidate from Supabase and stopping at the first hit. The
+ * DB itself is the source of truth for "is this a working day for
+ * the desk", so we don't need a hard-coded holiday calendar.
+ *
+ * Returns the daily record + the date we found it under, or null if
+ * nothing in the lookback window exists. Used by the carry-forward
+ * button so a Monday morning click pulls Friday's daily (skipping
+ * the weekend's empty rows) rather than failing because "yesterday"
+ * was Sunday.
+ *
+ * `today` is a `YYYY-MM-DD` string in the analyst's local timezone
+ * (use `todayLocal()`). `maxLookbackDays` defaults to 7 — covers a
+ * typical long weekend or Easter break without thrashing the DB.
+ */
+export async function findMostRecentDailyBefore(
+  today: string,
+  maxLookbackDays: number = 7,
+): Promise<{ date: string; record: DailyRecord } | null> {
+  if (!supabase) return null;
+  // Anchor at noon to keep date arithmetic free of DST edges.
+  const anchor = new Date(today + "T12:00:00");
+  for (let offset = 1; offset <= maxLookbackDays; offset++) {
+    const probe = new Date(anchor);
+    probe.setDate(probe.getDate() - offset);
+    const probeDate = probe.toLocaleDateString("en-CA", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+    const record = await loadDaily(probeDate);
+    if (record?.state) return { date: probeDate, record };
+  }
+  return null;
+}
