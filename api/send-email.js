@@ -62,6 +62,25 @@ function sanitizeFromName(name) {
 }
 
 /**
+ * HTML-escape a string before interpolating it into an HTML body.
+ * Used for the confirmation email's `subject` and `listName` fields,
+ * which are user-controlled and previously got dropped into the
+ * confirmation HTML literally — a malformed subject could break the
+ * layout or smuggle phishing-looking content into the desk's own
+ * inbox. Blast radius is limited (the email goes only to fromEmail)
+ * but the cost of escaping is zero so we just do it.
+ */
+function escHtml(s) {
+  if (s == null) return "";
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+/**
  * Try to authenticate via Supabase JWT in the Authorization header.
  * Returns { ok: true, user } if valid; { ok: false, reason } otherwise.
  * `reason` is a short tag for logging — not surfaced to the client.
@@ -264,15 +283,18 @@ export default async function handler(req, res) {
         body: JSON.stringify({
           personalizations: [{ to: [{ email: fromEmail }] }],
           from: { email: fromEmail, name: "Daily Builder" },
+          // The subject going to OUR inbox is allowed to be the literal
+          // (header-encoded by SendGrid). The HTML body below escapes
+          // user-controlled fields before interpolating.
           subject: `[CONFIRMED] ${subject}`,
           content: [{
             type: "text/html",
             value: `<div style="font-family:'Segoe UI',sans-serif;padding:20px;max-width:500px;">
               <h3 style="color:#000039;margin:0 0 12px;">Daily Sent Successfully</h3>
               <p style="color:#333;font-size:14px;line-height:1.6;">
-                <strong>Subject:</strong> ${subject}<br>
+                <strong>Subject:</strong> ${escHtml(subject)}<br>
                 <strong>Recipients:</strong> ${recipients.length}<br>
-                ${listName ? `<strong>List:</strong> ${listName}<br>` : ""}
+                ${listName ? `<strong>List:</strong> ${escHtml(listName)}<br>` : ""}
                 <strong>Time:</strong> ${new Date().toLocaleString("en-US", { timeZone: "America/Argentina/Buenos_Aires" })} BUE
               </p>
               <p style="color:#888;font-size:12px;">This is an automated confirmation from Daily Builder.</p>
