@@ -34,6 +34,15 @@ interface ReviewResult {
   parseRecovered: boolean;
 }
 
+// Score-delta badge palette. Keyed by tone bucket (improvement /
+// regression / unchanged) so the JSX picks the styles by name
+// instead of carrying a 6-way ternary tower inline.
+const DELTA_STYLES: Record<"up" | "down" | "flat", { background: string; color: string }> = {
+  up: { background: "rgba(16,185,129,0.15)", color: "#059669" },
+  down: { background: "rgba(239,68,68,0.15)", color: "#dc2626" },
+  flat: { background: "rgba(148,163,184,0.15)", color: "#64748b" },
+};
+
 export default function AIReviewPanel({ open, onClose }: { open: boolean; onClose: () => void }): React.ReactElement | null {
   // Default to Sonnet 4.6 — the review prompt benefits noticeably from
   // sonnet's stronger judgement over haiku's speed (better at spotting
@@ -44,6 +53,17 @@ export default function AIReviewPanel({ open, onClose }: { open: boolean; onClos
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ReviewResult | null>(null);
   const [execSummary, setExecSummary] = useState("");
+  // Per-review tick state for the "To reach 10/10" items. When the
+  // analyst marks an item as addressed, the index goes true. Reset
+  // whenever a new review lands — the previous tick state is for a
+  // stale list of items. Drives the "X/N addressed" progress + the
+  // re-run nudge that lights up when everything is checked.
+  const [addressed, setAddressed] = useState<boolean[]>([]);
+  // Score from the previous review run in this session. Used to
+  // render a delta badge ("+2 from previous") so the analyst can
+  // see whether their refinement pass actually moved the needle.
+  // null until the second review of the session.
+  const [previousScore, setPreviousScore] = useState<number | null>(null);
   // Preflight issues found locally without an API call. Cleared on
   // open and after a successful review. If non-empty, we surface them
   // above the "Review" button as a chance for the analyst to fix
@@ -70,8 +90,47 @@ export default function AIReviewPanel({ open, onClose }: { open: boolean; onClos
 
   const selectedModel = AI_MODELS.find(m => m.key === model)!;
   const tooManyPreflightIssues = preflightIssues.length >= PREFLIGHT_BLOCK_THRESHOLD;
+  // True when the analyst has ticked every "To reach 10/10" item the
+  // last review surfaced. Drives both the progress counter and the
+  // re-run nudge — the analyst is signalling "I addressed everything,
+  // now grade me again." Guarded against empty lists so a perfect
+  // daily (no items) doesn't spuriously light up the re-run CTA.
+  const addressedCount = addressed.filter(Boolean).length;
+  const totalToAddress = result?.whatNeededFor10.length ?? 0;
+  const allAddressed = totalToAddress > 0 && addressedCount === totalToAddress;
+  // Delta vs. the previous review run in this session. Only meaningful
+  // when both scores are present; rendered as +N / -N / ±0 badge next
+  // to the score chip so the analyst can see the refinement actually
+  // moved the needle.
+  const scoreDelta = result?.score != null && previousScore != null ? result.score - previousScore : null;
+
+  // Tone bucket for the delta badge — improvement / regression /
+  // unchanged. Indexed into the `DELTA_STYLES` lookup below to avoid
+  // a tower of ternaries inside the JSX.
+  const deltaTone: "up" | "down" | "flat" | null =
+    scoreDelta == null ? null : scoreDelta > 0 ? "up" : scoreDelta < 0 ? "down" : "flat";
+
+  // Pick the main CTA label. Priority: in-flight > "ready to re-grade"
+  // (all items ticked) > already-reviewed > preflight escape hatch >
+  // first run. Pulled out of JSX to keep the render readable.
+  const reviewButtonLabel = loading
+    ? "Reviewing..."
+    : allAddressed
+      ? "Re-run AI Review"
+      : result
+        ? "Re-review Daily"
+        : tooManyPreflightIssues
+          ? "Run AI Review Anyway"
+          : "Review Daily Before Send";
 
   const handleReview = async () => {
+    // Snapshot the current score before we wipe `result` for the new
+    // run — the panel uses this to render "+2 from previous" once
+    // the new review lands. Skips when there's no previous result
+    // yet (first review of the session).
+    if (result?.score != null) {
+      setPreviousScore(result.score);
+    }
     setLoading(true);
     setResult(null);
     try {
@@ -98,11 +157,12 @@ export default function AIReviewPanel({ open, onClose }: { open: boolean; onClos
       const review = data.review || {};
       const inputTokens = data.usage?.input || 0;
       const outputTokens = data.usage?.output || 0;
+      const whatNeededFor10 = Array.isArray(review.whatNeededFor10) ? review.whatNeededFor10 : [];
       setResult({
         score: typeof review.score === "number" ? review.score : null,
         issues: Array.isArray(review.issues) ? review.issues : [],
         suggestions: Array.isArray(review.suggestions) ? review.suggestions : [],
-        whatNeededFor10: Array.isArray(review.whatNeededFor10) ? review.whatNeededFor10 : [],
+        whatNeededFor10,
         summary: review.summary || "",
         tokens: inputTokens + outputTokens,
         cost: estimateCost(model, inputTokens, outputTokens),
@@ -110,6 +170,9 @@ export default function AIReviewPanel({ open, onClose }: { open: boolean; onClos
         truncated: Boolean(data.truncated),
         parseRecovered: Boolean(data.parseRecovered),
       });
+      // Reset the per-item tick state to match the new list — the
+      // previous run's checks belong to a stale list of items.
+      setAddressed(new Array(whatNeededFor10.length).fill(false));
       if (review.summary) setExecSummary(review.summary);
     } catch (err) {
       toast.error("Review failed: " + (err as Error).message);
@@ -181,14 +244,21 @@ export default function AIReviewPanel({ open, onClose }: { open: boolean; onClos
           onClick={handleReview}
           disabled={loading}
           className="w-full py-3 rounded-md border-none text-white text-sm font-bold cursor-pointer uppercase disabled:opacity-50 mb-2"
-          style={{ background: loading ? "#999" : "#8b5cf6" }}
-          title={tooManyPreflightIssues ? "Recommended: fix the quick-check items above first" : undefined}
+          style={{
+            // Light up green once the analyst has ticked every
+            // refinement item — visual confirmation that re-running
+            // is the natural next move.
+            background: loading ? "#999" : allAddressed ? "#10b981" : "#8b5cf6",
+          }}
+          title={
+            allAddressed
+              ? "Re-grade after addressing all the items above"
+              : tooManyPreflightIssues
+                ? "Recommended: fix the quick-check items above first"
+                : undefined
+          }
         >
-          {loading
-            ? "Reviewing..."
-            : tooManyPreflightIssues
-              ? "Run AI Review Anyway"
-              : "Review Daily Before Send"}
+          {reviewButtonLabel}
         </button>
         {tooManyPreflightIssues && !loading && (
           <div className="mb-4 text-[10px] text-[var(--text-muted)] text-center italic">
@@ -231,6 +301,20 @@ export default function AIReviewPanel({ open, onClose }: { open: boolean; onClos
                 <div className={`text-3xl font-light ${result.score >= 8 ? "text-green-600" : result.score >= 5 ? "text-amber-500" : "text-red-500"}`}>
                   {result.score}/10
                 </div>
+                {/* Delta badge — present from the second review onward
+                    in a session. Green for improvement, red for
+                    regression, neutral for no change. Helps the
+                    analyst see the refinement loop is working. */}
+                {scoreDelta !== null && deltaTone !== null && (
+                  <div
+                    className="px-2 py-0.5 rounded text-[11px] font-bold"
+                    style={DELTA_STYLES[deltaTone]}
+                    title={`Previous review: ${previousScore}/10`}
+                  >
+                    {scoreDelta > 0 ? "+" : ""}
+                    {scoreDelta} from previous
+                  </div>
+                )}
                 <div>
                   <div className="text-xs font-bold text-[var(--text-primary)]">Quality Score</div>
                   <div className="text-[10px] text-[var(--text-muted)]">
@@ -255,9 +339,11 @@ export default function AIReviewPanel({ open, onClose }: { open: boolean; onClos
             )}
 
             {/* What's needed for a 10 — only shown when the score is below 10
-                and the model populated the list. This is the actionable
-                checklist the analyst can run through to ship a perfect
-                daily. */}
+                and the model populated the list. Items are checkable
+                buttons so the analyst can tick them off as they
+                address each one. When all are checked, the main CTA
+                turns green and prompts a re-review to grade the
+                refinement. */}
             {result.whatNeededFor10.length > 0 && (
               <div
                 className="mb-4 p-3 rounded-md"
@@ -266,15 +352,52 @@ export default function AIReviewPanel({ open, onClose }: { open: boolean; onClos
                   border: "1px solid rgba(139,92,246,0.3)",
                 }}
               >
-                <div className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: "#8b5cf6" }}>
-                  To reach 10/10
-                </div>
-                {result.whatNeededFor10.map((item, i) => (
-                  <div key={i} className="flex gap-2 mb-1.5 text-xs text-[var(--text-primary)]">
-                    <span className="flex-shrink-0 font-bold" style={{ color: "#8b5cf6" }}>{i + 1}.</span>
-                    <span>{item}</span>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-[11px] font-bold uppercase tracking-wide" style={{ color: "#8b5cf6" }}>
+                    To reach 10/10
                   </div>
-                ))}
+                  <div className="text-[10px] font-semibold text-[var(--text-muted)]">
+                    {addressedCount}/{totalToAddress} addressed
+                  </div>
+                </div>
+                {result.whatNeededFor10.map((item, i) => {
+                  const done = addressed[i] === true;
+                  return (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() =>
+                        setAddressed((prev) => {
+                          const next = [...prev];
+                          next[i] = !next[i];
+                          return next;
+                        })
+                      }
+                      className="w-full flex items-start gap-2 mb-1.5 text-left text-xs cursor-pointer bg-transparent border-none p-0"
+                      style={{
+                        color: done ? "var(--text-muted)" : "var(--text-primary)",
+                        textDecoration: done ? "line-through" : "none",
+                      }}
+                    >
+                      <span
+                        className="flex-shrink-0 inline-flex items-center justify-center w-4 h-4 rounded border text-[10px] font-bold mt-[1px]"
+                        style={{
+                          borderColor: "#8b5cf6",
+                          background: done ? "#8b5cf6" : "transparent",
+                          color: done ? "white" : "#8b5cf6",
+                        }}
+                      >
+                        {done ? "✓" : i + 1}
+                      </span>
+                      <span>{item}</span>
+                    </button>
+                  );
+                })}
+                {allAddressed && (
+                  <div className="mt-2 text-[11px] font-semibold" style={{ color: "#059669" }}>
+                    All addressed — re-run the review to grade your refinement.
+                  </div>
+                )}
               </div>
             )}
 
