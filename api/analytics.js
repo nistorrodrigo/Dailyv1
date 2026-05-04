@@ -54,12 +54,16 @@ export default async function handler(req, res) {
   // 67% open / 12% click" rows. Open/click rates are over delivered
   // count when available, else over recipients_count as a fallback.
   if (type === "per-daily-stats") {
+    // Pull 20 rows (~4 business weeks at 5 dailies/week) so the
+    // Dashboard's WoW digest panel has enough lookback to compute
+    // both this-week and last-week averages without a second
+    // query. The per-row table on the same tab still slices to 10.
     const { data: logs, error: logErr } = await supabase
       .from("email_log")
       .select("id, daily_date, subject, recipients_count, list_name, is_test, sent_at, sent_by")
       .eq("is_test", false)
       .order("sent_at", { ascending: false })
-      .limit(10);
+      .limit(20);
     if (logErr) return res.status(500).json({ ok: false, error: logErr.message });
 
     const rows = logs || [];

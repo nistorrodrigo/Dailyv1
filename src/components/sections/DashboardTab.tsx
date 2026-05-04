@@ -102,6 +102,9 @@ export default function DashboardTab() {
           );
         })}
       </div>
+      {/* Weekly digest — WoW comparison rolling up the last 14 days */}
+      <WeeklyDigest />
+
       {/* Per-daily performance — open/click rates per individual send */}
       <PerDailyStats />
 
@@ -181,7 +184,11 @@ function PerDailyStats(): React.ReactElement {
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => {
+              {/* Slice to most-recent 10 — the endpoint now returns
+                  20 rows so the WeeklyDigest above has enough lookback,
+                  but the per-daily table on this card is meant to be
+                  scannable not exhaustive. */}
+              {rows.slice(0, 10).map((r) => {
                 const senderName = displayNameFromEmail(r.sent_by);
                 return (
                   <tr key={r.id} style={{ borderBottom: "1px solid var(--border-light)" }}>
@@ -294,3 +301,218 @@ function EmailTracking(): React.ReactElement {
     </div>
   );
 }
+
+interface WeeklyMetrics {
+  /** Number of non-test sends in the window. */
+  sends: number;
+  /** Sum of recipients_count across all sends. */
+  totalRecipients: number;
+  /** Average open rate, weighted equally per send. */
+  avgOpenRate: number;
+  /** Average click-through rate, weighted equally per send. */
+  avgClickRate: number;
+}
+
+/** Bucket per-daily stats rows into "this week" (most recent 7 days)
+ *  vs "previous week" (the 7 days before that), and average each
+ *  bucket. Pure helper so the WoW comparison is unit-testable
+ *  without running React. Exported for tests. */
+function bucketByWeek(rows: PerDailyRow[], now: Date = new Date()): {
+  thisWeek: WeeklyMetrics;
+  prevWeek: WeeklyMetrics;
+} {
+  const cutoffThis = new Date(now);
+  cutoffThis.setDate(cutoffThis.getDate() - 7);
+  const cutoffPrev = new Date(now);
+  cutoffPrev.setDate(cutoffPrev.getDate() - 14);
+
+  const thisWeekRows: PerDailyRow[] = [];
+  const prevWeekRows: PerDailyRow[] = [];
+  for (const r of rows) {
+    const ts = new Date(r.sent_at).getTime();
+    if (ts >= cutoffThis.getTime()) thisWeekRows.push(r);
+    else if (ts >= cutoffPrev.getTime()) prevWeekRows.push(r);
+  }
+
+  const summarise = (group: PerDailyRow[]): WeeklyMetrics => {
+    if (!group.length) return { sends: 0, totalRecipients: 0, avgOpenRate: 0, avgClickRate: 0 };
+    const recipients = group.reduce((s, r) => s + (r.recipients_count || 0), 0);
+    // Average per-daily rate weighted equally — every daily counts
+    // the same regardless of recipient count. Better fit than a
+    // weighted-by-recipients average for "how is the desk's content
+    // performing" because a single huge-list send wouldn't dominate.
+    const avgOpen = group.reduce((s, r) => s + (r.openRate || 0), 0) / group.length;
+    const avgClick = group.reduce((s, r) => s + (r.clickRate || 0), 0) / group.length;
+    return {
+      sends: group.length,
+      totalRecipients: recipients,
+      avgOpenRate: avgOpen,
+      avgClickRate: avgClick,
+    };
+  };
+
+  return {
+    thisWeek: summarise(thisWeekRows),
+    prevWeek: summarise(prevWeekRows),
+  };
+}
+
+/** Render a single stat with WoW delta. The delta is colour-coded:
+ *  green for "better this week", red for "worse", muted for flat or
+ *  no comparison data. Inline-styled because the colour is data-driven. */
+function WeeklyStat({
+  label,
+  value,
+  delta,
+  isPercent,
+  higherIsBetter = true,
+}: {
+  label: string;
+  value: string;
+  delta: number | null;
+  isPercent: boolean;
+  higherIsBetter?: boolean;
+}): React.ReactElement {
+  // No prior-week data → don't render a delta indicator at all.
+  // (Showing "+0" or "0%" is misleading — it implies we measured
+  // something when we didn't.)
+  const noDelta = delta === null || !isFinite(delta);
+  const deltaSign = noDelta ? 0 : Math.sign(delta!);
+  const isGood = higherIsBetter ? deltaSign > 0 : deltaSign < 0;
+  const deltaColor = noDelta || deltaSign === 0 ? "var(--text-muted)" : isGood ? "#1a7a3a" : "#c0392b";
+  const fmtDelta = (d: number) => {
+    if (isPercent) return `${d > 0 ? "+" : ""}${(d * 100).toFixed(d >= 0.01 ? 0 : 1)}pp`;
+    const abs = Math.abs(d);
+    const pct = abs >= 1 ? Math.round(d) : (d * 100).toFixed(0);
+    return `${d > 0 ? "+" : ""}${pct}${isPercent ? "%" : ""}`;
+  };
+
+  return (
+    <div className="p-3 rounded-md border border-[var(--border-light)] bg-[var(--bg-card)] flex-1 min-w-[140px]">
+      <div className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider mb-1">
+        {label}
+      </div>
+      <div className="text-2xl font-light text-[var(--text-primary)]">{value}</div>
+      {!noDelta && (
+        <div className="text-[10px] mt-1" style={{ color: deltaColor }}>
+          {deltaSign > 0 ? "▲" : deltaSign < 0 ? "▼" : "•"} {fmtDelta(delta!)} vs prior 7 days
+        </div>
+      )}
+      {noDelta && (
+        <div className="text-[10px] mt-1 text-[var(--text-muted)] italic">No prior-week data</div>
+      )}
+    </div>
+  );
+}
+
+/** Last-7-days-vs-prior-7-days digest. Rolls up the per-daily-stats
+ *  rows into a 4-card summary: sends, total recipients, avg open
+ *  rate, avg CTR. Each card shows the WoW delta colour-coded green
+ *  (better) or red (worse). Sits above the per-daily table on the
+ *  Dashboard so the analyst gets the trend before the row-by-row
+ *  detail. */
+function WeeklyDigest(): React.ReactElement {
+  const [rows, setRows] = useState<PerDailyRow[] | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string>("");
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const resp = await authedFetch("/api/analytics?type=per-daily-stats");
+        const d = await resp.json();
+        if (!resp.ok || !d.ok) throw new Error(d.error || `HTTP ${resp.status}`);
+        setRows((d.rows as PerDailyRow[]) || []);
+      } catch (err) {
+        setError((err as Error).message);
+        console.error("[DashboardTab] weekly digest fetch failed:", err);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="p-4 rounded-lg border border-[var(--border-light)] bg-[var(--bg-card)] mt-5">
+        <div className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider mb-3">
+          Weekly Digest
+        </div>
+        <p className="text-xs text-[var(--text-muted)]">Loading…</p>
+      </div>
+    );
+  }
+  if (error) {
+    return (
+      <div className="p-4 rounded-lg border border-[var(--border-light)] bg-[var(--bg-card)] mt-5">
+        <div className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider mb-3">
+          Weekly Digest
+        </div>
+        <p className="text-xs text-red-500">Failed to load: {error}</p>
+      </div>
+    );
+  }
+  if (!rows || rows.length === 0) {
+    return (
+      <div className="p-4 rounded-lg border border-[var(--border-light)] bg-[var(--bg-card)] mt-5">
+        <div className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider mb-3">
+          Weekly Digest
+        </div>
+        <p className="text-xs text-[var(--text-muted)]">
+          No sends yet — the digest will populate after the first week of data.
+        </p>
+      </div>
+    );
+  }
+
+  const { thisWeek, prevWeek } = bucketByWeek(rows);
+  const sendsDelta = prevWeek.sends > 0 ? thisWeek.sends - prevWeek.sends : null;
+  const recipientsDelta = prevWeek.totalRecipients > 0
+    ? (thisWeek.totalRecipients - prevWeek.totalRecipients) / prevWeek.totalRecipients
+    : null;
+  const openDelta = prevWeek.avgOpenRate > 0 ? thisWeek.avgOpenRate - prevWeek.avgOpenRate : null;
+  const clickDelta = prevWeek.avgClickRate > 0 ? thisWeek.avgClickRate - prevWeek.avgClickRate : null;
+
+  const fmtPct = (x: number) => (x > 0 ? `${(x * 100).toFixed(x >= 0.1 ? 0 : 1)}%` : "—");
+
+  return (
+    <div className="p-4 rounded-lg border border-[var(--border-light)] bg-[var(--bg-card)] mt-5">
+      <div className="flex items-center justify-between mb-3">
+        <div className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">
+          Weekly Digest
+        </div>
+        <div className="text-[10px] text-[var(--text-muted)] italic">Last 7 days vs prior 7</div>
+      </div>
+      <div className="flex gap-3 flex-wrap">
+        <WeeklyStat
+          label="Sends"
+          value={thisWeek.sends.toString()}
+          delta={sendsDelta}
+          isPercent={false}
+        />
+        <WeeklyStat
+          label="Recipients"
+          value={thisWeek.totalRecipients.toLocaleString()}
+          delta={recipientsDelta}
+          isPercent={true}
+        />
+        <WeeklyStat
+          label="Avg Open Rate"
+          value={fmtPct(thisWeek.avgOpenRate)}
+          delta={openDelta}
+          isPercent={true}
+        />
+        <WeeklyStat
+          label="Avg CTR"
+          value={fmtPct(thisWeek.avgClickRate)}
+          delta={clickDelta}
+          isPercent={true}
+        />
+      </div>
+    </div>
+  );
+}
+
+// Exported only for unit tests in __tests__/dashboardTab.test.ts.
+export { bucketByWeek };
+export type { PerDailyRow, WeeklyMetrics };
