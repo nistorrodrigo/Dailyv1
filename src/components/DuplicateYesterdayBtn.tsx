@@ -4,16 +4,26 @@ import { loadDaily } from "../lib/dailyApi";
 import { supabase } from "../lib/supabase";
 import { DEFAULT_STATE } from "../constants/defaultState";
 import { toast } from "../store/useToastStore";
+import { todayLocal } from "../utils/dates";
+import { carryForwardYesterday } from "../utils/carryForward";
 
 export default function DuplicateYesterdayBtn(): React.ReactElement {
   const handleDuplicate = async (): Promise<void> => {
-    const yesterday = new Date();
+    // Use local-TZ "yesterday" so the analyst at 23:00 BUE on the 30th
+    // pulls the 29th, not the 1st of the next month (which is what
+    // toISOString would give them since UTC has already rolled over).
+    const today = todayLocal();
+    const yesterday = new Date(today + "T12:00:00");
     yesterday.setDate(yesterday.getDate() - 1);
-    const yDate = yesterday.toISOString().split("T")[0];
-    const today = new Date().toISOString().split("T")[0];
+    const yDate = yesterday.toLocaleDateString("en-CA", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
 
     if (!supabase) {
-      // Without Supabase, just reset with today's date keeping analysts/signatures
+      // Without Supabase, just reset with today's date keeping the
+      // current state's analysts/signatures (no yesterday to load).
       const prev = useDailyStore.getState();
       if (window.confirm("No history available (Supabase not configured). Start a fresh daily for today?")) {
         useDailyStore.setState({
@@ -32,17 +42,26 @@ export default function DuplicateYesterdayBtn(): React.ReactElement {
         toast.info(`No daily found for ${yDate}. Try loading from History instead.`);
         return;
       }
-      if (!window.confirm(`Load yesterday's daily (${yDate}) as today's template? Content will be copied, date set to ${today}.`)) return;
+      const confirmMsg =
+        `Carry forward setup from ${yDate} to ${today}?\n\n` +
+        `KEPT: analyst coverage, signatures, section layout, macro estimates structure, ` +
+        `macro block titles, equity-pick tickers.\n\n` +
+        `RESET: summary bar, macro bodies, pick rationales, FI ideas, flows, events, ` +
+        `corporate notes, snapshot, top movers, chart, BCRA dashboard.\n\n` +
+        `Today's content needs to be filled in fresh.`;
+      if (!window.confirm(confirmMsg)) return;
 
-      const prev = useDailyStore.getState();
-      useDailyStore.setState({
-        ...daily.state,
-        date: today,
-        analysts: prev.analysts,
-        signatures: prev.signatures,
-        // Clear volatile content
-        summaryBar: "",
-      });
+      // `loadDaily` returns a bare DailyState shape from Supabase. The
+      // runtime row also has the `flows` extension fields persisted
+      // alongside, so cast through a wider type for the carry-forward
+      // helper. If the row is missing flows (older schema), use empty
+      // strings so carry-forward's `seed.flows` defaults take over.
+      const yesterdayWithFlows = {
+        flows: { global: "", local: "", positioning: "" },
+        ...(daily.state as unknown as Record<string, unknown>),
+      } as Parameters<typeof carryForwardYesterday>[0];
+      useDailyStore.setState(carryForwardYesterday(yesterdayWithFlows, today));
+      toast.success(`Setup carried forward from ${yDate}. Fill in today's content.`);
     } catch (err) {
       toast.error("Failed to load yesterday: " + (err as Error).message);
     }
