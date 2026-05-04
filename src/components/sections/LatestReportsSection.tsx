@@ -1,7 +1,7 @@
 import React from "react";
 import { useShallow } from "zustand/react/shallow";
 import useDailyStore from "../../store/useDailyStore";
-import { Card, Inp, X, DashBtn } from "../ui";
+import { Card, Inp, X, DashBtn, AutofillLinkBtn } from "../ui";
 import { BRAND } from "../../constants/brand";
 import type { LatestReport } from "../../types";
 
@@ -160,18 +160,40 @@ export default function LatestReportsSection(): React.ReactElement | null {
 
       {latestReports.map((r) => (
         // Link goes on its own row beneath each entry to give it room
-        // (URLs blow out a 5-column grid). Hidden when title is empty
-        // to avoid clutter when the analyst is only sketching titles.
-        r.title?.trim() ? (
-          <div key={`${r.id}-link`} style={{ marginBottom: 10, marginLeft: 4 }}>
-            <Inp
-              label={`↗ Link for "${r.title}"`}
-              value={r.link}
-              onChange={(v) => updateListItem("latestReports", r.id, "link", v)}
-              placeholder="https://research.latinsecurities.ar/…"
+        // (URLs blow out a 5-column grid). Always visible — the
+        // typical flow is now "paste link → click Auto-fill → title
+        // and author populate", so hiding the link until a title was
+        // typed defeated the workflow.
+        <div key={`${r.id}-link`} style={{ marginBottom: 10, marginLeft: 4 }}>
+          <Inp
+            label={r.title?.trim() ? `↗ Link for "${r.title}"` : "↗ Link"}
+            value={r.link}
+            onChange={(v) => updateListItem("latestReports", r.id, "link", v)}
+            placeholder="https://research.latinsecurities.ar/…"
+          />
+          {/* Auto-fill — title and author from the report's page.
+              Doesn't touch publishedDate (that's a date format the
+              page rarely matches cleanly) or analystId (the dropdown
+              is the source of truth there). */}
+          <div style={{ marginTop: -4, marginBottom: 4 }}>
+            <AutofillLinkBtn
+              url={r.link}
+              onFill={(meta) => {
+                if (meta.title && !r.title.trim()) {
+                  updateListItem("latestReports", r.id, "title", meta.title);
+                }
+                // Author fills only when not bound to a catalogue
+                // analyst — `analystId` resolves to the canonical
+                // name on render and shouldn't be overridden by a
+                // page-level <meta name="author">.
+                if (meta.author && !r.analystId && !r.author?.trim()) {
+                  updateListItem("latestReports", r.id, "author", meta.author);
+                }
+              }}
+              compact
             />
           </div>
-        ) : null
+        </div>
       ))}
 
       <DashBtn onClick={() => addListItem("latestReports", newReport)}>

@@ -1,7 +1,7 @@
 import React from "react";
 import { useShallow } from "zustand/react/shallow";
 import useDailyStore from "../../store/useDailyStore";
-import { Card, Inp, X, DashBtn } from "../ui";
+import { Card, Inp, X, DashBtn, AutofillLinkBtn } from "../ui";
 import { BRAND } from "../../constants/brand";
 
 const is: React.CSSProperties = { padding: "6px 8px", borderRadius: 4, border: "1px solid var(--border-input)", fontSize: 12, boxSizing: "border-box" };
@@ -44,6 +44,25 @@ export default function ResearchSection() {
           <Inp label="Author" value={r.author} onChange={(v) => updateListItem("researchReports", r.id, "author", v)} />
           <Inp label="Body" value={r.body} onChange={(v) => updateListItem("researchReports", r.id, "body", v)} multi rows={3} />
           <Inp label="Link" value={r.link} onChange={(v) => updateListItem("researchReports", r.id, "link", v)} placeholder="https://..." />
+          {/* Auto-fill — pulls title / author / description off the
+              report's hosting page. Only writes to fields that are
+              currently empty so the analyst's own typing wins. */}
+          <div style={{ marginTop: -4, marginBottom: 8 }}>
+            <AutofillLinkBtn
+              url={r.link}
+              onFill={(meta) => {
+                if (meta.title && !r.title.trim()) {
+                  updateListItem("researchReports", r.id, "title", meta.title);
+                }
+                if (meta.author && !r.author.trim()) {
+                  updateListItem("researchReports", r.id, "author", meta.author);
+                }
+                if (meta.description && !r.body.trim()) {
+                  updateListItem("researchReports", r.id, "body", meta.description);
+                }
+              }}
+            />
+          </div>
         </div>
       ))}
       <DashBtn onClick={() => addListItem("researchReports", { id: Date.now().toString(), type: "Macro", title: "", author: "", body: "", link: "" })}>

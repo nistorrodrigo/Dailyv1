@@ -1,7 +1,7 @@
 import React from "react";
 import { useShallow } from "zustand/react/shallow";
 import useDailyStore from "../../store/useDailyStore";
-import { Card, Inp, X, DashBtn, NewsLinksEditor } from "../ui";
+import { Card, Inp, X, DashBtn, NewsLinksEditor, AutofillLinkBtn } from "../ui";
 import SortableList from "../ui/SortableList";
 import { BRAND } from "../../constants/brand";
 import { ImproveBtn, CopyPromptBtn } from "../ui/AIHelpers";
@@ -125,6 +125,23 @@ export default function CorporateSection() {
               onPaste={makeUrlPasteHandler(b.newsLinks, (next) => updateListItem("corpBlocks", b.id, "newsLinks", next))}
             />
             <Inp label="LS Report Link" value={b.link} onChange={(v) => updateListItem("corpBlocks", b.id, "link", v)} placeholder="https://..." />
+            {/* Auto-fill — pull headline / body fallback off the
+                report page when the link is set. Headline only fills
+                an empty headline; body fills only when empty so a
+                hand-edited summary isn't clobbered. */}
+            <div style={{ marginTop: -4, marginBottom: 8 }}>
+              <AutofillLinkBtn
+                url={b.link}
+                onFill={(meta) => {
+                  if (meta.title && !b.headline?.trim()) {
+                    updateListItem("corpBlocks", b.id, "headline", meta.title);
+                  }
+                  if (meta.description && !b.body?.trim()) {
+                    updateListItem("corpBlocks", b.id, "body", meta.description);
+                  }
+                }}
+              />
+            </div>
             <NewsLinksEditor
               links={b.newsLinks}
               onChange={(next) => updateListItem("corpBlocks", b.id, "newsLinks", next)}
