@@ -3,6 +3,16 @@ import useDailyStore from "../store/useDailyStore";
 import { DEFAULT_STATE } from "../constants/defaultState";
 import type { Section } from "../types";
 
+// One-shot flag: set after the v3 forced re-introduction has run on
+// this device. Prevents the force-reset from firing on every page
+// load — once it's run, the analyst's subsequent toggles stick.
+const V3_RESYNC_FLAG = "ls-daily-sections-resync-v3-done";
+// The three keys we shipped recently that some analysts ended up
+// without (or with `on:false`) due to the mid-version persist drift.
+// On the v3 resync run, these are forced back to the catalogue's
+// default — overriding any stale persisted entry.
+const V3_FORCE_REINTRODUCE = new Set(["marketComment", "latestReports", "yesterdayRecap"]);
+
 /**
  * Belt-and-suspenders patch for section-catalogue drift.
  *
@@ -13,18 +23,22 @@ import type { Section } from "../types";
  * because section keys were added across commits without bumping the
  * persist version, partly because the migrate hook only runs on
  * version mismatch (it's a no-op for users whose persisted version
- * already equals the current).
+ * already equals the current), and we've seen at least one case
+ * where the user's persisted state had the keys at `on:false` after
+ * an aborted mid-version load (so the normal `||` merge couldn't
+ * revive them — the entries existed, just disabled).
  *
- * This hook runs once on App mount, compares the live `sections`
- * array against the catalogue, and merges in any missing entries
- * (preserving the analyst's `on` flag for keys they already had).
- * Independent of persist's version semantics — runs every load,
- * costs nothing when the array is already complete.
+ * Two passes:
+ *   1. v3 force-resync (one-shot, gated by V3_RESYNC_FLAG): override
+ *      the three recently-shipped keys with their catalogue defaults.
+ *      Runs once per device, then never again.
+ *   2. Per-load drift patch: insert any missing keys with their
+ *      catalogue default (preserving analyst toggles for keys they
+ *      already have).
  *
  * Also seeds the new top-level fields (headline, marketComment,
  * latestReports, yesterdayRecap) when the persisted state pre-dates
- * them. Same reasoning: persist's migrate may have missed them on
- * a stale version.
+ * them.
  */
 export function useSectionCatalogueSync(): void {
   useEffect(() => {
@@ -33,18 +47,42 @@ export function useSectionCatalogueSync(): void {
       (state.sections || []).map((s) => [s.key, s]),
     );
 
+    // First-load v3 resync (one-shot per device). Forces the three
+    // keys back to their canonical default regardless of what's in
+    // the persisted array. After this, the flag is set and we fall
+    // through to the regular drift patch on every subsequent load.
+    const needsV3Resync = (() => {
+      try {
+        return localStorage.getItem(V3_RESYNC_FLAG) !== "1";
+      } catch {
+        return false;
+      }
+    })();
+
     // Build the merged catalogue: every key from DEFAULT_STATE in the
     // canonical order, with the analyst's `on` flag preserved where
-    // they already had that key. Detect missing keys by checking if
-    // the persisted map already has the key.
-    const merged = DEFAULT_STATE.sections.map((s) => persistedByKey.get(s.key) || s);
+    // they already had that key — except on the v3 resync, where the
+    // allow-list keys are forced to the catalogue default.
+    const merged = DEFAULT_STATE.sections.map((s) => {
+      if (needsV3Resync && V3_FORCE_REINTRODUCE.has(s.key)) return s;
+      return persistedByKey.get(s.key) || s;
+    });
     const missingCount = DEFAULT_STATE.sections.filter((s) => !persistedByKey.has(s.key)).length;
 
-    // Patch sections only when there's actual drift — calling setField
-    // every mount would create needless rerenders and pollute zundo's
-    // undo history with no-op transitions.
-    if (missingCount > 0) {
+    // Detect drift: either keys are missing, or this is the v3
+    // resync run. Calling setField unconditionally would create
+    // needless rerenders and pollute zundo's undo history.
+    if (missingCount > 0 || needsV3Resync) {
       state.setField("sections", merged);
+    }
+
+    if (needsV3Resync) {
+      try {
+        localStorage.setItem(V3_RESYNC_FLAG, "1");
+      } catch {
+        // Quota / disabled storage — non-fatal; we'll just retry
+        // the same forced-reset next load. Idempotent.
+      }
     }
 
     // Seed top-level fields the persisted shape might predate.

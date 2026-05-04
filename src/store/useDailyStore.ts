@@ -29,16 +29,38 @@ import { createWidgetsSlice } from "./slices/widgets";
  * (headline, marketComment, latestReports, yesterdayRecap) when
  * a hydrated state is missing them — same reasoning, the
  * persisted shape pre-dates these fields.
+ *
+ * `version` is the persisted state's version. When it's below the
+ * "force re-introduce" cutoff (3), a few specific keys we shipped
+ * recently are forced back to their catalogue defaults — overriding
+ * an analyst's previously-persisted entry. Necessary because some
+ * users ended up with these keys persisted at `on:false` (or absent
+ * after a buggy mid-version write), and the normal `||` merge
+ * preserves that stale entry instead of reviving the section.
+ * One-shot: gated by the version bump so it only fires on first
+ * load after the update.
  */
-function migrateState(persisted: Partial<DailyStore> | undefined): Partial<DailyStore> | undefined {
+const V3_FORCE_REINTRODUCE = new Set(["marketComment", "latestReports", "yesterdayRecap"]);
+
+function migrateState(
+  persisted: Partial<DailyStore> | undefined,
+  version: number = 0,
+): Partial<DailyStore> | undefined {
   if (!persisted) return persisted;
 
-  // Section catalogue merge — preserve the analyst's `on` choices
-  // where they exist; default to the catalogue's `on` for new keys.
+  // Section catalogue merge — normally preserve the analyst's `on`
+  // choices, but force-reset a small allow-list of keys when this
+  // migration is bringing them up from < v3 (one-time recovery for
+  // the rollout where these toggles disappeared / silently flipped
+  // off). At v3+ the force-reset is a no-op.
   const persistedByKey = new Map<string, Section>(
     (persisted.sections || []).map((s) => [s.key, s]),
   );
-  const mergedSections = DEFAULT_STATE.sections.map((s) => persistedByKey.get(s.key) || s);
+  const isPreV3 = version < 3;
+  const mergedSections = DEFAULT_STATE.sections.map((s) => {
+    if (isPreV3 && V3_FORCE_REINTRODUCE.has(s.key)) return s;
+    return persistedByKey.get(s.key) || s;
+  });
 
   return {
     ...persisted,
@@ -101,15 +123,25 @@ const useDailyStore = create<DailyStore>()(
           // added without a version bump, like the marketComment /
           // latestReports / yesterdayRecap / headline additions
           // that landed at version 1).
-          version: 2,
-          migrate: (persisted) => migrateState(persisted as Partial<DailyStore> | undefined) as Partial<DailyStore>,
+          //
+          // v3 is a one-time forced re-introduction of three
+          // section toggles (marketComment, latestReports,
+          // yesterdayRecap) that some analysts ended up with as
+          // missing or persisted at on:false after the mid-version
+          // shipment. See `migrateState` for the allow-list logic.
+          version: 3,
+          migrate: (persisted, version) =>
+            migrateState(persisted as Partial<DailyStore> | undefined, version) as Partial<DailyStore>,
           // `merge` runs every rehydration regardless of version.
           // Defensive belt-and-braces: if a persisted state at the
           // current version is somehow missing a section we added
-          // mid-version, the merge still patches it.
+          // mid-version, the merge still patches it. We pass the
+          // current version (3) so the v3 force-reset doesn't fire
+          // on every page load — it's a one-shot, gated by the
+          // version bump in `migrate`.
           merge: (persisted, current) => ({
             ...current,
-            ...(migrateState(persisted as Partial<DailyStore> | undefined) || {}),
+            ...(migrateState(persisted as Partial<DailyStore> | undefined, 3) || {}),
           }),
         },
       ),
