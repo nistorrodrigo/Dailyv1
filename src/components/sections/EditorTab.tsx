@@ -49,17 +49,29 @@ export default function EditorTab() {
   return (
     <LivePreviewPanel>
       <div className="editor-container" style={{ maxWidth: 800, margin: "0 auto", padding: 20 }}>
-        <GeneralSection />
+        {/* `id="section-..."` on each wrapper — the WorkflowPanel
+            scrolls to these anchors when the analyst clicks a pending
+            checklist item. Same convention used elsewhere
+            (`id="sec-<key>"` in the email HTML's TOC mode), distinct
+            prefix here so they don't collide if both are rendered
+            in the same DOM tree later. */}
+        <div id="section-general">
+          <GeneralSection />
+        </div>
         <SectionToggleList />
         {sections.filter((sec) => sec.on).map((sec) => {
           const Component = SECTION_COMPONENTS[sec.key];
           return Component ? (
-            <LazySection key={sec.key}>
-              <Component />
-            </LazySection>
+            <div key={sec.key} id={`section-${sec.key}`}>
+              <LazySection>
+                <Component />
+              </LazySection>
+            </div>
           ) : null;
         })}
-        <SignaturesSection />
+        <div id="section-signatures">
+          <SignaturesSection />
+        </div>
       </div>
     </LivePreviewPanel>
   );

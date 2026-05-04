@@ -15,6 +15,7 @@ import DuplicateYesterdayBtn from "./DuplicateYesterdayBtn";
 import { logout } from "./LoginGate";
 import PresenceIndicator from "./PresenceIndicator";
 import { useCurrentUser } from "../hooks/useCurrentUser";
+import { useWorkflowProgress } from "../hooks/useWorkflowProgress";
 
 // Lazy-load the panels that keep no cross-open state. The slide-in
 // pattern is designed for "open, do one thing, close" — losing internal
@@ -28,8 +29,9 @@ const TemplatesPanel = lazy(() => import("./TemplatesPanel"));
 const DiffPanel = lazy(() => import("./DiffPanel"));
 const SchedulePanel = lazy(() => import("./SchedulePanel"));
 const AIReviewPanel = lazy(() => import("./AIReviewPanel"));
+const WorkflowPanel = lazy(() => import("./WorkflowPanel"));
 
-type PanelName = "history" | "templates" | "email" | "diff" | "schedule" | "ai-review" | "contacts" | null;
+type PanelName = "history" | "templates" | "email" | "diff" | "schedule" | "ai-review" | "contacts" | "workflow" | null;
 
 function timeAgo(ts: number): string {
   if (!ts) return "";
@@ -125,6 +127,10 @@ export default function Header(): React.ReactElement {
   // against accidental re-render loops (React error #185).
   const totalWords = useDailyStore((s) => getDailyTextMetrics(s).total);
   const minutes = readingTimeMinutes(totalWords);
+  // Workflow progress chip — opens the WorkflowPanel side panel
+  // when clicked. Updates live as the analyst fills in fields.
+  const { doneCount, total: stepTotal } = useWorkflowProgress();
+  const workflowAllDone = doneCount === stepTotal;
   // Currently authenticated user (if Supabase is configured + logged in).
   const currentUser = useCurrentUser();
   const copyToClipboard = useUIStore((s) => s.copyToClipboard);
@@ -188,6 +194,37 @@ export default function Header(): React.ReactElement {
         {/* Status group — separate space, can wrap below logo on narrow viewports. */}
         <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", rowGap: 6 }}>
           <PresenceIndicator />
+
+          {/* Workflow progress chip — clickable, opens the WorkflowPanel
+              checklist. Colour shifts: green when all steps done,
+              amber when 1-2 left, sky when more outstanding. */}
+          <button
+            onClick={() => setOpenPanel("workflow")}
+            title={workflowAllDone ? "All steps done — ready to send" : `${stepTotal - doneCount} steps left before ready to send`}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "3px 10px",
+              borderRadius: 14,
+              border: `1px solid ${workflowAllDone ? "rgba(26,122,58,0.5)" : "rgba(255,255,255,0.18)"}`,
+              background: workflowAllDone
+                ? "rgba(172,212,132,0.18)"
+                : doneCount >= stepTotal - 2
+                  ? "rgba(231,158,76,0.18)"
+                  : "rgba(255,255,255,0.06)",
+              color: workflowAllDone ? "#acd484" : doneCount >= stepTotal - 2 ? "#ffbe65" : "#fff",
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: 0.4,
+              textTransform: "uppercase",
+            }}
+          >
+            <span style={{ fontSize: 11 }}>{workflowAllDone ? "✓" : "◔"}</span>
+            <span>{doneCount}/{stepTotal} ready</span>
+          </button>
 
           {(saveStatus === "saved" || saveStatus === "idle") && lastSavedAt && (
             <span style={{ fontSize: 10, color: BRAND.green, fontWeight: 600, letterSpacing: 0.5, whiteSpace: "nowrap" }}>
@@ -401,6 +438,7 @@ export default function Header(): React.ReactElement {
         {openPanel === "diff" && <DiffPanel open onClose={() => setOpenPanel(null)} />}
         {openPanel === "schedule" && <SchedulePanel open onClose={() => setOpenPanel(null)} />}
         {openPanel === "ai-review" && <AIReviewPanel open onClose={() => setOpenPanel(null)} />}
+        {openPanel === "workflow" && <WorkflowPanel open onClose={() => setOpenPanel(null)} />}
       </Suspense>
     </>
   );
