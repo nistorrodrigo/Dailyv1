@@ -42,6 +42,24 @@ export function preflightReview(state: StateWithFlows, now: Date = new Date()): 
     );
   }
 
+  // ── Headline (subject hook) ──────────────────────────────────
+  // Foreign institutional inboxes get 50+ research pieces a day;
+  // the headline is the single biggest open-rate lever. A missing
+  // one means the subject defaults to "Argentina Daily - May 5",
+  // which gets filed-without-opening at much higher rates than a
+  // specific, opinionated hook.
+  if (!state.headline?.trim()) {
+    issues.push(
+      "Headline (subject hook) is empty — the email subject will fall back to the boilerplate date. " +
+        "Add a sharp, specific one-liner in the General section to lift open rates with institutional readers.",
+    );
+  } else if (state.headline.length > 90) {
+    issues.push(
+      `Headline is ${state.headline.length} chars long — gets clipped in Outlook/Gmail preview past ~70. ` +
+        `Consider tightening.`,
+    );
+  }
+
   // ── Summary bar ───────────────────────────────────────────────
   if (!state.summaryBar?.trim()) {
     issues.push("Summary Bar is empty — the top-of-email one-liner is missing.");

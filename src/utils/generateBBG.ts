@@ -58,6 +58,15 @@ export function generateBBG(s: DailyState): string {
   L.push(`🇦🇷 LS DAILY | ${formatDate(s.date)}`);
   if (s.summaryBar) L.push("", `🔥 ${s.summaryBar.replace(/\n/g, " ")}`);
 
+  // ─── YESTERDAY IN REVIEW (above the snapshot) ─────────────
+  // Goes high in the BBG output so the recap is the first thing
+  // institutional readers see after the date header — same
+  // priority as in the email HTML.
+  if (isOn(s, "yesterdayRecap") && s.yesterdayRecap?.trim()) {
+    L.push("", "📋 YESTERDAY IN REVIEW");
+    L.push(truncate(s.yesterdayRecap, 700));
+  }
+
   // ─── SNAPSHOT (compact one-liner) ─────────────────────────
   const snp = s.snapshot;
   const snpItems = [

@@ -18,11 +18,13 @@ import SnapshotSection from "./SnapshotSection";
 import WatchTodaySection from "./WatchTodaySection";
 import LatAmSection from "./LatAmSection";
 import MarketCommentSection from "./MarketCommentSection";
+import YesterdayRecapSection from "./YesterdayRecapSection";
 import LivePreviewPanel from "../LivePreviewPanel";
 import LazySection from "../ui/LazySection";
 import useDailyStore from "../../store/useDailyStore";
 
 const SECTION_COMPONENTS: Record<string, React.ComponentType> = {
+  yesterdayRecap: YesterdayRecapSection,
   snapshot: SnapshotSection,
   watchToday: WatchTodaySection,
   marketComment: MarketCommentSection,

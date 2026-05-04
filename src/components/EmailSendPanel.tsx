@@ -45,7 +45,16 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
   const [newEmail, setNewEmail] = useState<string>("");
   const [newName, setNewName] = useState<string>("");
   const date = useDailyStore((s) => s.date);
+  const headline = useDailyStore((s) => s.headline);
   const [subject, setSubject] = useState<string>("");
+  // Default subject: prefer the analyst's headline (designed for
+  // open-rate impact in institutional inboxes) over the boilerplate
+  // date. Keeps the "Argentina Daily —" prefix for brand
+  // recognition so spam filters and "is this the daily?" pattern
+  // matchers still see what they expect.
+  const defaultSubject = headline?.trim()
+    ? `Argentina Daily — ${headline.trim()}`
+    : `Argentina Daily - ${formatDate(date)}`;
   const [sendResult, setSendResult] = useState<SendResult | null>(null);
   const [sgLists, setSgLists] = useState<SendGridList[]>([]);
   const [selectedListName, setSelectedListName] = useState<string>("");
@@ -78,7 +87,7 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
 
   useEffect(() => {
     if (open) {
-      setSubject(`Argentina Daily - ${formatDate(date)}`);
+      setSubject(defaultSubject);
       setLastSendDismissed(false);
       if (supabase) {
         setLoading(true);
@@ -340,7 +349,10 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
                 onClick={() => {
                   const t = todayLocal();
                   useDailyStore.getState().setField("date", t);
-                  setSubject(`Argentina Daily - ${formatDate(t)}`);
+                  // Re-derive subject using current headline; falls back
+                  // to the date when no headline is set.
+                  const h = useDailyStore.getState().headline?.trim();
+                  setSubject(h ? `Argentina Daily — ${h}` : `Argentina Daily - ${formatDate(t)}`);
                 }}
                 className="text-[10px] px-2 py-1 rounded font-bold border bg-transparent cursor-pointer flex-shrink-0"
                 style={{ borderColor: "#c97a2c", color: "#c97a2c" }}
@@ -363,15 +375,17 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
               className="themed-input flex-1 px-2.5 py-2 rounded-md border border-[var(--border-input)] text-[13px] bg-[var(--bg-input)] text-[var(--text-primary)]"
             />
             <button
-              onClick={() => setSubject(`Argentina Daily - ${formatDate(date)}`)}
+              onClick={() => setSubject(defaultSubject)}
               className="px-2.5 py-2 rounded-md border border-[var(--border-input)] bg-transparent text-[var(--text-muted)] text-[10px] font-semibold cursor-pointer whitespace-nowrap"
-              title="Reset to default"
+              title="Reset to default (uses headline if set)"
             >
               Reset
             </button>
           </div>
           <div className="text-[10px] text-[var(--text-muted)] mt-1">
-            Default: Argentina Daily - {formatDate(date)}
+            {headline?.trim()
+              ? `Default uses your headline. Without one: Argentina Daily - ${formatDate(date)}`
+              : <>Default: Argentina Daily - {formatDate(date)}. Add a headline in the Editor's General section for a sharper subject.</>}
           </div>
         </div>
 

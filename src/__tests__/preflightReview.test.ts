@@ -112,6 +112,9 @@ describe("preflightReview", () => {
       // Pin to fixedNow's date so the date sanity check can't leak
       // into this assertion when the test runs near midnight local.
       date: dateForToday,
+      // Add a non-empty headline so the new "headline missing" check
+      // doesn't fire — the assertion below expects ZERO issues.
+      headline: "Bausili's last test before September",
       summaryBar: "Markets digest BCRA decision; equities flat.",
       macroBlocks: [
         { id: "1", title: "FX / BCRA", body: "BCRA cut by 100bps. Reserves stable.", lsPick: "Long ARGENT 35" },

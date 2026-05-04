@@ -68,6 +68,7 @@ function secHdr(title: string, id?: string): string {
 
 // Section label map for TOC
 const SEC_LABELS: Record<string, string> = {
+  yesterdayRecap: "Yesterday in Review",
   snapshot: "Market Snapshot", watchToday: "What to Watch Today",
   marketComment: "Market Comment",
   macro: "Macro / Political", tradeIdeas: "Trade Ideas", flows: "Market Color",
@@ -116,6 +117,19 @@ function generateHTMLImpl(s: DailyState, mode: string = "full", template: string
     ["CCL", snp.ccl, snp.cclChg], ["MEP", snp.mep, snp.mepChg], ["Blue", snp.blue, ""],
   ].filter(r => r[1]);
   const snapshot = s.sections.find(x => x.key === "snapshot")?.on && snpRows.length ? secHdr("Market Snapshot") + '<tr><td style="padding:0 40px 8px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid ' + DS.border + ';">' + snpRows.map((r, i) => { const chgColor = (r[2] || "").startsWith("-") ? DS.red : DS.green; return '<tr style="background:' + (i % 2 === 0 ? "#fff" : DS.bgAlt) + ';"><td style="padding:5px 12px;font-size:12px;font-weight:600;color:' + DS.navy + ';border-bottom:1px solid ' + DS.borderLight + ';width:30%;">' + r[0] + '</td><td style="padding:5px 12px;font-size:13px;font-weight:700;color:' + DS.text + ';text-align:right;border-bottom:1px solid ' + DS.borderLight + ';">' + r[1] + '</td><td style="padding:5px 12px;font-size:12px;font-weight:700;color:' + chgColor + ';text-align:right;border-bottom:1px solid ' + DS.borderLight + ';width:20%;">' + (r[2] ? r[2] + '%' : '') + '</td></tr>'; }).join("") + '</table></td></tr>' : "";
+
+  // YESTERDAY IN REVIEW — credibility hook at the very top of the
+  // daily for institutional readers. Visually distinct (orange-toned
+  // background) to stand apart from the rest of the structure and
+  // signal "this is the prior-day score, not a forecast".
+  const yesterdayRecap = s.sections.find(x => x.key === "yesterdayRecap")?.on && s.yesterdayRecap?.trim()
+    ? '<tr><td style="padding:24px 40px 0;" id="sec-yesterdayRecap">' +
+        '<div style="background:#fff7ec;border-left:4px solid #e67e22;padding:14px 18px;border-radius:4px;">' +
+          '<div style="font-size:10px;font-weight:700;color:#e67e22;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px;">Yesterday in Review</div>' +
+          '<div style="font-size:13.5px;line-height:1.65;color:' + DS.text + ';text-align:justify;">' + nl2br(s.yesterdayRecap) + '</div>' +
+        '</div>' +
+      '</td></tr>'
+    : "";
 
   // WHAT TO WATCH
   const watchItems = (s.watchToday || []).filter((w: string) => w.trim());
@@ -202,7 +216,7 @@ function generateHTMLImpl(s: DailyState, mode: string = "full", template: string
   const sig = s.signatures.map(x => '<div style="margin-bottom:6px;"><span style="font-size:13px;font-weight:600;color:' + DS.navy + ';">' + x.name + '</span><span style="font-size:12px;color:' + DS.textLight + ';margin-left:6px;">' + x.role + '</span><br><span style="font-size:12px;color:' + DS.accent + ';">' + x.email + '</span></div>').join("");
 
   // SECTION MAP
-  const sectionMap: Record<string, string> = { snapshot, watchToday, marketComment, macro, tradeIdeas: trade, flows: flow, corporate: corp, research, latestReports, topMovers, tweets, latam, bcra, events, macroEstimates: mEst, chart };
+  const sectionMap: Record<string, string> = { yesterdayRecap, snapshot, watchToday, marketComment, macro, tradeIdeas: trade, flows: flow, corporate: corp, research, latestReports, topMovers, tweets, latam, bcra, events, macroEstimates: mEst, chart };
   const enabledSections = s.sections.filter(x => x.on);
 
   // Build Table of Contents
@@ -214,6 +228,7 @@ function generateHTMLImpl(s: DailyState, mode: string = "full", template: string
     tradeIdeas: s.equityPicks.filter(p => p.ticker).map(p => p.ticker).join(", ") + (s.fiIdeas.filter(f => f.idea).length ? " + " + s.fiIdeas.filter(f => f.idea).length + " FI ideas" : ""),
     flows: "EQ: Buy " + (s.eqBuyer || "...").substring(0, 30) + " | FI: Buy " + (s.fiBuyer || "...").substring(0, 30),
     macroEstimates: s.macroRows.length + " metrics, " + s.macroCols.join("/"),
+    yesterdayRecap: s.yesterdayRecap?.trim() ? s.yesterdayRecap.trim().slice(0, 80) + (s.yesterdayRecap.length > 80 ? "…" : "") : "",
     marketComment: s.marketComment?.trim() ? s.marketComment.trim().slice(0, 80) + (s.marketComment.length > 80 ? "…" : "") : "",
     corporate: s.corpBlocks.map(c => (c.tickers || []).join("/")).filter(Boolean).join(", "),
     research: (s.researchReports || []).filter(r => r.title).map(r => r.title).join(", "),

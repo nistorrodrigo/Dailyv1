@@ -17,6 +17,7 @@ export const DEFAULT_ANALYSTS: Analyst[] = [
 export const DEFAULT_STATE: DailyState & { flows: { global: string; local: string; positioning: string } } = {
   date: new Date().toISOString().split("T")[0],
   sections: [
+    { key: "yesterdayRecap", label: "Yesterday in Review", on: false },
     { key: "snapshot", label: "Market Snapshot", on: true },
     { key: "watchToday", label: "What to Watch Today", on: true },
     { key: "marketComment", label: "Market Comment", on: true },
@@ -72,8 +73,10 @@ export const DEFAULT_STATE: DailyState & { flows: { global: string; local: strin
   researchReports: [
     { id: "rr1", type: "Macro", title: "", author: "", body: "", link: "" },
   ],
+  headline: "",
   marketComment: "",
   latestReports: [],
+  yesterdayRecap: "",
   signatures: [
     { id: "s1", name: "Rodrigo Nistor", role: "Institutional Sales", email: "rodrigo.nistor@latinsecurities.ar" },
   ],

@@ -163,6 +163,13 @@ export interface MarketSnapshot {
 export interface DailyState {
   date: string;
   sections: Section[];
+  /** Subject-line hook — the provocative, specific one-liner that goes
+   *  into the email's `Subject:` header in place of the boilerplate
+   *  "Argentina Daily - May 5". Foreign institutional inboxes get
+   *  50+ research pieces a day; the headline is what decides whether
+   *  the daily gets opened or filed. Max ~70 characters by convention
+   *  to keep the full text visible in Outlook/Gmail preview. */
+  headline: string;
   summaryBar: string;
   snapshot: MarketSnapshot;
   watchToday: string[];
@@ -191,6 +198,13 @@ export interface DailyState {
    *  daily. Title + author + link only — no body. See
    *  `researchReports` for the full-embed variant. */
   latestReports: LatestReport[];
+  /** Yesterday-in-review block — short prose (3-4 sentences) that
+   *  scores the desk's prior-day calls against today's price action.
+   *  Builds credibility with foreign institutional readers by being
+   *  publicly honest about what worked and what didn't. Free-form
+   *  so the analyst can refine the AI-generated draft. Renders
+   *  prominently above the macro section when the section is on. */
+  yesterdayRecap: string;
   signatures: Signature[];
   analysts: Analyst[];
   disclaimer: string;
