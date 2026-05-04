@@ -11,6 +11,7 @@ import { toast } from "../../store/useToastStore";
 import { AI_MODELS, estimateCost, type AIModelKey } from "../ui/AIModelPicker";
 import { authedFetch } from "../../lib/authedFetch";
 import { MACRO_BLOCK_TEMPLATES } from "../../constants/macroBlockTemplates";
+import useCustomTemplatesStore from "../../store/useCustomTemplatesStore";
 
 export default function MacroSection() {
   const { sections, macroBlocks, date, analysts } = useDailyStore(useShallow((s) => ({
@@ -31,6 +32,9 @@ export default function MacroSection() {
   // Template picker open/closed state. Toggled by the "+ From template"
   // button below the existing add-block control.
   const [showTemplates, setShowTemplates] = useState<boolean>(false);
+  const customTemplates = useCustomTemplatesStore((s) => s.templates);
+  const addCustomTemplate = useCustomTemplatesStore((s) => s.add);
+  const removeCustomTemplate = useCustomTemplatesStore((s) => s.remove);
   // Last-call usage so the post-toast badge can show actual spend
   // alongside tokens — the AIModelPicker's pre-flight cost is just an
   // estimate; this is what the call really cost.
@@ -108,7 +112,44 @@ export default function MacroSection() {
           const b = macroBlocks.find((x) => x.id === item.id)!;
           return (
             <div className="mb-4 p-3 rounded-md relative" style={{ background: "var(--bg-card-alt)" }}>
-              <div className="absolute top-2 right-2">
+              <div className="absolute top-2 right-2 flex items-center gap-1">
+                {/* "Save as template" — preserves this block's title +
+                    body + lsPick into the analyst's localStorage
+                    template library for next time. Useful for
+                    block types not covered by the 10 built-ins
+                    (e.g. "BCRA SWAP NETWORK", "ENARGAS UPDATE")
+                    or when the analyst's preferred phrasing
+                    differs from the built-in skeleton. */}
+                <button
+                  onClick={() => {
+                    if (!b.title?.trim() && !b.body?.trim()) {
+                      toast.info("Add a title or body before saving as a template.");
+                      return;
+                    }
+                    const label = window.prompt(
+                      "Template label (e.g. 'BCRA swap network'):",
+                      b.title || "Custom template",
+                    );
+                    if (!label?.trim()) return;
+                    const description = window.prompt(
+                      "One-line description for the picker (optional):",
+                      "",
+                    ) || "";
+                    addCustomTemplate({
+                      label: label.trim(),
+                      description: description.trim(),
+                      title: b.title || "",
+                      body: b.body || "",
+                      lsPick: b.lsPick || "",
+                    });
+                    toast.success(`Saved "${label.trim()}" — pick it from "From template".`);
+                  }}
+                  className="bg-transparent border-none cursor-pointer text-[var(--text-muted)] hover:text-[var(--color-teal)] text-base p-1 leading-none"
+                  title="Save this block's title + body + LS pick as a reusable custom template"
+                  aria-label="Save block as template"
+                >
+                  ★
+                </button>
                 <X onClick={() => removeListItem("macroBlocks", b.id)} />
               </div>
               <Inp label="Title" value={b.title} onChange={(v) => updateListItem("macroBlocks", b.id, "title", v)} />
@@ -165,12 +206,67 @@ export default function MacroSection() {
           pre-fills a new macroBlock with title + body skeleton +
           lsPick stub. Designed to compress the cold-start time on
           predictable block types (BCRA decision, Treasury auction,
-          CPI print, etc.) — fill the brackets, ship. */}
+          CPI print, etc.) — fill the brackets, ship.
+          Custom templates from the analyst's localStorage render
+          first with a star prefix; built-ins follow. */}
       {showTemplates && (
         <div className="mb-3 p-3 rounded-md border border-[var(--border-light)]" style={{ background: "var(--bg-card-alt)" }}>
           <div className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-secondary)] mb-2">
             Pick a template
           </div>
+          {customTemplates.length > 0 && (
+            <>
+              <div className="text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: BRAND.teal }}>
+                Your saved templates
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-3">
+                {customTemplates.map((t) => (
+                  <div
+                    key={t.id}
+                    className="text-left p-2.5 rounded-md border bg-transparent flex items-start gap-2"
+                    style={{ borderColor: BRAND.teal + "40" }}
+                  >
+                    <button
+                      onClick={() => {
+                        addListItem("macroBlocks", {
+                          id: `tpl-${t.id}-${Date.now()}`,
+                          title: t.title,
+                          body: t.body,
+                          lsPick: t.lsPick,
+                        });
+                        setShowTemplates(false);
+                        toast.success(`Inserted "${t.label}" — your saved template.`);
+                      }}
+                      className="flex-1 text-left bg-transparent border-none cursor-pointer p-0"
+                    >
+                      <div className="text-[12px] font-bold text-[var(--text-primary)] mb-0.5 flex items-center gap-1">
+                        <span style={{ color: BRAND.teal }}>★</span>
+                        <span>{t.label}</span>
+                      </div>
+                      <div className="text-[10px] text-[var(--text-muted)] leading-snug">{t.description || "(no description)"}</div>
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (window.confirm(`Delete the saved template "${t.label}"?`)) {
+                          removeCustomTemplate(t.id);
+                          toast.info("Template deleted.");
+                        }
+                      }}
+                      className="bg-transparent border-none text-[var(--text-muted)] cursor-pointer text-base leading-none p-1"
+                      title="Delete this template"
+                      aria-label={`Delete template ${t.label}`}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <div className="text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>
+                Built-in templates
+              </div>
+            </>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             {MACRO_BLOCK_TEMPLATES.map((t) => (
               <button
@@ -195,6 +291,7 @@ export default function MacroSection() {
           </div>
           <div className="mt-2 text-[10px] text-[var(--text-muted)] italic">
             Bodies use [bracketed prompts] — replace each with the day's data.
+            Click ★ on any block in the editor to save it as a custom template.
           </div>
         </div>
       )}
