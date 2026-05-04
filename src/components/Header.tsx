@@ -1,4 +1,4 @@
-import React, { useState, useCallback, Suspense, lazy } from "react";
+import React, { useState, useCallback, useEffect, useRef, Suspense, lazy } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { useStore } from "zustand";
 import { BRAND, LOGO_WHITE_URL } from "../constants/brand";
@@ -138,6 +138,39 @@ export default function Header(): React.ReactElement {
   const toggleShortcutsOverlay = useUIStore((s) => s.toggleShortcutsOverlay);
   const newDaily = useDailyStore((s) => s.newDaily);
   const [openPanel, setOpenPanel] = useState<PanelName>(null);
+
+  // Workflow panel auto-open: if the analyst lands on the app during
+  // the morning prep window (06-10 AM Buenos Aires) AND >=5 steps are
+  // still pending, pop the panel automatically. The first-of-the-day
+  // glance at the chip is exactly when the checklist is most useful.
+  // sessionStorage gates it to fire ONCE per browser session — once
+  // the analyst has seen it, they won't be surprised again, even if
+  // they refresh or switch tabs.
+  const autoOpenedRef = useRef(false);
+  useEffect(() => {
+    if (autoOpenedRef.current) return;
+    autoOpenedRef.current = true;
+    if (typeof window === "undefined") return;
+    if (sessionStorage.getItem("ls-workflow-auto-opened")) return;
+    if (workflowAllDone) return;
+    // 5 or more pending = "real prep work to do" — anything less and
+    // the analyst is mostly done; the auto-open would be noise.
+    if (stepTotal - doneCount < 5) return;
+    // BUE local hour — the editorial team is in Buenos Aires, so
+    // anchor the morning window in their wall-clock time even if the
+    // tab is open from elsewhere (e.g. the analyst on a trip).
+    const bueHourStr = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/Argentina/Buenos_Aires",
+      hour: "numeric",
+      hour12: false,
+    }).format(new Date());
+    const bueHour = parseInt(bueHourStr, 10);
+    if (!Number.isFinite(bueHour) || bueHour < 6 || bueHour >= 10) return;
+
+    setOpenPanel("workflow");
+    sessionStorage.setItem("ls-workflow-auto-opened", "1");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // zundo's temporal store — subscribe so the Undo/Redo buttons enable/disable
   // reactively as the user edits or undoes.
