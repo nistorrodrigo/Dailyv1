@@ -3,6 +3,7 @@ import useUIStore from "./store/useUIStore";
 import useKeyboardShortcuts from "./hooks/useKeyboardShortcuts";
 import useUnsavedChangesGuard from "./hooks/useUnsavedChangesGuard";
 import { useStepTimingsTracker } from "./hooks/useStepTimingsTracker";
+import { useSectionCatalogueSync } from "./hooks/useSectionCatalogueSync";
 import type { UIState } from "./types";
 import Header from "./components/Header";
 import Toaster from "./components/Toaster";
@@ -34,6 +35,11 @@ export default function App() {
   const setTab = useUIStore((s) => s.setTab);
   useKeyboardShortcuts();
   useUnsavedChangesGuard();
+  // Patches up `sections` after persist rehydrates with a stale
+  // (pre-catalogue-update) shape. Runs once on mount and is a no-op
+  // when the array is already current. See the hook header for why
+  // this isn't redundant with the persist `migrate` callback.
+  useSectionCatalogueSync();
   // Records every workflow step's pending → done duration to the
   // persistent timings store. Mounted at App level (not inside the
   // chip / panel) so each transition is recorded exactly once,
