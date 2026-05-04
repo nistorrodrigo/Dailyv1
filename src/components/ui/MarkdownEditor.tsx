@@ -1,7 +1,11 @@
-import { useState, useRef } from "react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import { useState, useRef, Suspense, lazy } from "react";
 import { BRAND } from "../../constants/brand";
+
+// Lazy import the preview-only renderer so react-markdown +
+// remark-gfm (~150 KB / ~50 KB gzip combined) don't ship in the
+// editor's eager chunk. Most editing time is spent in the textarea
+// side, so the preview chunk often never downloads.
+const MarkdownPreviewLazy = lazy(() => import("./MarkdownPreviewLazy"));
 
 interface MarkdownEditorProps {
   value: string;
@@ -69,7 +73,9 @@ export default function MarkdownEditor({ value, onChange, rows = 4, placeholder,
           fontSize: 13, lineHeight: 1.5, minHeight: rows * 20,
           background: "#fafbfc",
         }}>
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{value || ""}</ReactMarkdown>
+          <Suspense fallback={<div style={{ color: "#999", fontSize: 11 }}>Loading preview…</div>}>
+            <MarkdownPreviewLazy value={value || ""} />
+          </Suspense>
         </div>
       ) : (
         <textarea

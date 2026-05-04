@@ -1,61 +1,66 @@
-import React from "react";
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
-import { SortableContext, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
+import React, { useEffect, useState, lazy, Suspense } from "react";
 
-interface SortableItemWrapperProps {
-  id: string;
-  children: React.ReactNode;
-}
-
-function SortableItemWrapper({ id, children }: SortableItemWrapperProps) {
-  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
-  return (
-    <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition }}>
-      <div className="flex gap-2">
-        <div
-          {...attributes}
-          {...listeners}
-          className="flex items-center cursor-grab text-[var(--text-muted)] text-sm px-1 select-none hover:text-[var(--text-primary)]"
-          title="Drag to reorder"
-        >
-          {"\u2630"}
-        </div>
-        <div className="flex-1">{children}</div>
-      </div>
-    </div>
-  );
-}
-
+/**
+ * Lazy wrapper around the actual DnD-enabled sortable list. The
+ * dnd-kit graph is ~185 KB / ~60 KB gzip — eagerly loading it on
+ * the EditorTab's first paint blocks rendering for no reason, since
+ * 95% of the time the analyst doesn't drag anything in a session.
+ *
+ * First paint renders items in a plain stack (with a static drag
+ * handle glyph that's inert). The dnd-kit module is dynamically
+ * imported one tick after mount via a lazy() — by the time the
+ * analyst's eye reaches a section and reaches for a handle, DnD is
+ * already wired up. If they're an exceptionally fast clicker, the
+ * worst case is a ~200 ms delay before the first drag works.
+ *
+ * Behaviour from the caller's perspective is unchanged: same props,
+ * same reorder callback. Just a cheaper startup.
+ */
 interface SortableListProps {
   items: { id: string }[];
   onReorder: (from: number, to: number) => void;
   renderItem: (item: { id: string }, index: number) => React.ReactNode;
 }
 
-export default function SortableList({ items, onReorder, renderItem }: SortableListProps) {
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor)
-  );
+const SortableListDnd = lazy(() => import("./SortableListDnd"));
 
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-    const oldIndex = items.findIndex((item) => item.id === String(active.id));
-    const newIndex = items.findIndex((item) => item.id === String(over.id));
-    if (oldIndex !== -1 && newIndex !== -1) onReorder(oldIndex, newIndex);
-  };
+/** Inert placeholder render — same vertical stack the DnD version
+ *  produces, with a non-functional grab-handle glyph so the layout
+ *  doesn't shift when the lazy module lands. */
+function StaticList({ items, renderItem }: SortableListProps) {
+  return (
+    <>
+      {items.map((item, index) => (
+        <div key={item.id} className="flex gap-2">
+          <div
+            className="flex items-center text-[var(--text-muted)] text-sm px-1 select-none opacity-40"
+            title="Loading drag handle…"
+          >
+            {"☰"}
+          </div>
+          <div className="flex-1">{renderItem(item, index)}</div>
+        </div>
+      ))}
+    </>
+  );
+}
+
+export default function SortableList(props: SortableListProps): React.ReactElement {
+  // Defer until after first paint so the static list renders
+  // immediately without paying the dnd-kit import cost on the
+  // critical path. requestIdleCallback would be even better but
+  // isn't reliably present everywhere.
+  const [enableDnd, setEnableDnd] = useState(false);
+  useEffect(() => {
+    const id = setTimeout(() => setEnableDnd(true), 0);
+    return () => clearTimeout(id);
+  }, []);
+
+  if (!enableDnd) return <StaticList {...props} />;
 
   return (
-    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-      <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
-        {items.map((item, index) => (
-          <SortableItemWrapper key={item.id} id={item.id}>
-            {renderItem(item, index)}
-          </SortableItemWrapper>
-        ))}
-      </SortableContext>
-    </DndContext>
+    <Suspense fallback={<StaticList {...props} />}>
+      <SortableListDnd {...props} />
+    </Suspense>
   );
 }
