@@ -5,6 +5,18 @@ import { Card, Inp, X, DashBtn } from "../ui";
 import { BRAND } from "../../constants/brand";
 import type { LatestReport } from "../../types";
 
+// Author input shares the editor's small-control style with the
+// rest of the grid (Inp + select inside Corporate use a sibling of
+// this shape).
+const ss: React.CSSProperties = {
+  padding: "6px 8px",
+  borderRadius: 4,
+  border: "1px solid var(--border-input)",
+  fontSize: 12,
+  boxSizing: "border-box",
+  background: "var(--bg-card)",
+};
+
 /**
  * Latest Research Reports — a compact "what we just published" list
  * that points clients at recent LS publications without quoting them
@@ -12,13 +24,20 @@ import type { LatestReport } from "../../types";
  * with body text dropped into the daily); use this when you just
  * want a digest of links.
  *
- * Each row: type tag, title, author, optional published date, link.
- * No body field by design — that's what the full Research Reports
- * section is for.
+ * Each row: type tag, title, analyst (dropdown from the canonical
+ * Analysts catalogue), optional published date, link. No body
+ * field by design — that's what the full Research Reports section
+ * is for. The analyst dropdown matches the same pattern Corporate
+ * blocks use so the desk doesn't have to retype names; falls back
+ * to a free-text `author` for external contributors.
  */
 export default function LatestReportsSection(): React.ReactElement | null {
-  const { sections, latestReports } = useDailyStore(
-    useShallow((s) => ({ sections: s.sections, latestReports: s.latestReports })),
+  const { sections, latestReports, analysts } = useDailyStore(
+    useShallow((s) => ({
+      sections: s.sections,
+      latestReports: s.latestReports,
+      analysts: s.analysts,
+    })),
   );
   const updateListItem = useDailyStore((s) => s.updateListItem);
   const addListItem = useDailyStore((s) => s.addListItem);
@@ -31,6 +50,7 @@ export default function LatestReportsSection(): React.ReactElement | null {
     type: "",
     title: "",
     author: "",
+    analystId: "",
     publishedDate: "",
     link: "",
   };
@@ -60,44 +80,83 @@ export default function LatestReportsSection(): React.ReactElement | null {
         </div>
       )}
 
-      {latestReports.map((r) => (
-        <div
-          key={r.id}
-          style={{
-            display: "grid",
-            gridTemplateColumns: "120px 1fr 140px 110px 24px",
-            gap: 6,
-            alignItems: "center",
-            marginBottom: 6,
-          }}
-        >
-          <Inp
-            label=""
-            value={r.type}
-            onChange={(v) => updateListItem("latestReports", r.id, "type", v)}
-            placeholder="Type (Macro, Banks, …)"
-          />
-          <Inp
-            label=""
-            value={r.title}
-            onChange={(v) => updateListItem("latestReports", r.id, "title", v)}
-            placeholder="Report title"
-          />
-          <Inp
-            label=""
-            value={r.author}
-            onChange={(v) => updateListItem("latestReports", r.id, "author", v)}
-            placeholder="Author"
-          />
-          <Inp
-            label=""
-            value={r.publishedDate || ""}
-            onChange={(v) => updateListItem("latestReports", r.id, "publishedDate", v)}
-            placeholder="2026-05-04"
-          />
-          <X onClick={() => removeListItem("latestReports", r.id)} />
-        </div>
-      ))}
+      {latestReports.map((r) => {
+        // "External" is a sentinel value for the dropdown that switches
+        // the row from "pick a known analyst" to "type a free-text
+        // author" (visiting analyst, partner desk, etc.). When the
+        // analyst is in the catalogue, the free-text input is hidden
+        // and `author` cleared so the resolved name is the single
+        // source of truth.
+        const useExternal = !r.analystId && (r.author?.trim().length ?? 0) > 0;
+        const dropdownValue = r.analystId || (useExternal ? "__external__" : "");
+        return (
+          <div
+            key={r.id}
+            style={{
+              display: "grid",
+              gridTemplateColumns: "120px 1fr 160px 110px 24px",
+              gap: 6,
+              alignItems: "center",
+              marginBottom: 6,
+            }}
+          >
+            <Inp
+              label=""
+              value={r.type}
+              onChange={(v) => updateListItem("latestReports", r.id, "type", v)}
+              placeholder="Type (Macro, Banks, …)"
+            />
+            <Inp
+              label=""
+              value={r.title}
+              onChange={(v) => updateListItem("latestReports", r.id, "title", v)}
+              placeholder="Report title"
+            />
+            <select
+              value={dropdownValue}
+              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                const v = e.target.value;
+                if (v === "__external__") {
+                  // Switch to free-text mode — clear analystId, leave
+                  // author for the analyst to fill in below.
+                  updateListItem("latestReports", r.id, "analystId", "");
+                } else {
+                  // Picking a catalogue analyst — clear the free-text
+                  // fallback so the resolved name is the only source.
+                  updateListItem("latestReports", r.id, "analystId", v);
+                  if (r.author) updateListItem("latestReports", r.id, "author", "");
+                }
+              }}
+              style={{ ...ss, width: "100%" }}
+            >
+              <option value="">Author…</option>
+              {analysts.map((a) => (
+                <option key={a.id} value={a.id}>{a.name}</option>
+              ))}
+              <option value="__external__">External / other…</option>
+            </select>
+            <Inp
+              label=""
+              value={r.publishedDate || ""}
+              onChange={(v) => updateListItem("latestReports", r.id, "publishedDate", v)}
+              placeholder="2026-05-04"
+            />
+            <X onClick={() => removeListItem("latestReports", r.id)} />
+            {/* Free-text author — only shown when the analyst opted
+                into "External / other…", spans the row beneath. */}
+            {dropdownValue === "__external__" && (
+              <div style={{ gridColumn: "1 / -1", marginTop: 4, marginLeft: 126 }}>
+                <Inp
+                  label=""
+                  value={r.author}
+                  onChange={(v) => updateListItem("latestReports", r.id, "author", v)}
+                  placeholder="External author name"
+                />
+              </div>
+            )}
+          </div>
+        );
+      })}
 
       {latestReports.map((r) => (
         // Link goes on its own row beneath each entry to give it room

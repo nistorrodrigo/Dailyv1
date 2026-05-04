@@ -95,7 +95,18 @@ export interface LatestReport {
    *  (e.g. "Banks 1Q26", "FX strategy", "Sovereign curve"). */
   type: string;
   title: string;
+  /** Free-text author. Kept for backwards compat with rows persisted
+   *  before the dropdown shipped, and as a fallback when the report
+   *  is by someone outside the Analysts catalogue (e.g. an external
+   *  contributor). When `analystId` is set, the resolved analyst's
+   *  name takes precedence. */
   author: string;
+  /** Reference into the canonical Analysts list (`state.analysts`).
+   *  When set, the renderer resolves to that analyst's name + title
+   *  rather than the free-text `author` field — mirrors the same
+   *  pattern Corporate blocks use. Optional so the analyst can leave
+   *  it blank for external authors. */
+  analystId?: string;
   /** ISO date the report was published (YYYY-MM-DD). Optional
    *  because some uploads don't have it; rendered when present. */
   publishedDate?: string;

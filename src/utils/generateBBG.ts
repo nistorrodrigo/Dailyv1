@@ -183,6 +183,9 @@ export function generateBBG(s: DailyState): string {
         if (meta) L.push(`  ${meta}${r.analyst ? ` — ${r.analyst}` : ""}`);
         else if (r.analyst) L.push(`  ${r.analyst}`);
         if (r.body) L.push(`  ${oneLine(r.body)}`);
+        // Same "↗ Full report:" framing across Corporate, Research,
+        // and Latest Research Reports so analysts pasting from any
+        // of the three sections get a uniform call-to-action.
         if (r.link) L.push(`  ↗ Full report: ${r.link}`);
         for (const line of fmtNewsLinks(c.newsLinks)) L.push(line);
         if (i < blocks.length - 1) L.push("");
@@ -225,7 +228,9 @@ export function generateBBG(s: DailyState): string {
       reports.forEach((r) => {
         const meta = [r.type, r.author].filter(Boolean).join(" · ");
         L.push(`• ${r.title || "(untitled)"}${meta ? ` (${meta})` : ""}`);
-        if (r.link) L.push(`  ↗ ${r.link}`);
+        // Match Corporate's "↗ Full report:" framing — same call to
+        // action across all three report-bearing sections.
+        if (r.link) L.push(`  ↗ Full report: ${r.link}`);
       });
     }
   }
@@ -234,14 +239,18 @@ export function generateBBG(s: DailyState): string {
   // Compact "what we just published" digest. No body — just title +
   // author + link, one line per report. Use this when the desk wants
   // to point clients at recent publications without quoting them.
+  // Author resolves through the Analysts catalogue when `analystId`
+  // is set (matches Corporate); falls back to free-text `author`.
   if (isOn(s, "latestReports")) {
     const reports = (s.latestReports || []).filter((r) => r.title?.trim());
     if (reports.length) {
       L.push("", "📑 LATEST REPORTS");
       reports.forEach((r) => {
-        const meta = [r.type, r.author, r.publishedDate].filter(Boolean).join(" · ");
+        const resolvedAnalyst = r.analystId ? s.analysts.find((a) => a.id === r.analystId) : null;
+        const authorName = resolvedAnalyst ? resolvedAnalyst.name : r.author;
+        const meta = [r.type, authorName, r.publishedDate].filter(Boolean).join(" · ");
         L.push(`• ${r.title}${meta ? ` (${meta})` : ""}`);
-        if (r.link) L.push(`  ↗ ${r.link}`);
+        if (r.link) L.push(`  ↗ Full report: ${r.link}`);
       });
     }
   }
