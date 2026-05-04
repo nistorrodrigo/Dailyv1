@@ -96,43 +96,72 @@ export default function TradeIdeasSection() {
             const p = equityPicks[idx];
             const cov = findCoverage(p.ticker);
             return (
-              <div style={{ display: "flex", gap: 8, alignItems: "flex-start", marginBottom: 8 }}>
-                <select
-                  value={p.ticker}
-                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => updateEquityPick(idx, "ticker", e.target.value)}
-                  style={{ ...ss, width: 100 }}
-                >
-                  <option value="">Ticker</option>
-                  {uniqueTickers.map((t) => (
-                    <option key={t} value={t}>{t}</option>
-                  ))}
-                </select>
-                <input
-                  aria-label={`${p.ticker || "Equity pick"} reason`}
-                  value={p.reason}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateEquityPick(idx, "reason", e.target.value)}
-                  placeholder="Reason / thesis"
-                  style={{ ...is, flex: 1 }}
-                />
-                {cov && (
-                  <div style={{ display: "flex", gap: 4, alignItems: "center", flexShrink: 0 }}>
-                    <span style={{
-                      fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 10,
-                      color: rc(cov.rating), background: rb(cov.rating),
-                    }}>
-                      {cov.rating}
-                    </span>
-                    {cov.tp && (
-                      <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>TP {cov.tp}</span>
-                    )}
-                    {cov.tp && cov.last && (
-                      <span style={{ fontSize: 10, fontWeight: 600, color: upsideColor(cov.tp, cov.last) }}>
-                        {fmtUpside(cov.tp, cov.last)}
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ display: "flex", gap: 8, alignItems: "flex-start", marginBottom: 4 }}>
+                  <select
+                    value={p.ticker}
+                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) => updateEquityPick(idx, "ticker", e.target.value)}
+                    style={{ ...ss, width: 100 }}
+                  >
+                    <option value="">Ticker</option>
+                    {uniqueTickers.map((t) => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
+                  <input
+                    aria-label={`${p.ticker || "Equity pick"} reason`}
+                    value={p.reason}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateEquityPick(idx, "reason", e.target.value)}
+                    placeholder="Reason / thesis"
+                    style={{ ...is, flex: 1 }}
+                  />
+                  {cov && (
+                    <div style={{ display: "flex", gap: 4, alignItems: "center", flexShrink: 0 }}>
+                      <span style={{
+                        fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 10,
+                        color: rc(cov.rating), background: rb(cov.rating),
+                      }}>
+                        {cov.rating}
                       </span>
-                    )}
+                      {cov.tp && (
+                        <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>TP {cov.tp}</span>
+                      )}
+                      {cov.tp && cov.last && (
+                        <span style={{ fontSize: 10, fontWeight: 600, color: upsideColor(cov.tp, cov.last) }}>
+                          {fmtUpside(cov.tp, cov.last)}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  <X onClick={() => removeEquityPick(idx)} />
+                </div>
+                {/* Exit-trigger field: the explicit invalidation criterion
+                    that turns a generic "buy" into a real recommendation
+                    foreign PMs will forward. Only renders once a ticker
+                    is selected to avoid clutter on draft rows. */}
+                {p.ticker?.trim() && (
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", paddingLeft: 108, marginBottom: 2 }}>
+                    <span
+                      style={{
+                        fontSize: 10,
+                        fontWeight: 700,
+                        color: "var(--text-muted)",
+                        textTransform: "uppercase",
+                        letterSpacing: 0.4,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      Change my mind ↗
+                    </span>
+                    <input
+                      aria-label={`${p.ticker} exit trigger`}
+                      value={p.exitTrigger || ""}
+                      onChange={(e) => updateEquityPick(idx, "exitTrigger", e.target.value)}
+                      placeholder="What invalidates this thesis? e.g. 'NIM compresses below 6%' or 'CCL spread >25%'"
+                      style={{ ...is, flex: 1, fontStyle: p.exitTrigger ? "normal" : "italic" }}
+                    />
                   </div>
                 )}
-                <X onClick={() => removeEquityPick(idx)} />
               </div>
             );
           }}

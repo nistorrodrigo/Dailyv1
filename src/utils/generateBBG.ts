@@ -129,6 +129,13 @@ export function generateBBG(s: DailyState): string {
         const meta = [rating, tp ? `TP ${tp}` : "", ups].filter(Boolean).join(" · ");
         L.push(`• ${p.ticker}${meta ? ` — ${meta}` : ""}`);
         if (p.reason) L.push(`  ${truncate(p.reason, 200)}`);
+        // Surface the explicit invalidation trigger when the analyst
+        // set one — the same "Change my mind:" framing renders in the
+        // HTML email. Indented further than the reason so it reads
+        // as subordinate to the thesis.
+        if (p.exitTrigger?.trim()) {
+          L.push(`    Change my mind: ${truncate(p.exitTrigger, 180)}`);
+        }
       });
     }
 

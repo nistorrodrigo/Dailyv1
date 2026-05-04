@@ -41,6 +41,13 @@ export interface EquityPick {
   id: string;
   ticker: string;
   reason: string;
+  /** "What would change my mind?" — the explicit invalidation
+   *  trigger the desk would use to close the position. Foreign
+   *  PMs forward research with stops; a vague "monitor for risks"
+   *  is what gets filed-without-reading. Optional because not
+   *  every pick has a clean trigger. Renders below the body in
+   *  the email when set. */
+  exitTrigger?: string;
 }
 
 export interface FIIdea {
