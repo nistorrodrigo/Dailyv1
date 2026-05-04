@@ -129,7 +129,7 @@ export default function Header(): React.ReactElement {
   const minutes = readingTimeMinutes(totalWords);
   // Workflow progress chip — opens the WorkflowPanel side panel
   // when clicked. Updates live as the analyst fills in fields.
-  const { doneCount, total: stepTotal } = useWorkflowProgress();
+  const { doneCount, total: stepTotal, estimatedMinutesRemaining } = useWorkflowProgress();
   const workflowAllDone = doneCount === stepTotal;
   // Currently authenticated user (if Supabase is configured + logged in).
   const currentUser = useCurrentUser();
@@ -200,7 +200,11 @@ export default function Header(): React.ReactElement {
               amber when 1-2 left, sky when more outstanding. */}
           <button
             onClick={() => setOpenPanel("workflow")}
-            title={workflowAllDone ? "All steps done — ready to send" : `${stepTotal - doneCount} steps left before ready to send`}
+            title={
+              workflowAllDone
+                ? "All steps done — ready to send"
+                : `${stepTotal - doneCount} steps left · ~${estimatedMinutesRemaining} min to ready`
+            }
             style={{
               display: "flex",
               alignItems: "center",
@@ -224,6 +228,9 @@ export default function Header(): React.ReactElement {
           >
             <span style={{ fontSize: 11 }}>{workflowAllDone ? "✓" : "◔"}</span>
             <span>{doneCount}/{stepTotal} ready</span>
+            {!workflowAllDone && estimatedMinutesRemaining > 0 && (
+              <span style={{ fontWeight: 500, opacity: 0.8 }}>· ~{estimatedMinutesRemaining}m</span>
+            )}
           </button>
 
           {(saveStatus === "saved" || saveStatus === "idle") && lastSavedAt && (

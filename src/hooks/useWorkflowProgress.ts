@@ -17,6 +17,13 @@ export interface WorkflowStep {
    *  `id="section-<key>"`. Steps that don't map to a section
    *  (e.g. "Send Email" — that's a panel button) leave this empty. */
   anchor?: string;
+  /** Heuristic minutes typically spent on this step. Used to power
+   *  the "time to ready" estimate in the Header chip and panel.
+   *  Done steps contribute 0; pending steps contribute their
+   *  default. These are rough — a real session may take 2× or
+   *  0.5× depending on the day. The estimate is a guidepost, not a
+   *  contract. */
+  estMinutes: number;
 }
 
 /**
@@ -36,7 +43,16 @@ export interface WorkflowStep {
  * (e.g. "headline is set BUT >90 chars"), it stays "not done" and
  * the hint explains the issue.
  */
-export function useWorkflowProgress(): { steps: WorkflowStep[]; doneCount: number; total: number } {
+export function useWorkflowProgress(): {
+  steps: WorkflowStep[];
+  doneCount: number;
+  total: number;
+  /** Sum of heuristic minutes for steps still pending. Done steps
+   *  contribute 0. Used by the Header chip + panel to surface a
+   *  "time to ready" guidepost — meant to anchor the analyst's
+   *  send-by-10AM mental schedule, not as a deadline. */
+  estimatedMinutesRemaining: number;
+} {
   const s = useDailyStore(
     useShallow((s) => ({
       date: s.date,
@@ -67,6 +83,7 @@ export function useWorkflowProgress(): { steps: WorkflowStep[]; doneCount: numbe
       done: isToday(s.date),
       hint: "Update the date in the General card. Without this, the subject and email-log timestamp are wrong.",
       anchor: "section-general",
+      estMinutes: 1,
     },
     {
       id: "snapshot",
@@ -74,6 +91,9 @@ export function useWorkflowProgress(): { steps: WorkflowStep[]; doneCount: numbe
       done: Boolean(s.snapshot?.merval || s.snapshot?.adrs || s.snapshot?.sp500),
       hint: "Click 'Auto-Fetch Prices' in the Snapshot section to pull overnight closes.",
       anchor: "section-snapshot",
+      // One click of Auto-Fetch fills it. ~1 min including waiting
+      // for the fetch and eyeballing the values.
+      estMinutes: 1,
     },
     {
       id: "yesterdayRecap",
@@ -84,6 +104,9 @@ export function useWorkflowProgress(): { steps: WorkflowStep[]; doneCount: numbe
       done: !recapOn || Boolean(s.yesterdayRecap?.trim()),
       hint: "Toggle 'Yesterday in Review' on, then click 'Generate from yesterday's daily' for an AI draft you can refine.",
       anchor: "section-yesterdayRecap",
+      // AI generates in ~10s; the analyst typically edits 1-2
+      // sentences for personal context. Net ~3 min.
+      estMinutes: 3,
     },
     {
       id: "headline",
@@ -93,6 +116,9 @@ export function useWorkflowProgress(): { steps: WorkflowStep[]; doneCount: numbe
         ? "Write the day's thesis as the subject hook in the General card. Specific, opinionated, <70 chars."
         : `Headline is ${s.headline.length} chars — gets clipped past ~70 in Outlook/Gmail preview. Tighten it.`,
       anchor: "section-general",
+      // Most-thought step. The headline forces articulation of the
+      // day's thesis; getting it right takes real cognitive effort.
+      estMinutes: 5,
     },
     {
       id: "summaryBar",
@@ -100,15 +126,15 @@ export function useWorkflowProgress(): { steps: WorkflowStep[]; doneCount: numbe
       done: Boolean(s.summaryBar?.trim()),
       hint: "1-2 sentences directly under the headline. Backs up the thesis with the day's key facts.",
       anchor: "section-general",
+      estMinutes: 3,
     },
     {
       id: "watchToday",
-      // Optional but recommended. Treated like Yesterday Recap —
-      // counts as done when the section is OFF.
       label: sectionOn("watchToday") ? "What to Watch populated" : "What to Watch (skipped)",
       done: !sectionOn("watchToday") || (s.watchToday || []).some((w) => w?.trim()),
       hint: "3-5 bullets of upcoming catalysts. The call-to-action of the daily.",
       anchor: "section-watchToday",
+      estMinutes: 3,
     },
     {
       id: "macro",
@@ -116,6 +142,11 @@ export function useWorkflowProgress(): { steps: WorkflowStep[]; doneCount: numbe
       done: !sectionOn("macro") || s.macroBlocks.some((b) => b.body?.trim()),
       hint: "A macro block with a title but no body looks unfinished. Either write the body or remove the block.",
       anchor: "section-macro",
+      // The bulk of the writing. Per-block ~5 min × 2-3 blocks.
+      // Estimate covers AT LEAST ONE having a body — the threshold
+      // for the step to flip done. The analyst typically writes
+      // more, but the step doesn't require all of them.
+      estMinutes: 12,
     },
     {
       id: "tradeIdeas",
@@ -126,6 +157,7 @@ export function useWorkflowProgress(): { steps: WorkflowStep[]; doneCount: numbe
         s.fiIdeas.some((f) => f.idea?.trim() && f.reason?.trim()),
       hint: "Foreign PMs forward dailies with specific rationales, not just tickers. Add a one-line thesis to at least one pick.",
       anchor: "section-tradeIdeas",
+      estMinutes: 5,
     },
     {
       id: "flows",
@@ -135,6 +167,7 @@ export function useWorkflowProgress(): { steps: WorkflowStep[]; doneCount: numbe
         Boolean(s.eqBuyer?.trim() || s.eqSeller?.trim() || s.fiBuyer?.trim() || s.fiSeller?.trim()),
       hint: "One line per direction (Eq buyer / seller / FI buyer / seller). Even 'two-way' is a useful read.",
       anchor: "section-flows",
+      estMinutes: 2,
     },
     {
       id: "signatures",
@@ -142,9 +175,15 @@ export function useWorkflowProgress(): { steps: WorkflowStep[]; doneCount: numbe
       done: s.signatures.length > 0 && s.signatures.some((sig) => sig.email?.trim()),
       hint: "At least one signature with a real reply-to email so clients can respond directly.",
       anchor: "section-signatures",
+      // Should already be set from the previous day; almost always
+      // 0 min on a normal morning. Bumped to 1 to cover edge cases.
+      estMinutes: 1,
     },
   ];
 
   const doneCount = steps.filter((x) => x.done).length;
-  return { steps, doneCount, total: steps.length };
+  const estimatedMinutesRemaining = steps
+    .filter((x) => !x.done)
+    .reduce((sum, x) => sum + x.estMinutes, 0);
+  return { steps, doneCount, total: steps.length, estimatedMinutesRemaining };
 }

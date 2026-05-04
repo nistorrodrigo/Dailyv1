@@ -23,7 +23,7 @@ interface WorkflowPanelProps {
  * as failure, just as conscious decisions.
  */
 export default function WorkflowPanel({ open, onClose }: WorkflowPanelProps): React.ReactElement | null {
-  const { steps, doneCount, total } = useWorkflowProgress();
+  const { steps, doneCount, total, estimatedMinutesRemaining } = useWorkflowProgress();
   const setTab = useUIStore((s) => s.setTab);
 
   if (!open) return null;
@@ -85,6 +85,11 @@ export default function WorkflowPanel({ open, onClose }: WorkflowPanelProps): Re
             }}
           />
         </div>
+        {!allDone && estimatedMinutesRemaining > 0 && (
+          <div className="mt-2 text-[11px] text-[var(--text-muted)]">
+            Approx. <strong>{estimatedMinutesRemaining} minutes</strong> of work left at typical pace.
+          </div>
+        )}
         {allDone && (
           <div className="mt-2 text-[12px] font-bold text-green-700">
             ✓ Ready to send. Open the Send Email panel from the header.
@@ -123,10 +128,19 @@ export default function WorkflowPanel({ open, onClose }: WorkflowPanelProps): Re
               </span>
               <div className="flex-1 min-w-0">
                 <div
-                  className="text-[13px] font-semibold"
+                  className="text-[13px] font-semibold flex items-center gap-2"
                   style={{ color: step.done ? "var(--text-secondary)" : "var(--text-primary)" }}
                 >
-                  {step.label}
+                  <span>{step.label}</span>
+                  {!step.done && (
+                    <span
+                      className="text-[10px] font-normal flex-shrink-0"
+                      style={{ color: "var(--text-muted)" }}
+                      title="Heuristic time on a typical morning"
+                    >
+                      ~{step.estMinutes}m
+                    </span>
+                  )}
                 </div>
                 {!step.done && step.hint && (
                   <div className="text-[11px] mt-1 leading-snug" style={{ color: "var(--text-muted)" }}>
