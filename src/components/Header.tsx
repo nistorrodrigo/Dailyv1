@@ -478,7 +478,7 @@ export default function Header(): React.ReactElement {
         {openPanel === "diff" && <DiffPanel open onClose={() => setOpenPanel(null)} />}
         {openPanel === "schedule" && <SchedulePanel open onClose={() => setOpenPanel(null)} />}
         {openPanel === "ai-review" && <AIReviewPanel open onClose={() => setOpenPanel(null)} />}
-        {openPanel === "workflow" && <WorkflowPanel open onClose={() => setOpenPanel(null)} />}
+        {openPanel === "workflow" && <WorkflowPanel open onClose={() => setOpenPanel(null)} onOpenSendEmail={() => setOpenPanel("email")} />}
       </Suspense>
     </>
   );

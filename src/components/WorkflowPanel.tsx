@@ -6,6 +6,12 @@ import { useWorkflowProgress, type WorkflowStep } from "../hooks/useWorkflowProg
 interface WorkflowPanelProps {
   open: boolean;
   onClose: () => void;
+  /** Switch to the Email Send panel. Called by the green "Send
+   *  Email" CTA that lights up at the top of the panel when every
+   *  step is done — closes the workflow view and pops the send
+   *  panel in one click. Optional: callers that don't want this
+   *  button just don't pass it. */
+  onOpenSendEmail?: () => void;
 }
 
 /**
@@ -22,7 +28,7 @@ interface WorkflowPanelProps {
  * off) render as "(skipped)" with a muted tone — they don't count
  * as failure, just as conscious decisions.
  */
-export default function WorkflowPanel({ open, onClose }: WorkflowPanelProps): React.ReactElement | null {
+export default function WorkflowPanel({ open, onClose, onOpenSendEmail }: WorkflowPanelProps): React.ReactElement | null {
   const { steps, doneCount, total, estimatedMinutesRemaining } = useWorkflowProgress();
   const setTab = useUIStore((s) => s.setTab);
 
@@ -30,6 +36,10 @@ export default function WorkflowPanel({ open, onClose }: WorkflowPanelProps): Re
 
   const allDone = doneCount === total;
   const pct = Math.round((doneCount / total) * 100);
+  // First pending step (in workflow order) — shown as the "Up next"
+  // pointer at the top of the panel so the analyst always knows
+  // exactly what to tackle without scanning the full checklist.
+  const upNext = steps.find((step) => !step.done) || null;
 
   const goToStep = (step: WorkflowStep): void => {
     if (!step.anchor) return;
@@ -92,10 +102,60 @@ export default function WorkflowPanel({ open, onClose }: WorkflowPanelProps): Re
         )}
         {allDone && (
           <div className="mt-2 text-[12px] font-bold text-green-700">
-            ✓ Ready to send. Open the Send Email panel from the header.
+            ✓ Ready to send.
           </div>
         )}
       </div>
+
+      {/* Up Next pointer — surfaces the first pending step as a
+          single big call-to-action above the full checklist. Shrinks
+          the cognitive load of "what do I do now?" to one glance.
+          Hidden when all done — the green CTA below replaces it. */}
+      {upNext && (
+        <button
+          onClick={() => goToStep(upNext)}
+          disabled={!upNext.anchor}
+          className="text-left mx-3 mt-3 mb-2 p-3 rounded-md border-2 cursor-pointer disabled:cursor-default hover:bg-[var(--bg-hover)]"
+          style={{
+            borderColor: BRAND.sky,
+            background: "rgba(51,153,255,0.08)",
+          }}
+        >
+          <div className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: BRAND.sky }}>
+            Up next ↗
+          </div>
+          <div className="text-[14px] font-bold text-[var(--text-primary)] flex items-center gap-2">
+            <span>{upNext.label.replace(" (skipped)", "")}</span>
+            <span className="text-[11px] font-normal" style={{ color: "var(--text-muted)" }}>
+              ~{upNext.estMinutes}m
+            </span>
+          </div>
+          {upNext.hint && (
+            <div className="text-[11px] mt-1 leading-snug" style={{ color: "var(--text-muted)" }}>
+              {upNext.hint}
+            </div>
+          )}
+        </button>
+      )}
+
+      {/* Send Email CTA — lights up only when every step is done.
+          One click closes the workflow panel and pops the send
+          panel, so the analyst doesn't have to hunt for the Send
+          button in the header after they've finished checking off
+          steps. The green colour is a deliberate signal: this is
+          the destination, not just a step. */}
+      {allDone && onOpenSendEmail && (
+        <button
+          onClick={() => {
+            onClose();
+            onOpenSendEmail();
+          }}
+          className="mx-3 mt-3 mb-2 py-3 px-4 rounded-md border-none text-white font-bold text-sm uppercase tracking-wider cursor-pointer"
+          style={{ background: "#1a7a3a", letterSpacing: "1.5px" }}
+        >
+          ✓ Send Email →
+        </button>
+      )}
 
       <div className="flex-1 overflow-auto p-3">
         {steps.map((step) => {
