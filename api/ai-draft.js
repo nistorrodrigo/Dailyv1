@@ -1,4 +1,5 @@
 import { applyCors, requireAuth } from "./_helpers.js";
+import { jsonrepair } from "jsonrepair";
 
 // Claude model catalogue. Pricing reflects the Anthropic API rate card
 // as of 2026-04 — see https://docs.claude.com/en/docs/about-claude/models/overview.
@@ -137,12 +138,17 @@ export default async function handler(req, res) {
   if (mode === "review") {
     // Dedicated review path — distinct from the writer system prompts
     // because mixing "you write blocks" with "you review the draft"
-    // confuses the model and yields half-reviews. Sized at 1500 tokens
-    // because the review output is structured + bounded (score, an
-    // issues list, a suggestions list, a 2-3 sentence summary, a
-    // "what's needed for a 10" list).
+    // confuses the model and yields half-reviews.
+    //
+    // Token sizing: bumped from 1500 → 6000 after a real review came
+    // back with 8 substantive issues + 7 actionable items + summary
+    // and got truncated mid-summary at ~1500 tokens. Truncated JSON
+    // fails to parse and the analyst saw the raw text dumped into
+    // a single suggestion bullet. 6000 is generous (Sonnet 4.6 caps
+    // at 64k output) and cost stays trivial because we only pay for
+    // the tokens actually generated.
     systemPrompt = SYSTEM_REVIEW;
-    maxTokens = 1500;
+    maxTokens = 6000;
 
     const draft = (dailyText || context || "").trim();
     if (!draft) {
@@ -247,20 +253,52 @@ Return ONLY the JSON array, no markdown, no explanation.`;
     const defaultEmpty = mode === "macro" ? "[]" : "{}";
     const text = data.content?.[0]?.text || defaultEmpty;
 
+    // Anthropic returns `stop_reason: "max_tokens"` when the model hit
+    // our maxTokens budget mid-output. The trailing JSON is truncated
+    // and JSON.parse will fail. We log it so we can see the rate of
+    // truncation in production, and surface it to the client so the
+    // UI can show a clearer "response was cut off — try a shorter
+    // daily or a more capable model" hint instead of dumping garbled
+    // text into the panel.
+    const truncated = data.stop_reason === "max_tokens";
+    if (truncated) {
+      console.warn(`[ai-draft] response truncated at max_tokens (${maxTokens}) for mode=${mode}`);
+    }
+
     let parsed;
+    let parseRecovered = false;
     try {
       const clean = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
       parsed = JSON.parse(clean);
     } catch {
-      // Mode-specific recovery payloads. For review we surface the raw
-      // text as a single suggestion so the analyst at least sees what
-      // the model said; the panel will render it verbatim.
-      if (mode === "review") {
-        parsed = { score: null, issues: [], suggestions: [text], whatNeededFor10: [], summary: "" };
-      } else if (mode === "full") {
-        parsed = { macroBlocks: [{ title: "AI DRAFT", body: text, lsPick: "" }] };
-      } else {
-        parsed = [{ title: "AI DRAFT", body: text, lsPick: "" }];
+      // First try jsonrepair — it handles common malformed-JSON cases
+      // including truncation (closes unterminated strings, balances
+      // missing brackets, strips trailing commas). For our use case
+      // this turns most truncated responses from "raw blob in a
+      // bullet" into "structured review with a few empty trailing
+      // fields", which is dramatically better UX.
+      try {
+        const clean = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+        parsed = JSON.parse(jsonrepair(clean));
+        parseRecovered = true;
+        console.warn(`[ai-draft] JSON parse failed; recovered via jsonrepair (mode=${mode})`);
+      } catch {
+        // Final fallback: hand the raw text back as a single piece of
+        // content the panel can render. Each mode picks the shape its
+        // frontend expects so callers don't have to special-case nulls.
+        if (mode === "review") {
+          parsed = {
+            score: null,
+            issues: [],
+            suggestions: [text],
+            whatNeededFor10: [],
+            summary: "",
+          };
+        } else if (mode === "full") {
+          parsed = { macroBlocks: [{ title: "AI DRAFT", body: text, lsPick: "" }] };
+        } else {
+          parsed = [{ title: "AI DRAFT", body: text, lsPick: "" }];
+        }
       }
     }
 
@@ -273,6 +311,14 @@ Return ONLY the JSON array, no markdown, no explanation.`;
       mode,
       model: modelConfig.label,
       [payloadKey]: parsed,
+      // Surface the response health so the frontend can render a
+      // clarifying banner. `truncated`: model hit max_tokens; the
+      // JSON we returned is a best-effort repair. `parseRecovered`:
+      // initial JSON.parse failed but jsonrepair salvaged a usable
+      // object — usually correlates with truncated, but can also fire
+      // on stray markdown wrappers we missed.
+      truncated,
+      parseRecovered,
       usage: {
         input: data.usage?.input_tokens,
         output: data.usage?.output_tokens,

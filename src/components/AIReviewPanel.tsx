@@ -25,6 +25,13 @@ interface ReviewResult {
    *  the rate card in AIModelPicker.AI_MODELS. */
   cost: number;
   model: string;
+  /** Server hit `max_tokens` — the response is a best-effort recovery
+   *  of a truncated JSON object. Trailing fields (typically `summary`
+   *  or the tail of `whatNeededFor10`) may be missing or cut short. */
+  truncated: boolean;
+  /** JSON.parse failed but jsonrepair salvaged a usable object. When
+   *  true, treat fields as approximate; structure may be irregular. */
+  parseRecovered: boolean;
 }
 
 export default function AIReviewPanel({ open, onClose }: { open: boolean; onClose: () => void }): React.ReactElement | null {
@@ -100,6 +107,8 @@ export default function AIReviewPanel({ open, onClose }: { open: boolean; onClos
         tokens: inputTokens + outputTokens,
         cost: estimateCost(model, inputTokens, outputTokens),
         model: data.model || model,
+        truncated: Boolean(data.truncated),
+        parseRecovered: Boolean(data.parseRecovered),
       });
       if (review.summary) setExecSummary(review.summary);
     } catch (err) {
@@ -189,6 +198,32 @@ export default function AIReviewPanel({ open, onClose }: { open: boolean; onClos
 
         {result && (
           <>
+            {/* Truncation banner — fires when the model hit max_tokens
+                (`truncated`) or jsonrepair had to salvage a partial
+                response (`parseRecovered`). Trailing fields may be
+                missing or cut short. Surfacing it here lets the
+                analyst know to either upgrade to Opus 4.7 or shorten
+                the daily, rather than silently trusting an incomplete
+                review. */}
+            {(result.truncated || result.parseRecovered) && (
+              <div
+                className="mb-3 p-3 rounded-md text-[12px]"
+                style={{
+                  background: "rgba(231,158,76,0.12)",
+                  color: "#c97a2c",
+                  border: "1px solid rgba(231,158,76,0.45)",
+                }}
+              >
+                <div className="font-bold mb-1">⚠ Response was incomplete</div>
+                <div className="text-[11px]" style={{ color: "var(--text-primary)" }}>
+                  {result.truncated
+                    ? "The model hit its output token limit before finishing. "
+                    : "The JSON came back malformed and was repaired. "}
+                  Trailing fields may be cut short. Try Opus 4.7 (more headroom) or shorten the daily before re-running.
+                </div>
+              </div>
+            )}
+
             {/* Score — hidden when null (model returned unparseable text;
                 recovery path stuffed it into suggestions instead). */}
             {result.score !== null && (
