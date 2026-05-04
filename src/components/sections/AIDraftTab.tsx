@@ -5,6 +5,7 @@ import { useShallow } from "zustand/react/shallow";
 import { toast } from "../../store/useToastStore";
 import { AI_MODELS, estimateCost, type AIModelKey } from "../ui/AIModelPicker";
 import { authedFetch } from "../../lib/authedFetch";
+import { preflightDraft } from "../../utils/preflightDraft";
 
 interface DraftBlock {
   id: string;
@@ -47,6 +48,14 @@ export default function AIDraftTab(): React.ReactElement {
   // the analyst can see the actual cost vs. the picker's pre-flight
   // estimate. Cleared at the start of each new generate call.
   const [lastUsage, setLastUsage] = useState<{ tokens: number; cost: number; modelLabel: string } | null>(null);
+
+  // Local pre-flight: synchronous scan of the inputs to catch the
+  // obvious "AI has nothing to work with" cases before paying for an
+  // Anthropic call. Computed inline (not via useEffect) because all
+  // inputs are React state — recomputing on every render is cheap
+  // and keeps the issue list in lockstep with the form.
+  const preflightIssues = preflightDraft(useDailyStore.getState(), { context, includeNews });
+  const tooManyPreflightIssues = preflightIssues.length >= 2;
 
   const handleGenerate = async () => {
     setLoading(true);
@@ -202,13 +211,45 @@ export default function AIDraftTab(): React.ReactElement {
           className="themed-input w-full px-3 py-2.5 rounded-md border border-[var(--border-input)] text-[13px] font-sans leading-relaxed resize-y bg-[var(--bg-input)] text-[var(--text-primary)] mb-4"
         />
 
+        {/* Local pre-flight checks — synchronous, no API call. Catches
+            "AI has nothing to anchor today's draft to" before paying
+            for an Anthropic round-trip. Updates live as the analyst
+            types context or toggles news. */}
+        <div className="mb-4 p-3 rounded-md border border-[var(--border-light)] bg-[var(--bg-card-alt)]">
+          <div className="text-[11px] font-bold text-[var(--text-secondary)] uppercase tracking-wide mb-2">
+            Quick checks <span className="text-[var(--text-muted)] font-normal normal-case">(no API call)</span>
+          </div>
+          {preflightIssues.length === 0 ? (
+            <div className="text-[12px] text-green-600 font-semibold">
+              ✓ Inputs look ready. AI has signal to work with.
+            </div>
+          ) : (
+            <>
+              <div className="text-[11px] text-[var(--text-muted)] mb-2">
+                Found {preflightIssues.length} item{preflightIssues.length === 1 ? "" : "s"} you can fix without AI:
+              </div>
+              {preflightIssues.map((msg, i) => (
+                <div key={i} className="flex gap-2 mb-1 text-[12px] text-[var(--text-primary)]">
+                  <span className="text-amber-500 flex-shrink-0">⚠</span>
+                  <span>{msg}</span>
+                </div>
+              ))}
+            </>
+          )}
+        </div>
+
         <button
           onClick={handleGenerate}
           disabled={loading}
           className="w-full py-3 rounded-md border-none text-white text-sm font-bold cursor-pointer uppercase disabled:opacity-50"
           style={{ background: loading ? "#999" : "#8b5cf6" }}
+          title={tooManyPreflightIssues ? "Recommended: fix the items above first to get a more grounded draft" : undefined}
         >
-          {loading ? "Generating full daily draft..." : "Generate AI Draft"}
+          {loading
+            ? "Generating full daily draft..."
+            : tooManyPreflightIssues
+              ? "Generate AI Draft Anyway"
+              : "Generate AI Draft"}
         </button>
 
         {/* Real cost badge — shown after a successful generation, gives
