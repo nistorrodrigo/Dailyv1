@@ -15,10 +15,31 @@ export interface CurrentUser {
   session: Session;
 }
 
+/** Dev-only escape hatch for Playwright E2E tests. When the test
+ *  fixture sets `window.__TEST_SESSION__` before page-init, the
+ *  hook returns it directly and skips the Supabase round-trip.
+ *  Never set in production — the property exists only on the
+ *  test runtime where the fixture explicitly assigns it. The
+ *  guard is a 4-line branch that doesn't affect prod behaviour
+ *  because the property is `undefined` outside of tests. */
+declare global {
+  interface Window {
+    __TEST_SESSION__?: CurrentUser;
+  }
+}
+
 export function useCurrentUser(): CurrentUser | null {
   const [state, setState] = useState<CurrentUser | null>(null);
 
   useEffect(() => {
+    // Test escape hatch — see comment above. Cheap-skipping the
+    // Supabase wiring lets E2E tests exercise the authed UI without
+    // standing up a real auth backend.
+    if (typeof window !== "undefined" && window.__TEST_SESSION__) {
+      setState(window.__TEST_SESSION__);
+      return;
+    }
+
     if (!supabase) return;
 
     let cancelled = false;
