@@ -4,6 +4,7 @@ import useKeyboardShortcuts from "./hooks/useKeyboardShortcuts";
 import useUnsavedChangesGuard from "./hooks/useUnsavedChangesGuard";
 import { useStepTimingsTracker } from "./hooks/useStepTimingsTracker";
 import { useSectionCatalogueSync } from "./hooks/useSectionCatalogueSync";
+import { useAutoSnapshot } from "./hooks/useAutoSnapshot";
 import type { UIState } from "./types";
 import Header from "./components/Header";
 import Toaster from "./components/Toaster";
@@ -46,6 +47,12 @@ export default function App() {
   // regardless of which surfaces happen to be reading workflow
   // progress at the same time.
   useStepTimingsTracker();
+  // Background snapshot writer — every 5 minutes, if there have
+  // been edits, captures the current state into the rollback log
+  // (`daily_versions`). Surfaces in the History panel so the
+  // analyst can revert an aggressive edit without losing the rest
+  // of the session's work.
+  useAutoSnapshot();
 
   return (
     <div className="min-h-screen bg-[var(--bg-page)] font-sans">

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { BRAND } from "../constants/brand";
 import { listDailies, loadDaily, deleteDaily } from "../lib/dailyApi";
+import { listVersions, loadVersion, saveVersion, deleteVersion, type VersionMeta } from "../lib/versionsApi";
 import { supabase } from "../lib/supabase";
 import useDailyStore from "../store/useDailyStore";
 import type { DailyState } from "../types";
@@ -18,16 +19,37 @@ interface DailyListItem {
   state?: DailyState;
 }
 
-export default function HistoryPanel({ open, onClose }: HistoryPanelProps): React.ReactElement | null {
-  const [dailies, setDailies] = useState<DailyListItem[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
+type HistoryTab = "today" | "past";
 
+export default function HistoryPanel({ open, onClose }: HistoryPanelProps): React.ReactElement | null {
+  const [tab, setTab] = useState<HistoryTab>("today");
+  const [dailies, setDailies] = useState<DailyListItem[]>([]);
+  const [versions, setVersions] = useState<VersionMeta[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [savingSnapshot, setSavingSnapshot] = useState<boolean>(false);
+
+  // Subscribe to the editor's current daily date so the
+  // "Versions for today" header and refresh logic line up with
+  // whatever the analyst is editing (renamed to avoid shadowing
+  // the local `today` calendar-date in handleDuplicate below).
+  const currentDate = useDailyStore((s) => s.date);
+
+  // Fetch versions + dailies whenever the panel opens, the tab
+  // switches, or the editor's date changes (rare — usually after
+  // newDaily).
   useEffect(() => {
-    if (open && supabase) {
-      setLoading(true);
-      listDailies(50).then(setDailies).finally(() => setLoading(false));
+    if (!open || !supabase) return;
+    setLoading(true);
+    if (tab === "today") {
+      listVersions(currentDate)
+        .then(setVersions)
+        .finally(() => setLoading(false));
+    } else {
+      listDailies(50)
+        .then(setDailies)
+        .finally(() => setLoading(false));
     }
-  }, [open]);
+  }, [open, tab, currentDate]);
 
   if (!open) return null;
 
@@ -41,6 +63,59 @@ export default function HistoryPanel({ open, onClose }: HistoryPanelProps): Reac
       }
     } catch (err) {
       toast.error("Failed to load: " + (err as Error).message);
+    }
+  };
+
+  const handleRestoreVersion = async (version: VersionMeta): Promise<void> => {
+    const stamp = new Date(version.created_at).toLocaleString();
+    if (!window.confirm(`Restore version "${version.label || stamp}"? Current unsaved changes will be lost.`)) return;
+    try {
+      const full = await loadVersion(version.id);
+      if (full?.state) {
+        useDailyStore.setState({ ...full.state });
+        toast.success(`Restored "${version.label || stamp}"`);
+        onClose();
+      } else {
+        toast.error("Could not load that version");
+      }
+    } catch (err) {
+      toast.error("Restore failed: " + (err as Error).message);
+    }
+  };
+
+  const handleDeleteVersion = async (version: VersionMeta): Promise<void> => {
+    const stamp = new Date(version.created_at).toLocaleString();
+    if (!window.confirm(`Delete version "${version.label || stamp}"? This cannot be undone.`)) return;
+    try {
+      const ok = await deleteVersion(version.id);
+      if (ok) {
+        setVersions((vs) => vs.filter((v) => v.id !== version.id));
+      } else {
+        toast.error("Delete failed");
+      }
+    } catch (err) {
+      toast.error("Delete failed: " + (err as Error).message);
+    }
+  };
+
+  const handleSaveSnapshot = async (): Promise<void> => {
+    const label = window.prompt("Label for this snapshot (optional):", "")?.trim();
+    setSavingSnapshot(true);
+    try {
+      const state = useDailyStore.getState();
+      const meta = await saveVersion(state.date, state, label || undefined);
+      if (meta) {
+        // Optimistically prepend so the analyst sees the row land
+        // without waiting for a re-list round-trip.
+        setVersions((vs) => [meta, ...vs]);
+        toast.success(`Snapshot saved${label ? `: "${label}"` : ""}`);
+      } else {
+        toast.error("Snapshot failed — check the network tab");
+      }
+    } catch (err) {
+      toast.error("Snapshot failed: " + (err as Error).message);
+    } finally {
+      setSavingSnapshot(false);
     }
   };
 
@@ -94,6 +169,46 @@ export default function HistoryPanel({ open, onClose }: HistoryPanelProps): Reac
           {"\u00D7"}
         </button>
       </div>
+      {/* Tab strip — Today's versions vs. past dailies. The two
+          views answer different questions: "undo this morning's
+          aggressive edit" (today) vs. "what was last Friday's
+          daily" (past). Sharing the same panel saves real estate. */}
+      <div
+        role="tablist"
+        style={{
+          display: "flex",
+          gap: 0,
+          borderBottom: "1px solid var(--border-light)",
+          background: "var(--bg-card-alt)",
+        }}
+      >
+        {([
+          { key: "today" as const, label: "Today's versions" },
+          { key: "past" as const, label: "Past dailies" },
+        ]).map((t) => (
+          <button
+            key={t.key}
+            role="tab"
+            aria-selected={tab === t.key}
+            onClick={() => setTab(t.key)}
+            style={{
+              flex: 1,
+              padding: "10px 12px",
+              border: "none",
+              borderBottom: tab === t.key ? `2px solid ${BRAND.blue}` : "2px solid transparent",
+              background: "transparent",
+              color: tab === t.key ? BRAND.blue : "var(--text-muted)",
+              fontSize: 11,
+              fontWeight: 700,
+              textTransform: "uppercase",
+              letterSpacing: 0.5,
+              cursor: "pointer",
+            }}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
       <div style={{ flex: 1, overflow: "auto", padding: 16 }}>
         {!supabase && (
           <p style={{ fontSize: 12, color: "#999", textAlign: "center", padding: 20 }}>
@@ -101,10 +216,102 @@ export default function HistoryPanel({ open, onClose }: HistoryPanelProps): Reac
           </p>
         )}
         {loading && <p style={{ fontSize: 12, color: "#666", textAlign: "center" }}>Loading...</p>}
-        {!loading && dailies.length === 0 && supabase && (
+
+        {/* Today's versions tab — manual snapshot button at the top
+            then a chronological list. Versions are immutable rows
+            in `daily_versions`; the live editor state writes to
+            `dailies` separately via supabaseSync. */}
+        {tab === "today" && supabase && (
+          <>
+            <div style={{ marginBottom: 12, paddingBottom: 12, borderBottom: "1px solid var(--border-light)" }}>
+              <button
+                onClick={handleSaveSnapshot}
+                disabled={savingSnapshot}
+                style={{
+                  width: "100%",
+                  padding: "8px 12px",
+                  borderRadius: 6,
+                  border: `1px solid ${BRAND.blue}`,
+                  background: BRAND.blue,
+                  color: "#fff",
+                  fontSize: 11,
+                  fontWeight: 700,
+                  textTransform: "uppercase",
+                  letterSpacing: 0.5,
+                  cursor: savingSnapshot ? "not-allowed" : "pointer",
+                  opacity: savingSnapshot ? 0.6 : 1,
+                }}
+              >
+                {savingSnapshot ? "Saving…" : "+ Save snapshot now"}
+              </button>
+              <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 6, lineHeight: 1.4 }}>
+                Auto-snapshots fire every 5 min when you've made edits.
+                Manual snapshots above let you mark a "before X" rollback point.
+              </div>
+            </div>
+            {!loading && versions.length === 0 && (
+              <p style={{ fontSize: 12, color: "#999", textAlign: "center" }}>
+                No versions for {currentDate} yet.
+              </p>
+            )}
+            {versions.map((v) => (
+              <div
+                key={v.id}
+                style={{
+                  padding: 10,
+                  marginBottom: 6,
+                  borderRadius: 6,
+                  border: "1px solid var(--border-light)",
+                  background: "var(--bg-card-alt)",
+                }}
+              >
+                <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-primary)", marginBottom: 2 }}>
+                  {v.label || "(untitled)"}
+                </div>
+                <div style={{ fontSize: 10, color: "#999", marginBottom: 6 }}>
+                  {new Date(v.created_at).toLocaleString()}
+                </div>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button
+                    onClick={() => handleRestoreVersion(v)}
+                    style={{
+                      padding: "3px 10px",
+                      borderRadius: 4,
+                      border: `1px solid ${BRAND.blue}`,
+                      background: "transparent",
+                      color: BRAND.blue,
+                      fontSize: 10,
+                      fontWeight: 600,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Restore
+                  </button>
+                  <button
+                    onClick={() => handleDeleteVersion(v)}
+                    style={{
+                      padding: "3px 10px",
+                      borderRadius: 4,
+                      border: "1px solid #c0392b",
+                      background: "transparent",
+                      color: "#c0392b",
+                      fontSize: 10,
+                      fontWeight: 600,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            ))}
+          </>
+        )}
+
+        {tab === "past" && !loading && dailies.length === 0 && supabase && (
           <p style={{ fontSize: 12, color: "#999", textAlign: "center" }}>No saved dailies yet.</p>
         )}
-        {dailies.map((d) => (
+        {tab === "past" && dailies.map((d) => (
           <div key={d.id} style={{
             padding: 12, marginBottom: 8, borderRadius: 6,
             border: "1px solid var(--border-light)", background: "var(--bg-card-alt)",
