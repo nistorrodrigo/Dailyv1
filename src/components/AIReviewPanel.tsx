@@ -5,6 +5,7 @@ import useUIStore from "../store/useUIStore";
 import AIModelPicker, { type AIModelKey, AI_MODELS, estimateCost } from "./ui/AIModelPicker";
 import { generateBBG } from "../utils/generateBBG";
 import { preflightReview } from "../utils/preflightReview";
+import { buildExternalReviewPrompt } from "../utils/externalReviewPrompt";
 import { toast } from "../store/useToastStore";
 import { authedFetch } from "../lib/authedFetch";
 
@@ -259,6 +260,21 @@ export default function AIReviewPanel({ open, onClose }: { open: boolean; onClos
     }
   };
 
+  // Copy a self-contained review prompt + the BBG-format daily into
+  // the clipboard. The analyst then pastes into ChatGPT / Claude /
+  // Gemini directly — frontier-tier model of their choice, no extra
+  // API spend, longer context, free-form follow-up. Faster path
+  // when the in-app review feels stale or the daily is long.
+  const handleCopyPrompt = async (): Promise<void> => {
+    try {
+      const prompt = buildExternalReviewPrompt(useDailyStore.getState());
+      await navigator.clipboard.writeText(prompt);
+      toast.success("Prompt copied — paste into ChatGPT or Claude");
+    } catch (err) {
+      toast.error("Couldn't copy: " + (err as Error).message);
+    }
+  };
+
   return (
     <div className="fixed top-0 right-0 bottom-0 w-[440px] bg-[var(--bg-card)] shadow-[var(--shadow-panel)] z-[1000] flex flex-col panel-slide">
       <div className="flex justify-between items-center px-5 py-4" style={{ background: BRAND.navy }}>
@@ -267,7 +283,10 @@ export default function AIReviewPanel({ open, onClose }: { open: boolean; onClos
       </div>
       <div className="flex-1 overflow-auto p-4">
         <p className="text-xs text-[var(--text-muted)] mb-4">
-          AI reviews your daily for consistency, typos, missing data, and generates an executive summary.
+          Copies a review prompt + your daily to the clipboard — paste into
+          ChatGPT, Claude, or Gemini. You get back specific fixes (with
+          replacement text) and a one-line executive summary for the
+          Summary Bar.
         </p>
 
         {/* Local pre-flight checks — run synchronously, no API call.
@@ -305,37 +324,63 @@ export default function AIReviewPanel({ open, onClose }: { open: boolean; onClos
           )}
         </div>
 
-        <div className="mb-4">
-          <label className="block mb-1 text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide">Model</label>
-          <AIModelPicker value={model} onChange={setModel} />
-          <div className="text-[10px] text-[var(--text-muted)] mt-1">Estimated cost: ~{selectedModel.costLabel}/review</div>
+        {/* Primary CTA — copies a self-contained prompt + the daily
+            into the clipboard so the analyst can paste into the
+            chat of their choice (ChatGPT, Claude, Gemini) and get
+            issues + executive summary back. Frontier-tier model,
+            no API spend, full free-form follow-up. */}
+        <button
+          onClick={handleCopyPrompt}
+          className="w-full py-3 rounded-md border-none text-white text-sm font-bold cursor-pointer uppercase mb-2"
+          style={{ background: "#1e5ab0" }}
+          title="Copy a ready-to-paste review prompt + your daily into the clipboard"
+        >
+          ⎘ Copy review prompt for ChatGPT / Claude
+        </button>
+        <div className="mb-4 text-[10px] text-[var(--text-muted)] leading-relaxed">
+          Paste into your chat. The reply will list specific fixes
+          with replacement text and a 120-char executive summary you
+          can drop into the Summary Bar.
         </div>
 
-        <button
-          onClick={handleReview}
-          disabled={loading}
-          className="w-full py-3 rounded-md border-none text-white text-sm font-bold cursor-pointer uppercase disabled:opacity-50 mb-2"
-          style={{
-            // Light up green once the analyst has ticked every
-            // refinement item — visual confirmation that re-running
-            // is the natural next move.
-            background: loading ? "#999" : allAddressed ? "#10b981" : "#8b5cf6",
-          }}
-          title={
-            allAddressed
-              ? "Re-grade after addressing all the items above"
-              : tooManyPreflightIssues
-                ? "Recommended: fix the quick-check items above first"
-                : undefined
-          }
-        >
-          {reviewButtonLabel}
-        </button>
-        {tooManyPreflightIssues && !loading && (
-          <div className="mb-4 text-[10px] text-[var(--text-muted)] text-center italic">
-            Tip: fixing the {preflightIssues.length} items above first makes the AI feedback more useful (and saves a call).
+        {/* Secondary path: in-app API review. Same JSON-contract
+            review the panel always shipped, kept here for the
+            workflow with the checkable "to reach 10/10" list and
+            the score-delta tracking. The copy-prompt button above
+            is faster + uses better models when the analyst already
+            has a chat tab open. */}
+        <details className="mb-4">
+          <summary className="cursor-pointer text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wide">
+            Or run in-app review (slower, fixed prompt)
+          </summary>
+          <div className="mt-3">
+            <label className="block mb-1 text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide">Model</label>
+            <AIModelPicker value={model} onChange={setModel} />
+            <div className="text-[10px] text-[var(--text-muted)] mt-1 mb-3">Estimated cost: ~{selectedModel.costLabel}/review</div>
+            <button
+              onClick={handleReview}
+              disabled={loading}
+              className="w-full py-2.5 rounded-md border-none text-white text-xs font-bold cursor-pointer uppercase disabled:opacity-50"
+              style={{
+                background: loading ? "#999" : allAddressed ? "#10b981" : "#8b5cf6",
+              }}
+              title={
+                allAddressed
+                  ? "Re-grade after addressing all the items above"
+                  : tooManyPreflightIssues
+                    ? "Recommended: fix the quick-check items above first"
+                    : undefined
+              }
+            >
+              {reviewButtonLabel}
+            </button>
+            {tooManyPreflightIssues && !loading && (
+              <div className="mt-2 text-[10px] text-[var(--text-muted)] text-center italic">
+                Tip: fixing the {preflightIssues.length} items above first makes the AI feedback more useful (and saves a call).
+              </div>
+            )}
           </div>
-        )}
+        </details>
 
         {result && (
           <>
