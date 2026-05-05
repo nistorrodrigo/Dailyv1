@@ -1,4 +1,4 @@
-import { applyCors, requireAuth } from "./_helpers.js";
+import { applyCors, requireAuth, extractLinkMeta } from "./_helpers.js";
 import { jsonrepair } from "jsonrepair";
 
 // Claude model catalogue. Pricing reflects the Anthropic API rate card
@@ -112,7 +112,26 @@ export default async function handler(req, res) {
   const apiKey = process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY_1;
   if (!apiKey) return res.status(500).json({ error: "ANTHROPIC_API_KEY not configured" });
 
-  const { context, existingBlocks, date, model = "haiku", mode = "macro", analysts, includeNews, dailyText, yesterdayDraft, yesterdayDate, todaySnapshot } = req.body;
+  const { context, existingBlocks, date, model = "haiku", mode = "macro", analysts, includeNews, dailyText, yesterdayDraft, yesterdayDate, todaySnapshot, url } = req.body;
+
+  // Link-metadata mode — short-circuits before the Anthropic plumbing
+  // (no LLM call, no past-dailies fetch, no news fetch). Lives here
+  // rather than as its own /api/link-meta.js because the Hobby plan
+  // caps deployments at 12 serverless functions; this branch
+  // piggybacks on /api/ai-draft's auth gate without adding a slot.
+  if (mode === "link-meta") {
+    const result = await extractLinkMeta(url);
+    if (!result.ok) {
+      return res.status(result.status || 500).json({ ok: false, error: result.error });
+    }
+    return res.status(200).json({
+      ok: true,
+      title: result.title,
+      author: result.author,
+      description: result.description,
+      siteName: result.siteName,
+    });
+  }
 
   const modelConfig = MODELS[model] || MODELS.haiku;
 
