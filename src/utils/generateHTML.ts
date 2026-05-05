@@ -47,26 +47,36 @@ function renderNewsLinks(links: NewsLink[] | undefined): string {
 }
 
 /**
- * Shared "Full report →" link rendering — used by Corporate, Research,
- * and Latest Research Reports so the three sections present the same
- * call-to-action visually. Single helper so a style change propagates
- * across all three at once. Returns "" when no URL is present so
- * callers can string-concat it unconditionally.
+ * Shared call-to-action button — one filled-blue style applied
+ * uniformly across every per-item "click here for more" link in the
+ * daily (Corporate, Research, Latest Reports, Tweets, Events). The
+ * desk wants every CTA to look the same so institutional readers
+ * scanning the email recognise "this takes me somewhere" at a
+ * glance, no matter which section.
  *
- * Style: small accent-coloured plain text (no button background).
- * The earlier Corporate "filled blue button" was visually dominant
- * relative to Research's plain text, breaking the consistent feel
- * the desk wants. Picked the lighter style — institutional readers
- * scan multiple report links per email, and a button per report
- * would clutter.
+ * Auxiliary links (the multi-link "Sources" footer under macro
+ * blocks, the TOC anchor jumps, the email footer's unsubscribe /
+ * website link) stay plain — they're not the same concept and a
+ * row of buttons would clutter.
+ *
+ * Returns "" when no URL is present so callers can string-concat
+ * it unconditionally. `label` defaults to "Full report →" because
+ * that's the most common case.
  */
-function renderReportLink(url: string | undefined, opts: { wrap?: boolean } = {}): string {
+function renderReportLink(
+  url: string | undefined,
+  opts: { wrap?: boolean; label?: string } = {},
+): string {
   if (!url || !url.trim()) return "";
-  const link = '<a href="' + url + '" style="font-size:12px;color:#1e5ab0;text-decoration:none;font-weight:600;">Full report &#8594;</a>';
-  // `wrap` adds a small top margin so the link sits cleanly below
+  const label = opts.label || "Full report &#8594;";
+  const link =
+    '<a href="' + url +
+    '" style="font-size:12px;color:#fff;background:#1e5ab0;padding:6px 14px;border-radius:4px;text-decoration:none;font-weight:600;display:inline-block;">' +
+    label + '</a>';
+  // `wrap` adds a small top margin so the button sits cleanly below
   // a body paragraph (Corporate / Research bodies). Skip wrapping
-  // when the caller is placing the link inline in a compact row
-  // (Latest Reports digest).
+  // when the caller is placing the button inline in a compact row
+  // (Latest Reports digest, Events row).
   return opts.wrap ? '<div style="margin-top:8px;">' + link + '</div>' : link;
 }
 
@@ -203,19 +213,23 @@ function generateHTMLImpl(s: DailyState, mode: string = "full", template: string
   // is resolved through the analysts catalogue when `analystId` is
   // set (matches the Corporate block pattern); otherwise falls back
   // to the free-text `author` for external contributors.
+  //
+  // Each row also surfaces the unified blue "Full report →" button
+  // so the CTA matches Corporate / Research / Tweets / Events. The
+  // title is non-clickable text now — the button below is the
+  // single, unambiguous click target.
   const latestReportsRows = (s.latestReports || []).filter(r => r.title?.trim());
   const latestReports = s.sections.find(x => x.key === "latestReports")?.on && latestReportsRows.length
     ? secHdr("Latest Research Reports") + '<tr><td style="padding:0 40px 8px;">' + latestReportsRows.map(r => {
         const tag = r.type?.trim() ? '<span style="display:inline-block;font-size:9.5px;font-weight:700;color:' + DS.accent + ';text-transform:uppercase;letter-spacing:1px;background:' + DS.bgAlt + ';padding:2px 8px;border-radius:3px;margin-right:8px;vertical-align:middle;">' + r.type + '</span>' : '';
-        const titleEl = r.link?.trim()
-          ? '<a href="' + r.link + '" style="color:' + DS.navy + ';text-decoration:none;font-weight:700;">' + r.title + '</a>'
-          : '<span style="color:' + DS.navy + ';font-weight:700;">' + r.title + '</span>';
+        const titleEl = '<span style="color:' + DS.navy + ';font-weight:700;">' + r.title + '</span>';
         const resolvedAnalyst = r.analystId ? s.analysts.find((a) => a.id === r.analystId) : null;
         const authorName = resolvedAnalyst ? resolvedAnalyst.name : r.author?.trim();
         const meta = [authorName, r.publishedDate?.trim()].filter(Boolean).join(" · ");
-        return '<div style="padding:7px 0;border-bottom:1px solid ' + DS.borderLight + ';font-size:13px;line-height:1.5;">' +
+        return '<div style="padding:10px 0;border-bottom:1px solid ' + DS.borderLight + ';font-size:13px;line-height:1.5;">' +
           tag + titleEl +
           (meta ? '<div style="font-size:11px;color:' + DS.textMuted + ';font-style:italic;margin-top:2px;margin-left:0;">' + meta + '</div>' : '') +
+          renderReportLink(r.link, { wrap: true }) +
           '</div>';
       }).join("") + '</td></tr>'
     : "";
@@ -226,7 +240,7 @@ function generateHTMLImpl(s: DailyState, mode: string = "full", template: string
   const topMovers = s.sections.find(x => x.key === "topMovers")?.on && (topMoversGainers.length || topMoversLosers.length) ? secHdr("Top Movers") + '<tr><td style="padding:0 40px 8px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid ' + DS.border + ';"><tr style="background:' + DS.bgAlt + ';"><td style="padding:7px 12px;font-size:11px;font-weight:700;color:' + DS.navy + ';border-bottom:1px solid ' + DS.border + ';">Ticker</td><td style="padding:7px 12px;font-size:11px;font-weight:700;color:' + DS.navy + ';text-align:right;border-bottom:1px solid ' + DS.border + ';">Chg</td><td style="padding:7px 12px;font-size:11px;font-weight:700;color:' + DS.navy + ';border-bottom:1px solid ' + DS.border + ';">Comment</td></tr>' + topMoversGainers.map((m, i) => '<tr style="background:' + (i % 2 === 0 ? "#fff" : DS.bgAlt) + ';"><td style="padding:6px 12px;font-size:12.5px;font-weight:600;color:' + DS.text + ';border-bottom:1px solid ' + DS.borderLight + ';">' + m.ticker + '</td><td style="padding:6px 12px;font-size:12.5px;font-weight:700;color:' + DS.green + ';text-align:right;border-bottom:1px solid ' + DS.borderLight + ';">+' + m.chgPct + '%</td><td style="padding:6px 12px;font-size:12px;color:' + DS.textLight + ';border-bottom:1px solid ' + DS.borderLight + ';">' + (m.comment || "") + '</td></tr>').join("") + topMoversLosers.map((m, i) => '<tr style="background:' + (i % 2 === 0 ? "#fff" : DS.bgAlt) + ';"><td style="padding:6px 12px;font-size:12.5px;font-weight:600;color:' + DS.text + ';border-bottom:1px solid ' + DS.borderLight + ';">' + m.ticker + '</td><td style="padding:6px 12px;font-size:12.5px;font-weight:700;color:' + DS.red + ';text-align:right;border-bottom:1px solid ' + DS.borderLight + ';">' + m.chgPct + '%</td><td style="padding:6px 12px;font-size:12px;color:' + DS.textLight + ';border-bottom:1px solid ' + DS.borderLight + ';">' + (m.comment || "") + '</td></tr>').join("") + '</table></td></tr>' : "";
 
   // TWEETS
-  const tweets = s.sections.find(x => x.key === "tweets")?.on && s.tweets?.length ? secHdr("Market Noise") + '<tr><td style="padding:0 40px 8px;">' + s.tweets.filter(t => t.content).map(t => { const sColor = t.sentiment === "Bullish" ? DS.green : t.sentiment === "Bearish" ? DS.red : DS.textMuted; return '<div style="margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid ' + DS.borderLight + ';"><div style="margin-bottom:4px;font-size:11px;"><span style="color:' + sColor + ';font-weight:700;text-transform:uppercase;">' + t.sentiment + '</span>' + (t.impactType && t.impactValue ? ' <span style="color:' + DS.textMuted + ';"> \u00B7 ' + t.impactType + ': ' + t.impactValue + '</span>' : '') + (t.time ? ' <span style="color:' + DS.textMuted + ';"> \u00B7 ' + t.time + '</span>' : '') + '</div><div style="font-size:13.5px;line-height:1.6;color:' + DS.text + ';text-align:justify;">' + nl2br(t.content) + '</div>' + (t.link ? '<a href="' + t.link + '" style="font-size:12px;color:' + DS.accent + ';text-decoration:none;">Source &#8594;</a>' : '') + '</div>'; }).join("") + '</td></tr>' : "";
+  const tweets = s.sections.find(x => x.key === "tweets")?.on && s.tweets?.length ? secHdr("Market Noise") + '<tr><td style="padding:0 40px 8px;">' + s.tweets.filter(t => t.content).map(t => { const sColor = t.sentiment === "Bullish" ? DS.green : t.sentiment === "Bearish" ? DS.red : DS.textMuted; return '<div style="margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid ' + DS.borderLight + ';"><div style="margin-bottom:4px;font-size:11px;"><span style="color:' + sColor + ';font-weight:700;text-transform:uppercase;">' + t.sentiment + '</span>' + (t.impactType && t.impactValue ? ' <span style="color:' + DS.textMuted + ';"> \u00B7 ' + t.impactType + ': ' + t.impactValue + '</span>' : '') + (t.time ? ' <span style="color:' + DS.textMuted + ';"> \u00B7 ' + t.time + '</span>' : '') + '</div><div style="font-size:13.5px;line-height:1.6;color:' + DS.text + ';text-align:justify;">' + nl2br(t.content) + '</div>' + renderReportLink(t.link, { wrap: true, label: "Source &#8594;" }) + '</div>'; }).join("") + '</td></tr>' : "";
 
   // BCRA
   const bcra = s.sections.find(x => x.key === "bcra")?.on && s.bcraData ? (() => { const hidden = s.bcraHiddenRows || {}; const entries = Object.entries(s.bcraData).filter(([k]) => !hidden[k]); if (!entries.length) return ""; return secHdr("BCRA Dashboard") + '<tr><td style="padding:0 40px 8px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid ' + DS.border + ';"><tr style="background:' + DS.bgAlt + ';"><td style="padding:7px 12px;font-size:11px;font-weight:700;color:' + DS.navy + ';border-bottom:1px solid ' + DS.border + ';">Indicator</td><td style="padding:7px 12px;font-size:11px;font-weight:700;color:' + DS.navy + ';text-align:right;border-bottom:1px solid ' + DS.border + ';">Value</td></tr>' + entries.map(([k, v], i) => '<tr style="background:' + (i % 2 === 0 ? "#fff" : DS.bgAlt) + ';"><td style="padding:6px 12px;font-size:12.5px;font-weight:600;color:' + DS.text + ';border-bottom:1px solid ' + DS.borderLight + ';">' + k + '</td><td style="padding:6px 12px;font-size:12.5px;color:' + DS.text + ';text-align:right;border-bottom:1px solid ' + DS.borderLight + ';">' + v + '</td></tr>').join("") + '</table></td></tr>'; })() : "";
@@ -239,7 +253,7 @@ function generateHTMLImpl(s: DailyState, mode: string = "full", template: string
       '<div style="font-size:13.5px;font-weight:700;color:' + DS.navy + ';margin-bottom:2px;">' + e.title + '</div>' +
       '<div style="font-size:11.5px;color:' + DS.textMuted + ';margin-bottom:4px;">' + (e.date ? fmtEventDate(e.date) : '') + (times ? ' \u00B7 ' + times : '') + '</div>' +
       (e.description ? '<div style="font-size:13px;line-height:1.6;color:' + DS.text + ';text-align:justify;">' + nl2br(e.description) + '</div>' : '') +
-      (e.link ? '<div style="margin-top:4px;"><a href="' + e.link + '" style="font-size:12px;color:' + DS.accent + ';text-decoration:none;">Register / Details &#8594;</a></div>' : '') +
+      renderReportLink(e.link, { wrap: true, label: "Register / Details &#8594;" }) +
       '</div>';
   }).join("") + '</td></tr>' : "";
 
