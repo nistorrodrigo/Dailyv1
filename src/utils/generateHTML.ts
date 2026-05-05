@@ -1,7 +1,7 @@
 import { BRAND } from "../constants/brand";
 import { getLogoWhiteB64, getLogoOrigB64 } from "../constants/logos";
 import { formatDate, fmtEventDate, fmtTime } from "./dates";
-import { rc, rb, resolveCorporateBlock } from "./ratings";
+import { rc, rb, ra, resolveCorporateBlock } from "./ratings";
 import { fmtUpside, upsideColor, calcUpside } from "./prices";
 import { nl2br } from "./text";
 import type { DailyState, NewsLink } from "../types";
@@ -65,19 +65,25 @@ function renderNewsLinks(links: NewsLink[] | undefined): string {
  */
 function renderReportLink(
   url: string | undefined,
-  opts: { wrap?: boolean; label?: string } = {},
+  opts: { wrap?: boolean; label?: string; compact?: boolean } = {},
 ): string {
   if (!url || !url.trim()) return "";
   const label = opts.label || "Full report &#8594;";
+  // Compact variant — half the padding and a tick smaller font, for
+  // digest-style sections (Latest Reports) where the button sits
+  // inside a tight one-line-per-item row and a full-size CTA looks
+  // out of proportion.
+  const padding = opts.compact ? "3px 10px" : "6px 14px";
+  const fontSize = opts.compact ? "11px" : "12px";
   const link =
     '<a href="' + url +
-    '" style="font-size:12px;color:#fff;background:#1e5ab0;padding:6px 14px;border-radius:4px;text-decoration:none;font-weight:600;display:inline-block;">' +
+    '" style="font-size:' + fontSize + ';color:#fff;background:#1e5ab0;padding:' + padding + ';border-radius:4px;text-decoration:none;font-weight:600;display:inline-block;">' +
     label + '</a>';
   // `wrap` adds a small top margin so the button sits cleanly below
   // a body paragraph (Corporate / Research bodies). Skip wrapping
   // when the caller is placing the button inline in a compact row
   // (Latest Reports digest, Events row).
-  return opts.wrap ? '<div style="margin-top:8px;">' + link + '</div>' : link;
+  return opts.wrap ? '<div style="margin-top:' + (opts.compact ? "4px" : "8px") + ';">' + link + '</div>' : link;
 }
 
 const DS = {
@@ -202,7 +208,32 @@ function generateHTMLImpl(s: DailyState, mode: string = "full", template: string
   const mEst = s.sections.find(x => x.key === "macroEstimates")?.on ? secHdr("Macro Estimates") + '<tr><td style="padding:0 40px 8px;"><div style="font-size:10.5px;color:' + DS.textMuted + ';margin-bottom:8px;">Source: ' + s.macroSource + '</div><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid ' + DS.border + ';"><tr style="background:' + DS.bgAlt + ';"><td style="padding:8px 12px;font-size:11px;font-weight:700;color:' + DS.navy + ';width:40%;border-bottom:1px solid ' + DS.border + ';"></td>' + s.macroCols.map(c => '<td style="padding:8px 12px;font-size:11px;font-weight:700;color:' + DS.navy + ';text-align:center;border-bottom:1px solid ' + DS.border + ';border-left:1px solid ' + DS.borderLight + ';">' + c + '</td>').join("") + '</tr>' + s.macroRows.map((r, i) => '<tr style="background:' + (i % 2 === 0 ? "#fff" : DS.bgAlt) + ';"><td style="padding:7px 12px;font-size:12.5px;font-weight:600;color:' + DS.text + ';border-bottom:1px solid ' + DS.borderLight + ';">' + r.label + '</td>' + s.macroCols.map(c => '<td style="padding:7px 12px;font-size:12.5px;color:' + DS.text + ';text-align:center;border-bottom:1px solid ' + DS.borderLight + ';border-left:1px solid ' + DS.borderLight + ';">' + (r.vals[c] || "") + '</td>').join("") + '</tr>').join("") + '</table></td></tr>' : "";
 
   // CORPORATE
-  const corp = s.sections.find(x => x.key === "corporate")?.on ? secHdr("Corporate") + '<tr><td style="padding:0 40px 8px;">' + s.corpBlocks.map(c => { const r = resolveCorporateBlock(c, s.analysts); return '<div style="margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid ' + DS.borderLight + ';"><div style="font-size:14px;font-weight:700;color:' + DS.navy + ';text-transform:uppercase;letter-spacing:0.3px;margin-bottom:8px;">' + r.tickers.join(" / ") + ' \u2014 ' + r.headline + '</div><div style="margin-bottom:8px;">' + r.covs.filter(cv => cv.ticker).map(cv => '<span style="display:inline-block;margin-right:8px;margin-bottom:4px;padding:4px 10px;border-radius:4px;font-size:11px;background:' + rb(cv.rating) + ';border:1px solid ' + rc(cv.rating) + '30;"><span style="font-weight:700;color:' + rc(cv.rating) + ';">' + cv.ticker + '</span> <span style="color:' + DS.textLight + ';">' + cv.rating + ' \u00B7 TP ' + cv.tp + (cv.last ? ' \u00B7 ' + cv.last : '') + (cv.tp && cv.last ? ' \u00B7 <span style="color:' + upsideColor(cv.tp, cv.last) + ';font-weight:700;">' + fmtUpside(cv.tp, cv.last) + '</span>' : '') + '</span></span>').join("") + '</div><div style="font-size:11.5px;color:' + DS.textMuted + ';font-style:italic;margin-bottom:6px;">' + r.analyst + '</div><div style="font-size:13.5px;line-height:1.65;color:' + DS.text + ';text-align:justify;">' + nl2br(r.body) + '</div>' + renderReportLink(r.link, { wrap: true }) + renderNewsLinks(c.newsLinks) + '</div>'; }).join("") + '</td></tr>' : "";
+  // Each block lists every ticker it covers as a coloured chip.
+  // When a block covers 3+ tickers (e.g. a Banks 1Q26 wrap that
+  // spans BBAR / BMA / GGAL / SUPV), the verbose "Overweight \u00B7 TP
+  // US$XX.XX \u00B7 Last $YY.YY \u00B7 +Z%" chip wraps every chip onto its
+  // own row \u2014 the section becomes a stack of fat chips that pushes
+  // the body text well below the fold. Switch to a sell-side
+  // shorthand ("OW", "TP", upside) for those crowded blocks; the
+  // common 1-2 ticker case keeps the verbose treatment.
+  const corp = s.sections.find(x => x.key === "corporate")?.on ? secHdr("Corporate") + '<tr><td style="padding:0 40px 8px;">' + s.corpBlocks.map(c => {
+    const r = resolveCorporateBlock(c, s.analysts);
+    const dense = r.covs.filter(cv => cv.ticker).length >= 3;
+    const chipPad = dense ? "3px 8px" : "4px 10px";
+    const chipFontSize = dense ? "10.5px" : "11px";
+    const chipMargin = dense ? "margin-right:6px;margin-bottom:4px;" : "margin-right:8px;margin-bottom:4px;";
+    const chips = r.covs.filter(cv => cv.ticker).map(cv => {
+      const ratingLabel = dense ? ra(cv.rating) : cv.rating;
+      const upside = cv.tp && cv.last
+        ? ' \u00B7 <span style="color:' + upsideColor(cv.tp, cv.last) + ';font-weight:700;">' + fmtUpside(cv.tp, cv.last) + '</span>'
+        : '';
+      // In dense mode drop the standalone "Last $YY.YY" \u2014 the upside
+      // % already encodes that information.
+      const last = !dense && cv.last ? ' \u00B7 ' + cv.last : '';
+      return '<span style="display:inline-block;' + chipMargin + 'padding:' + chipPad + ';border-radius:4px;font-size:' + chipFontSize + ';background:' + rb(cv.rating) + ';border:1px solid ' + rc(cv.rating) + '30;"><span style="font-weight:700;color:' + rc(cv.rating) + ';">' + cv.ticker + '</span> <span style="color:' + DS.textLight + ';">' + ratingLabel + (cv.tp ? ' \u00B7 TP ' + cv.tp : '') + last + upside + '</span></span>';
+    }).join("");
+    return '<div style="margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid ' + DS.borderLight + ';"><div style="font-size:14px;font-weight:700;color:' + DS.navy + ';text-transform:uppercase;letter-spacing:0.3px;margin-bottom:8px;">' + r.tickers.join(" / ") + ' \u2014 ' + r.headline + '</div><div style="margin-bottom:8px;">' + chips + '</div><div style="font-size:11.5px;color:' + DS.textMuted + ';font-style:italic;margin-bottom:6px;">' + r.analyst + '</div><div style="font-size:13.5px;line-height:1.65;color:' + DS.text + ';text-align:justify;">' + nl2br(r.body) + '</div>' + renderReportLink(r.link, { wrap: true }) + renderNewsLinks(c.newsLinks) + '</div>';
+  }).join("") + '</td></tr>' : "";
 
   // RESEARCH
   const research = s.sections.find(x => x.key === "research")?.on && s.researchReports?.length ? secHdr("Research Reports") + '<tr><td style="padding:0 40px 8px;">' + (s.researchReports || []).filter(r => r.title).map(r => '<div style="margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid ' + DS.borderLight + ';"><div style="margin-bottom:3px;"><span style="font-size:10px;font-weight:700;color:' + DS.accent + ';text-transform:uppercase;letter-spacing:1px;">' + r.type + '</span></div><div style="font-size:13.5px;font-weight:700;color:' + DS.navy + ';margin-bottom:2px;">' + r.title + '</div>' + (r.author ? '<div style="font-size:11.5px;color:' + DS.textMuted + ';font-style:italic;margin-bottom:4px;">' + r.author + '</div>' : '') + (r.body ? '<div style="font-size:13px;line-height:1.6;color:' + DS.text + ';text-align:justify;">' + nl2br(r.body) + '</div>' : '') + renderReportLink(r.link, { wrap: true }) + '</div>').join("") + '</td></tr>' : "";
@@ -226,10 +257,10 @@ function generateHTMLImpl(s: DailyState, mode: string = "full", template: string
         const resolvedAnalyst = r.analystId ? s.analysts.find((a) => a.id === r.analystId) : null;
         const authorName = resolvedAnalyst ? resolvedAnalyst.name : r.author?.trim();
         const meta = [authorName, r.publishedDate?.trim()].filter(Boolean).join(" · ");
-        return '<div style="padding:10px 0;border-bottom:1px solid ' + DS.borderLight + ';font-size:13px;line-height:1.5;">' +
+        return '<div style="padding:8px 0;border-bottom:1px solid ' + DS.borderLight + ';font-size:13px;line-height:1.5;">' +
           tag + titleEl +
           (meta ? '<div style="font-size:11px;color:' + DS.textMuted + ';font-style:italic;margin-top:2px;margin-left:0;">' + meta + '</div>' : '') +
-          renderReportLink(r.link, { wrap: true }) +
+          renderReportLink(r.link, { wrap: true, compact: true }) +
           '</div>';
       }).join("") + '</td></tr>'
     : "";

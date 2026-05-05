@@ -48,7 +48,14 @@ export default function DiffPanel({ open, onClose }: DiffPanelProps): React.Reac
 
   useEffect(() => {
     if (open && supabase) {
-      listDailies(10).then(setDailies);
+      // .catch is essential — listDailies re-throws the raw Supabase
+      // error object ({code, details, hint, message}); without a
+      // handler that becomes a global unhandledrejection and Sentry
+      // captures it. Silent toast here keeps the panel usable.
+      listDailies(10).then(setDailies).catch((err) => {
+        const msg = (err as { message?: string })?.message || "unknown";
+        toast.error(`Couldn't load history: ${msg}`);
+      });
     }
   }, [open]);
 

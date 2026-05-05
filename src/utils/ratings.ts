@@ -20,6 +20,24 @@ export const rb = (r: string): string => {
     : "#f5f5f5";
 };
 
+/** Sell-side abbreviation for a rating word. Used in tight layouts
+ *  (Corporate ticker chips when the block covers >2 tickers) where
+ *  spelling out "Overweight"/"Underweight" four times wraps the
+ *  email to multiple lines per chip. The full word is still in the
+ *  per-pick TopPicks block — abbreviating only here keeps the
+ *  scan-time of the email under control without losing meaning for
+ *  institutional readers (OW/UW/N is the standard sell-side shorthand). */
+export const ra = (r: string): string => {
+  const l = (r || "").toLowerCase();
+  return l === "overweight" ? "OW"
+    : l === "underweight" ? "UW"
+    : l === "neutral" ? "N"
+    : l === "sell" ? "S"
+    : l === "nr" ? "NR"
+    : l === "ur" ? "UR"
+    : r || "";
+};
+
 interface ResolvedCoverage {
   ticker: string;
   rating: string;

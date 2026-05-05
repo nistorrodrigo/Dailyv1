@@ -36,17 +36,27 @@ export default function HistoryPanel({ open, onClose }: HistoryPanelProps): Reac
 
   // Fetch versions + dailies whenever the panel opens, the tab
   // switches, or the editor's date changes (rare — usually after
-  // newDaily).
+  // newDaily). The .catch is essential — `listDailies` re-throws the
+  // raw Supabase error object ({code, details, hint, message}), and
+  // an unhandled rejection there would surface in Sentry as
+  // "Object captured as promise rejection". Surface a soft toast
+  // instead and clear the loading state.
   useEffect(() => {
     if (!open || !supabase) return;
     setLoading(true);
+    const onErr = (err: unknown): void => {
+      const msg = (err as { message?: string })?.message || "unknown";
+      toast.error(`Couldn't load ${tab === "today" ? "versions" : "history"}: ${msg}`);
+    };
     if (tab === "today") {
       listVersions(currentDate)
         .then(setVersions)
+        .catch(onErr)
         .finally(() => setLoading(false));
     } else {
       listDailies(50)
         .then(setDailies)
+        .catch(onErr)
         .finally(() => setLoading(false));
     }
   }, [open, tab, currentDate]);
