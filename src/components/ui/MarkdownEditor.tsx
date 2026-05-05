@@ -1,11 +1,13 @@
-import { useState, useRef, Suspense, lazy } from "react";
+import { useState, useRef, Suspense } from "react";
 import { BRAND } from "../../constants/brand";
+import { lazyWithReload } from "../../lib/lazyWithReload";
 
 // Lazy import the preview-only renderer so react-markdown +
 // remark-gfm (~150 KB / ~50 KB gzip combined) don't ship in the
 // editor's eager chunk. Most editing time is spent in the textarea
 // side, so the preview chunk often never downloads.
-const MarkdownPreviewLazy = lazy(() => import("./MarkdownPreviewLazy"));
+// `lazyWithReload` recovers from stale-bundle errors after a deploy.
+const MarkdownPreviewLazy = lazyWithReload(() => import("./MarkdownPreviewLazy"));
 
 interface MarkdownEditorProps {
   value: string;

@@ -1,4 +1,5 @@
-import React, { useEffect, useState, lazy, Suspense } from "react";
+import React, { useEffect, useState, Suspense } from "react";
+import { lazyWithReload } from "../../lib/lazyWithReload";
 
 /**
  * Lazy wrapper around the actual DnD-enabled sortable list. The
@@ -22,7 +23,9 @@ interface SortableListProps {
   renderItem: (item: { id: string }, index: number) => React.ReactNode;
 }
 
-const SortableListDnd = lazy(() => import("./SortableListDnd"));
+// `lazyWithReload` recovers from stale-bundle errors after a deploy
+// (see lib/lazyWithReload header).
+const SortableListDnd = lazyWithReload(() => import("./SortableListDnd"));
 
 /** Inert placeholder render — same vertical stack the DnD version
  *  produces, with a non-functional grab-handle glyph so the layout

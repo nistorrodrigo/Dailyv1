@@ -1,7 +1,8 @@
-import { useEffect, useState, lazy, Suspense } from "react";
+import { useEffect, useState, Suspense } from "react";
 import useDailyStore from "../../store/useDailyStore";
 import { Card, Toggle } from "../ui";
 import { BRAND } from "../../constants/brand";
+import { lazyWithReload } from "../../lib/lazyWithReload";
 import type { Section } from "../../types";
 
 /**
@@ -16,7 +17,8 @@ import type { Section } from "../../types";
  * cache for the other.
  */
 
-const SectionToggleListDnd = lazy(() => import("./SectionToggleListDnd"));
+// `lazyWithReload` recovers from stale-bundle errors after a deploy.
+const SectionToggleListDnd = lazyWithReload(() => import("./SectionToggleListDnd"));
 
 function StaticItem({ sec, onToggle }: { sec: Section; onToggle: () => void }) {
   // Same visual as the DnD version but with a non-functional grab

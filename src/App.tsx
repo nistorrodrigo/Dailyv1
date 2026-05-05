@@ -1,10 +1,11 @@
-import { Suspense, lazy } from "react";
+import { Suspense, useEffect } from "react";
 import useUIStore from "./store/useUIStore";
 import useKeyboardShortcuts from "./hooks/useKeyboardShortcuts";
 import useUnsavedChangesGuard from "./hooks/useUnsavedChangesGuard";
 import { useStepTimingsTracker } from "./hooks/useStepTimingsTracker";
 import { useSectionCatalogueSync } from "./hooks/useSectionCatalogueSync";
 import { useAutoSnapshot } from "./hooks/useAutoSnapshot";
+import { lazyWithReload, clearReloadFlag } from "./lib/lazyWithReload";
 import type { UIState } from "./types";
 import Header from "./components/Header";
 import Toaster from "./components/Toaster";
@@ -18,11 +19,18 @@ import EditorTab from "./components/sections/EditorTab";
 // first time the analyst clicks their tab button. Net effect on the
 // initial bundle: ~40-60 KB shifted out of the index chunk into
 // per-tab chunks Vite emits automatically.
-const AnalystsTab = lazy(() => import("./components/sections/AnalystsTab"));
-const PreviewTab = lazy(() => import("./components/sections/PreviewTab"));
-const DashboardTab = lazy(() => import("./components/sections/DashboardTab"));
-const AIDraftTab = lazy(() => import("./components/sections/AIDraftTab"));
-const EmailEditorTab = lazy(() => import("./components/sections/EmailEditorTab"));
+//
+// `lazyWithReload` (vs raw React.lazy) catches stale-bundle errors
+// after a Vercel deploy — a tab kept open across the deploy
+// references chunk hashes that the CDN no longer serves; clicking
+// any of these tabs would otherwise throw "Failed to fetch
+// dynamically imported module". The wrapper force-reloads once so
+// the analyst transparently picks up the new build.
+const AnalystsTab = lazyWithReload(() => import("./components/sections/AnalystsTab"));
+const PreviewTab = lazyWithReload(() => import("./components/sections/PreviewTab"));
+const DashboardTab = lazyWithReload(() => import("./components/sections/DashboardTab"));
+const AIDraftTab = lazyWithReload(() => import("./components/sections/AIDraftTab"));
+const EmailEditorTab = lazyWithReload(() => import("./components/sections/EmailEditorTab"));
 
 const tabCls = (active: boolean): string =>
   `px-5 py-2.5 cursor-pointer text-[13px] font-bold tracking-wide uppercase border-none transition-all duration-200 ${
@@ -53,6 +61,13 @@ export default function App() {
   // analyst can revert an aggressive edit without losing the rest
   // of the session's work.
   useAutoSnapshot();
+  // Clear the stale-bundle reload flag once a clean App render
+  // completes — guarantees that a future deploy in the same browser
+  // session can trigger a fresh recovery reload rather than being
+  // suppressed by the dedupe flag from an earlier event.
+  useEffect(() => {
+    clearReloadFlag();
+  }, []);
 
   return (
     <div className="min-h-screen bg-[var(--bg-page)] font-sans">

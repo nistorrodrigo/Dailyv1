@@ -1,4 +1,5 @@
-import React, { useState, useCallback, useEffect, useRef, Suspense, lazy } from "react";
+import React, { useState, useCallback, useEffect, useRef, Suspense } from "react";
+import { lazyWithReload } from "../lib/lazyWithReload";
 import { useShallow } from "zustand/react/shallow";
 import { useStore } from "zustand";
 import { BRAND, LOGO_WHITE_URL } from "../constants/brand";
@@ -24,12 +25,15 @@ import { useWorkflowProgress } from "../hooks/useWorkflowProgress";
 // ~30-40 KB off the initial bundle. EmailSendPanel and ContactsPanel
 // stay eagerly imported because they keep imported-recipient lists
 // across open/close cycles which would be costly to re-fetch.
-const HistoryPanel = lazy(() => import("./HistoryPanel"));
-const TemplatesPanel = lazy(() => import("./TemplatesPanel"));
-const DiffPanel = lazy(() => import("./DiffPanel"));
-const SchedulePanel = lazy(() => import("./SchedulePanel"));
-const AIReviewPanel = lazy(() => import("./AIReviewPanel"));
-const WorkflowPanel = lazy(() => import("./WorkflowPanel"));
+// `lazyWithReload` instead of raw React.lazy — see the helper
+// header for the stale-bundle recovery story (deploy mid-session
+// invalidates the chunk hash references in the analyst's open tab).
+const HistoryPanel = lazyWithReload(() => import("./HistoryPanel"));
+const TemplatesPanel = lazyWithReload(() => import("./TemplatesPanel"));
+const DiffPanel = lazyWithReload(() => import("./DiffPanel"));
+const SchedulePanel = lazyWithReload(() => import("./SchedulePanel"));
+const AIReviewPanel = lazyWithReload(() => import("./AIReviewPanel"));
+const WorkflowPanel = lazyWithReload(() => import("./WorkflowPanel"));
 
 type PanelName = "history" | "templates" | "email" | "diff" | "schedule" | "ai-review" | "contacts" | "workflow" | null;
 
