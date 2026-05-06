@@ -1,10 +1,7 @@
-import { describe, it, expect, vi } from "vitest";
-
-// Stub the logo loader so the snapshot doesn't include 16 KB of base64 noise.
-vi.mock("../constants/logos", () => ({
-  getLogoWhiteB64: () => "<<LOGO_WHITE>>",
-  getLogoOrigB64: () => "<<LOGO_ORIG>>",
-}));
+import { describe, it, expect } from "vitest";
+// Logos in email HTML are absolute URLs (see ../utils/emailLogoUrl)
+// so snapshots stay small naturally — no mock needed and no risk
+// of 16 KB base64 noise in the snap file.
 
 import { generateHTML } from "../utils/generateHTML";
 import { generateBBG } from "../utils/generateBBG";

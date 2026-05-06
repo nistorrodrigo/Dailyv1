@@ -1,13 +1,9 @@
 import { generateHTML } from "./generateHTML";
-import { getLogos } from "../constants/logos";
 import useDailyStore from "../store/useDailyStore";
 import { formatDate } from "./dates";
 import { toast } from "../store/useToastStore";
 
 export async function exportPDF(): Promise<void> {
-  // Ensure logos are loaded before generating
-  await getLogos();
-
   const state = useDailyStore.getState();
   const html = generateHTML(state);
 
@@ -34,8 +30,12 @@ export async function exportPDF(): Promise<void> {
   `);
   win.document.close();
 
-  // Wait for images to load, then print
+  // Wait for the print window to fetch the absolute-URL logo from
+  // the deployed CDN before triggering print. 1500 ms is generous
+  // for a ~50 KB PNG over a normal connection — previous 500 ms
+  // was tuned for inline base64 (instant) and is no longer enough
+  // since logos now load via HTTP.
   setTimeout(() => {
     win.print();
-  }, 500);
+  }, 1500);
 }

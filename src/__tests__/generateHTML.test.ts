@@ -1,10 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-
-// Mock the logos module since it uses fetch/FileReader
-vi.mock("../constants/logos", () => ({
-  getLogoWhiteB64: () => "mock-white-logo",
-  getLogoOrigB64: () => "mock-orig-logo",
-}));
+import { describe, it, expect, beforeEach } from "vitest";
+// Logos in email HTML are now absolute URLs to the deployed CDN
+// (see ../utils/emailLogoUrl). No fetch/FileReader involved at
+// HTML-generation time, so no mock needed — assertions check for
+// the absolute URL directly.
 
 import { generateHTML } from "../utils/generateHTML";
 import { DEFAULT_STATE } from "../constants/defaultState";
@@ -97,10 +95,20 @@ describe("generateHTML", () => {
     expect(html).toContain("<!DOCTYPE html>");
   });
 
-  it("uses mock logos", () => {
+  it("references logos via absolute URL (not relative path or base64)", () => {
+    // Regression guard: previously the email used base64-inline
+    // logos with a "/logo.png" relative-path fallback. The fallback
+    // 404'd in every recipient's inbox (resolves against their mail
+    // domain, not ours), and the base64 path raced with the user's
+    // Send click before the prefetch warmed the cache. Absolute
+    // URLs to the deployed CDN fix both.
     const html = generateHTML(DEFAULT_STATE);
-    expect(html).toContain("mock-white-logo");
-    expect(html).toContain("mock-orig-logo");
+    expect(html).toContain('src="https://dailyv1.vercel.app/logo-white.png"');
+    expect(html).toContain('src="https://dailyv1.vercel.app/logo.png"');
+    // Old anti-patterns we don't want to regress to:
+    expect(html).not.toContain('src="/logo.png"');
+    expect(html).not.toContain('src="/logo-white.png"');
+    expect(html).not.toContain("data:image/png;base64");
   });
 
   it("uses explicit pixel dimensions on logos so Outlook doesn't clip them", () => {

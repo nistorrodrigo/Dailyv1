@@ -1,5 +1,5 @@
 import { BRAND } from "../constants/brand";
-import { getLogoWhiteB64, getLogoOrigB64 } from "../constants/logos";
+import { getEmailLogoUrl } from "./emailLogoUrl";
 import { formatDate, fmtEventDate, fmtTime } from "./dates";
 import { rc, rb, ra, resolveCorporateBlock } from "./ratings";
 import { fmtUpside, upsideColor, calcUpside } from "./prices";
@@ -145,8 +145,14 @@ export function generateHTML(s: DailyState, mode: string = "full", template: str
 }
 
 function generateHTMLImpl(s: DailyState, mode: string = "full", template: string = "formal"): string {
-  const logo: string = getLogoOrigB64();
-  const logoW: string = getLogoWhiteB64();
+  // Hosted absolute URLs for the email logo. See ./emailLogoUrl
+  // for the full rationale — short version: base64-inline had a
+  // race condition (cache not warm before user clicked Send),
+  // intermittent Outlook desktop bugs, and a relative-URL fallback
+  // that always 404s in sent emails. Absolute URLs to the deployed
+  // Vercel-hosted PNG fix all three at once.
+  const logo: string = getEmailLogoUrl("orig");
+  const logoW: string = getEmailLogoUrl("white");
   const allTickers = s.analysts.flatMap(a => a.coverage.map(c => ({ ticker: c.ticker, rating: c.rating, tp: c.tp, last: c.last || "", analyst: a.name })));
 
   // Market Snapshot and Yesterday in Review were retired from the
