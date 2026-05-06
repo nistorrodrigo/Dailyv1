@@ -65,36 +65,14 @@ export function generateBBG(s: DailyState): string {
   L.push(`🇦🇷 LS DAILY | ${formatDate(s.date)}`);
   if (s.summaryBar) L.push("", `🔥 ${s.summaryBar.replace(/\n/g, " ")}`);
 
-  // ─── YESTERDAY IN REVIEW (above the snapshot) ─────────────
-  // Goes high in the BBG output so the recap is the first thing
-  // institutional readers see after the date header — same
-  // priority as in the email HTML.
-  if (isOn(s, "yesterdayRecap") && s.yesterdayRecap?.trim()) {
-    L.push("", "📋 YESTERDAY IN REVIEW");
-    L.push(oneLine(s.yesterdayRecap));
-  }
+  // Yesterday in Review and Market Snapshot were retired from the
+  // catalogue — see generateHTML for the rationale. State fields
+  // are preserved for backwards compat but no longer rendered.
 
-  // ─── SNAPSHOT (compact one-liner) ─────────────────────────
-  const snp = s.snapshot;
-  const snpItems = [
-    snp.merval ? `Merval ${snp.merval}${snp.mervalChg ? ` (${snp.mervalChg}%)` : ""}` : "",
-    snp.adrs ? `ADRs ${snp.adrs}${snp.adrsChg ? ` (${snp.adrsChg}%)` : ""}` : "",
-    snp.ccl ? `CCL ${snp.ccl}${snp.cclChg ? ` (${snp.cclChg}%)` : ""}` : "",
-    snp.mep ? `MEP ${snp.mep}${snp.mepChg ? ` (${snp.mepChg}%)` : ""}` : "",
-    snp.sp500 ? `S&P ${snp.sp500}${snp.sp500Chg ? ` (${snp.sp500Chg}%)` : ""}` : "",
-    snp.ust10y ? `UST10 ${snp.ust10y}` : "",
-    snp.dxy ? `DXY ${snp.dxy}` : "",
-    snp.soja ? `Soja ${snp.soja}` : "",
-    snp.wti ? `WTI ${snp.wti}` : "",
-  ].filter(Boolean);
-  if (isOn(s, "snapshot") && snpItems.length) {
-    L.push("", `📊 ${snpItems.join(" | ")}`);
-  }
-
-  // ─── WHAT TO WATCH ────────────────────────────────────────
+  // ─── WHAT TO WATCH (this week) ─────────────────────────────
   const watchItems = (s.watchToday || []).filter((w: string) => w.trim());
   if (isOn(s, "watchToday") && watchItems.length) {
-    L.push("", "⚡ WHAT TO WATCH");
+    L.push("", "⚡ WHAT TO WATCH THIS WEEK");
     watchItems.forEach((w: string) => L.push(`• ${w}`));
   }
 
@@ -255,11 +233,28 @@ export function generateBBG(s: DailyState): string {
     }
   }
 
+  // ─── BOND PIPELINE ────────────────────────────────────────
+  // Primary-market new-issue tracker. One line per deal in
+  // "Issuer · Pricing · Size" form — same field order as the
+  // HTML table so a reader who sees both can map one to the other
+  // at a glance. Empty issuer rows are filtered out.
+  if (isOn(s, "bondPipeline")) {
+    const deals = (s.bondPipeline || []).filter((b) => b.issuer?.trim());
+    if (deals.length) {
+      L.push("", "💵 BOND PIPELINE");
+      deals.forEach((b) => {
+        const date = b.pricingDate?.trim() ? fmtEventDate(b.pricingDate) : "TBD";
+        const size = b.estimatedSize?.trim() || "—";
+        L.push(`• ${b.issuer} · ${date} · ${size}`);
+      });
+    }
+  }
+
   // ─── UPCOMING EVENTS ──────────────────────────────────────
   if (isOn(s, "events") && s.events?.length) {
     const evts = s.events.filter((e) => e.title).slice(0, 6);
     if (evts.length) {
-      L.push("", "📅 UPCOMING");
+      L.push("", "📅 EVENTS AND WEBINARS");
       evts.forEach((e) => {
         const date = e.date ? fmtEventDate(e.date) : "";
         const time = e.timeBUE ? fmtTime(e.timeBUE) + " BUE" : "";

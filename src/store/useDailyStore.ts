@@ -59,7 +59,14 @@ function migrateState(
   const isPreV3 = version < 3;
   const mergedSections = DEFAULT_STATE.sections.map((s) => {
     if (isPreV3 && V3_FORCE_REINTRODUCE.has(s.key)) return s;
-    return persistedByKey.get(s.key) || s;
+    const persistedEntry = persistedByKey.get(s.key);
+    if (!persistedEntry) return s;
+    // Pull `key` + `label` from the canonical catalogue every time —
+    // when the desk renames a section ("Upcoming" → "Events and
+    // Webinars"), the new label has to propagate to analysts whose
+    // localStorage still holds the old one. Only the analyst's `on`
+    // toggle survives across renames.
+    return { ...s, on: persistedEntry.on };
   });
 
   return {
@@ -72,6 +79,7 @@ function migrateState(
     headline: persisted.headline ?? DEFAULT_STATE.headline,
     marketComment: persisted.marketComment ?? DEFAULT_STATE.marketComment,
     latestReports: persisted.latestReports ?? DEFAULT_STATE.latestReports,
+    bondPipeline: persisted.bondPipeline ?? DEFAULT_STATE.bondPipeline,
     yesterdayRecap: persisted.yesterdayRecap ?? DEFAULT_STATE.yesterdayRecap,
   };
 }

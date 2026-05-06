@@ -108,14 +108,14 @@ function secHdr(title: string, id?: string): string {
 
 // Section label map for TOC
 const SEC_LABELS: Record<string, string> = {
-  yesterdayRecap: "Yesterday in Review",
-  snapshot: "Market Snapshot", watchToday: "What to Watch Today",
+  watchToday: "What to Watch This Week",
   marketComment: "Market Comment",
   macro: "Macro / Political", tradeIdeas: "Trade Ideas", flows: "Market Color",
   corporate: "Corporate", research: "Research Reports",
   latestReports: "Latest Research Reports",
+  bondPipeline: "Bond Pipeline",
   topMovers: "Top Movers", tweets: "Market Intelligence", latam: "LatAm Context",
-  bcra: "BCRA Dashboard", events: "Upcoming", macroEstimates: "Macro Estimates",
+  bcra: "BCRA Dashboard", events: "Events and Webinars", macroEstimates: "Macro Estimates",
   chart: "Chart of the Day",
 };
 
@@ -149,31 +149,15 @@ function generateHTMLImpl(s: DailyState, mode: string = "full", template: string
   const logoW: string = getLogoWhiteB64();
   const allTickers = s.analysts.flatMap(a => a.coverage.map(c => ({ ticker: c.ticker, rating: c.rating, tp: c.tp, last: c.last || "", analyst: a.name })));
 
-  // SNAPSHOT
-  const snp = s.snapshot;
-  const snpRows = [
-    ["Merval", snp.merval, snp.mervalChg], ["ADRs", snp.adrs, snp.adrsChg], ["S&P 500", snp.sp500, snp.sp500Chg],
-    ["UST 10Y", snp.ust10y, ""], ["DXY", snp.dxy, ""], ["Soja", snp.soja, ""], ["WTI", snp.wti, ""],
-    ["CCL", snp.ccl, snp.cclChg], ["MEP", snp.mep, snp.mepChg], ["Blue", snp.blue, ""],
-  ].filter(r => r[1]);
-  const snapshot = s.sections.find(x => x.key === "snapshot")?.on && snpRows.length ? secHdr("Market Snapshot") + '<tr><td style="padding:0 40px 8px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid ' + DS.border + ';">' + snpRows.map((r, i) => { const chgColor = (r[2] || "").startsWith("-") ? DS.red : DS.green; return '<tr style="background:' + (i % 2 === 0 ? "#fff" : DS.bgAlt) + ';"><td style="padding:5px 12px;font-size:12px;font-weight:600;color:' + DS.navy + ';border-bottom:1px solid ' + DS.borderLight + ';width:30%;">' + r[0] + '</td><td style="padding:5px 12px;font-size:13px;font-weight:700;color:' + DS.text + ';text-align:right;border-bottom:1px solid ' + DS.borderLight + ';">' + r[1] + '</td><td style="padding:5px 12px;font-size:12px;font-weight:700;color:' + chgColor + ';text-align:right;border-bottom:1px solid ' + DS.borderLight + ';width:20%;">' + (r[2] ? r[2] + '%' : '') + '</td></tr>'; }).join("") + '</table></td></tr>' : "";
+  // Market Snapshot and Yesterday in Review were retired from the
+  // section catalogue — the desk decided they didn't earn their
+  // space. Underlying state fields (`s.snapshot`, `s.yesterdayRecap`)
+  // are preserved on the type for backwards compat with persisted
+  // dailies that still hold those values; nothing renders them now.
 
-  // YESTERDAY IN REVIEW — credibility hook at the very top of the
-  // daily for institutional readers. Visually distinct (orange-toned
-  // background) to stand apart from the rest of the structure and
-  // signal "this is the prior-day score, not a forecast".
-  const yesterdayRecap = s.sections.find(x => x.key === "yesterdayRecap")?.on && s.yesterdayRecap?.trim()
-    ? '<tr><td style="padding:24px 40px 0;" id="sec-yesterdayRecap">' +
-        '<div style="background:#fff7ec;border-left:4px solid #e67e22;padding:14px 18px;border-radius:4px;">' +
-          '<div style="font-size:10px;font-weight:700;color:#e67e22;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px;">Yesterday in Review</div>' +
-          '<div style="font-size:13.5px;line-height:1.65;color:' + DS.text + ';text-align:justify;">' + nl2br(s.yesterdayRecap) + '</div>' +
-        '</div>' +
-      '</td></tr>'
-    : "";
-
-  // WHAT TO WATCH
+  // WHAT TO WATCH (this week)
   const watchItems = (s.watchToday || []).filter((w: string) => w.trim());
-  const watchToday = s.sections.find(x => x.key === "watchToday")?.on && watchItems.length ? secHdr("What to Watch Today") + '<tr><td style="padding:0 40px 8px;">' + watchItems.map((w: string) => '<div style="padding:6px 0;font-size:13.5px;line-height:1.55;color:' + DS.text + ';"><span style="color:#e67e22;font-weight:700;margin-right:8px;">&#9656;</span>' + w + '</div>').join("") + '</td></tr>' : "";
+  const watchToday = s.sections.find(x => x.key === "watchToday")?.on && watchItems.length ? secHdr("What to Watch This Week") + '<tr><td style="padding:0 40px 8px;">' + watchItems.map((w: string) => '<div style="padding:6px 0;font-size:13.5px;line-height:1.55;color:' + DS.text + ';"><span style="color:#e67e22;font-weight:700;margin-right:8px;">&#9656;</span>' + w + '</div>').join("") + '</td></tr>' : "";
 
   // MARKET COMMENT — single free-form prose block.
   const marketComment = s.sections.find(x => x.key === "marketComment")?.on && s.marketComment?.trim()
@@ -265,6 +249,32 @@ function generateHTMLImpl(s: DailyState, mode: string = "full", template: string
       }).join("") + '</td></tr>'
     : "";
 
+  // BOND PIPELINE — primary-market new-issue tracker. 3-column
+  // table (Issuer · Pricing date · Estimated size). Rows with
+  // empty issuer are filtered (analysts often add a placeholder
+  // row then remove it). Date is rendered through fmtEventDate
+  // for "May 12, 2026" style consistency with the rest of the
+  // email; pre-announcement deals with no firm date show "TBD".
+  const bondPipelineRows = (s.bondPipeline || []).filter(b => b.issuer?.trim());
+  const bondPipeline = s.sections.find(x => x.key === "bondPipeline")?.on && bondPipelineRows.length
+    ? secHdr("Bond Pipeline") + '<tr><td style="padding:0 40px 8px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid ' + DS.border + ';">' +
+        '<tr style="background:' + DS.bgAlt + ';">' +
+          '<td style="padding:7px 12px;font-size:11px;font-weight:700;color:' + DS.navy + ';border-bottom:1px solid ' + DS.border + ';">Issuer</td>' +
+          '<td style="padding:7px 12px;font-size:11px;font-weight:700;color:' + DS.navy + ';border-bottom:1px solid ' + DS.border + ';border-left:1px solid ' + DS.borderLight + ';">Pricing</td>' +
+          '<td style="padding:7px 12px;font-size:11px;font-weight:700;color:' + DS.navy + ';text-align:right;border-bottom:1px solid ' + DS.border + ';border-left:1px solid ' + DS.borderLight + ';">Estimated Size</td>' +
+        '</tr>' +
+        bondPipelineRows.map((b, i) => {
+          const date = b.pricingDate?.trim() ? fmtEventDate(b.pricingDate) : "TBD";
+          const size = b.estimatedSize?.trim() || "—";
+          return '<tr style="background:' + (i % 2 === 0 ? "#fff" : DS.bgAlt) + ';">' +
+            '<td style="padding:7px 12px;font-size:13px;font-weight:600;color:' + DS.text + ';border-bottom:1px solid ' + DS.borderLight + ';">' + b.issuer + '</td>' +
+            '<td style="padding:7px 12px;font-size:12.5px;color:' + DS.text + ';border-bottom:1px solid ' + DS.borderLight + ';border-left:1px solid ' + DS.borderLight + ';">' + date + '</td>' +
+            '<td style="padding:7px 12px;font-size:12.5px;color:' + DS.text + ';text-align:right;border-bottom:1px solid ' + DS.borderLight + ';border-left:1px solid ' + DS.borderLight + ';">' + size + '</td>' +
+          '</tr>';
+        }).join("") +
+      '</table></td></tr>'
+    : "";
+
   // TOP MOVERS
   const topMoversGainers: typeof s.topMovers.gainers = s.topMovers?.gainers?.filter(m => m.ticker) || [];
   const topMoversLosers: typeof s.topMovers.losers = s.topMovers?.losers?.filter(m => m.ticker) || [];
@@ -276,8 +286,10 @@ function generateHTMLImpl(s: DailyState, mode: string = "full", template: string
   // BCRA
   const bcra = s.sections.find(x => x.key === "bcra")?.on && s.bcraData ? (() => { const hidden = s.bcraHiddenRows || {}; const entries = Object.entries(s.bcraData).filter(([k]) => !hidden[k]); if (!entries.length) return ""; return secHdr("BCRA Dashboard") + '<tr><td style="padding:0 40px 8px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid ' + DS.border + ';"><tr style="background:' + DS.bgAlt + ';"><td style="padding:7px 12px;font-size:11px;font-weight:700;color:' + DS.navy + ';border-bottom:1px solid ' + DS.border + ';">Indicator</td><td style="padding:7px 12px;font-size:11px;font-weight:700;color:' + DS.navy + ';text-align:right;border-bottom:1px solid ' + DS.border + ';">Value</td></tr>' + entries.map(([k, v], i) => '<tr style="background:' + (i % 2 === 0 ? "#fff" : DS.bgAlt) + ';"><td style="padding:6px 12px;font-size:12.5px;font-weight:600;color:' + DS.text + ';border-bottom:1px solid ' + DS.borderLight + ';">' + k + '</td><td style="padding:6px 12px;font-size:12.5px;color:' + DS.text + ';text-align:right;border-bottom:1px solid ' + DS.borderLight + ';">' + v + '</td></tr>').join("") + '</table></td></tr>'; })() : "";
 
-  // EVENTS (Corporate Access & Events)
-  const events = s.sections.find(x => x.key === "events")?.on && s.events?.length ? secHdr("Corporate Access & Events") + '<tr><td style="padding:0 40px 8px;">' + s.events.filter(e => e.title).map(e => {
+  // EVENTS AND WEBINARS — analyst access events, conference calls,
+  // earnings webinars, etc. The catalogue label was renamed in the
+  // same pass that removed yesterdayRecap and snapshot.
+  const events = s.sections.find(x => x.key === "events")?.on && s.events?.length ? secHdr("Events and Webinars") + '<tr><td style="padding:0 40px 8px;">' + s.events.filter(e => e.title).map(e => {
     const times = [e.timeET ? 'ET ' + fmtTime(e.timeET) : '', e.timeBUE ? 'BUE ' + fmtTime(e.timeBUE) : '', e.timeLON ? 'LON ' + fmtTime(e.timeLON) : ''].filter(Boolean).join(' \u00B7 ');
     return '<div style="margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid ' + DS.borderLight + ';">' +
       '<div style="margin-bottom:3px;"><span style="font-size:10px;font-weight:700;color:' + DS.accent + ';text-transform:uppercase;letter-spacing:1px;">' + e.type + '</span></div>' +
@@ -298,7 +310,7 @@ function generateHTMLImpl(s: DailyState, mode: string = "full", template: string
   const sig = s.signatures.map(x => '<div style="margin-bottom:6px;"><span style="font-size:13px;font-weight:600;color:' + DS.navy + ';">' + x.name + '</span><span style="font-size:12px;color:' + DS.textLight + ';margin-left:6px;">' + x.role + '</span><br><span style="font-size:12px;color:' + DS.accent + ';">' + x.email + '</span></div>').join("");
 
   // SECTION MAP
-  const sectionMap: Record<string, string> = { yesterdayRecap, snapshot, watchToday, marketComment, macro, tradeIdeas: trade, flows: flow, corporate: corp, research, latestReports, topMovers, tweets, latam, bcra, events, macroEstimates: mEst, chart };
+  const sectionMap: Record<string, string> = { watchToday, marketComment, macro, tradeIdeas: trade, flows: flow, corporate: corp, research, latestReports, bondPipeline, topMovers, tweets, latam, bcra, events, macroEstimates: mEst, chart };
   const enabledSections = s.sections.filter(x => x.on);
 
   // Build Table of Contents
@@ -310,11 +322,11 @@ function generateHTMLImpl(s: DailyState, mode: string = "full", template: string
     tradeIdeas: s.equityPicks.filter(p => p.ticker).map(p => p.ticker).join(", ") + (s.fiIdeas.filter(f => f.idea).length ? " + " + s.fiIdeas.filter(f => f.idea).length + " FI ideas" : ""),
     flows: "EQ: Buy " + (s.eqBuyer || "...").substring(0, 30) + " | FI: Buy " + (s.fiBuyer || "...").substring(0, 30),
     macroEstimates: s.macroRows.length + " metrics, " + s.macroCols.join("/"),
-    yesterdayRecap: s.yesterdayRecap?.trim() ? s.yesterdayRecap.trim().slice(0, 80) + (s.yesterdayRecap.length > 80 ? "…" : "") : "",
     marketComment: s.marketComment?.trim() ? s.marketComment.trim().slice(0, 80) + (s.marketComment.length > 80 ? "…" : "") : "",
     corporate: s.corpBlocks.map(c => (c.tickers || []).join("/")).filter(Boolean).join(", "),
     research: (s.researchReports || []).filter(r => r.title).map(r => r.title).join(", "),
     latestReports: (s.latestReports || []).filter(r => r.title).map(r => r.title).join(", "),
+    bondPipeline: (s.bondPipeline || []).filter(b => b.issuer).length ? (s.bondPipeline || []).filter(b => b.issuer).length + " deals" : "",
     topMovers: topMoversGainers.map(m => m.ticker + " +" + m.chgPct + "%").concat(topMoversLosers.map(m => m.ticker + " " + m.chgPct + "%")).join(", "),
     tweets: s.tweets?.length ? s.tweets.length + " posts" : "",
     bcra: s.bcraData ? Object.keys(s.bcraData).length + " indicators" : "",

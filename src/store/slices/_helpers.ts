@@ -5,6 +5,7 @@ import type {
   CorpBlock,
   ResearchReport,
   LatestReport,
+  BondPipelineItem,
   Signature,
   Analyst,
   ChartImage,
@@ -19,6 +20,7 @@ export type ListField =
   | "corpBlocks"
   | "researchReports"
   | "latestReports"
+  | "bondPipeline"
   | "signatures"
   | "analysts"
   | "equityPicks"
@@ -33,6 +35,7 @@ export type ListItem =
   | CorpBlock
   | ResearchReport
   | LatestReport
+  | BondPipelineItem
   | Signature
   | Analyst;
 

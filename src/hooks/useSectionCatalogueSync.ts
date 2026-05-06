@@ -59,20 +59,35 @@ export function useSectionCatalogueSync(): void {
       }
     })();
 
-    // Build the merged catalogue: every key from DEFAULT_STATE in the
-    // canonical order, with the analyst's `on` flag preserved where
-    // they already had that key — except on the v3 resync, where the
-    // allow-list keys are forced to the catalogue default.
+    // Build the merged catalogue: every key from DEFAULT_STATE in
+    // the canonical order, with the analyst's `on` flag preserved
+    // where they already had that key — except on the v3 resync,
+    // where the allow-list keys are forced to the catalogue
+    // default. Labels (and the key list itself) always come from
+    // DEFAULT_STATE so renames and removals propagate to analysts
+    // whose localStorage still holds the old catalogue.
     const merged = DEFAULT_STATE.sections.map((s) => {
       if (needsV3Resync && V3_FORCE_REINTRODUCE.has(s.key)) return s;
-      return persistedByKey.get(s.key) || s;
+      const persistedEntry = persistedByKey.get(s.key);
+      if (!persistedEntry) return s;
+      return { ...s, on: persistedEntry.on };
     });
+    // Drift = either keys missing from the persisted array, or label
+    // changes that need pushing through to the live store. Detect
+    // both by comparing JSON shape — cheap because the catalogue is
+    // ~17 entries.
     const missingCount = DEFAULT_STATE.sections.filter((s) => !persistedByKey.has(s.key)).length;
+    const persistedSections = (state.sections || []);
+    const hasLabelDrift = merged.some((m, i) => {
+      const p = persistedSections[i];
+      return !p || p.key !== m.key || p.label !== m.label;
+    });
 
-    // Detect drift: either keys are missing, or this is the v3
-    // resync run. Calling setField unconditionally would create
-    // needless rerenders and pollute zundo's undo history.
-    if (missingCount > 0 || needsV3Resync) {
+    // Detect drift: keys missing, label/key/order change since the
+    // persisted shape, or the v3 resync run. Calling setField
+    // unconditionally would create needless rerenders and pollute
+    // zundo's undo history.
+    if (missingCount > 0 || hasLabelDrift || needsV3Resync) {
       state.setField("sections", merged);
     }
 
@@ -91,6 +106,7 @@ export function useSectionCatalogueSync(): void {
     if (state.headline === undefined) state.setField("headline", DEFAULT_STATE.headline);
     if (state.marketComment === undefined) state.setField("marketComment", DEFAULT_STATE.marketComment);
     if (state.latestReports === undefined) state.setField("latestReports", DEFAULT_STATE.latestReports);
+    if (state.bondPipeline === undefined) state.setField("bondPipeline", DEFAULT_STATE.bondPipeline);
     if (state.yesterdayRecap === undefined) state.setField("yesterdayRecap", DEFAULT_STATE.yesterdayRecap);
   }, []);
 }

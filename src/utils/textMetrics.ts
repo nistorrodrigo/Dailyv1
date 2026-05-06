@@ -53,7 +53,10 @@ export function getDailyTextMetrics(s: DailyState): TextMetrics {
 
   add("headline", countWords(s.headline));
   add("summary", countWords(s.summaryBar));
-  add("yesterdayRecap", countWords(s.yesterdayRecap));
+  // yesterdayRecap intentionally not counted — the section was
+  // retired. Field still on state for backwards compat with
+  // persisted dailies but it doesn't render anywhere, so it
+  // shouldn't inflate the reading-time estimate.
   add("marketComment", countWords(s.marketComment));
   add("watch", (s.watchToday || []).reduce((acc, w) => acc + countWords(w), 0));
   add("latam", countWords(s.latam));
@@ -79,6 +82,13 @@ export function getDailyTextMetrics(s: DailyState): TextMetrics {
   // counted directly.
   (s.latestReports || []).forEach((r) => {
     add("latestReports", countWords(r.title) + countWords(r.author));
+  });
+
+  // Bond Pipeline — issuer + size strings (compact, no body).
+  // pricingDate is omitted because it's a date format, not prose
+  // word count would mislead the reading-time estimate.
+  (s.bondPipeline || []).forEach((b) => {
+    add("bondPipeline", countWords(b.issuer) + countWords(b.estimatedSize));
   });
 
   (s.tweets || []).forEach((t) => add("tweets", countWords(t.content)));

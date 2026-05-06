@@ -271,7 +271,7 @@ Return a JSON object with EXACTLY these fields:
       "general"  — for date / disclaimer / overall structure
       "headline" — for the subject-line headline field
       "summaryBar" — for the top "Today —" one-liner
-      "yesterdayRecap" | "snapshot" | "watchToday" | "marketComment" | "macro" | "tradeIdeas" | "flows" | "corporate" | "research" | "latestReports" | "topMovers" | "tweets" | "latam" | "bcra" | "events" | "macroEstimates" | "chart"
+      "watchToday" | "marketComment" | "macro" | "tradeIdeas" | "flows" | "corporate" | "research" | "latestReports" | "bondPipeline" | "topMovers" | "tweets" | "latam" | "bcra" | "events" | "macroEstimates" | "chart"
       "signatures" — for the analyst signatures block
     If the item genuinely doesn't map to a single section (cross-cutting concerns), use "general".
   ],

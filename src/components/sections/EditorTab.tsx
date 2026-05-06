@@ -7,25 +7,25 @@ import MacroEstimatesSection from "./MacroEstimatesSection";
 import CorporateSection from "./CorporateSection";
 import ResearchSection from "./ResearchSection";
 import LatestReportsSection from "./LatestReportsSection";
+import BondPipelineSection from "./BondPipelineSection";
 import SignaturesSection from "./SignaturesSection";
 import TopMoversSection from "./TopMoversSection";
 import TweetsSection from "./TweetsSection";
 import BcraSection from "./BcraSection";
 import EventsSection from "./EventsSection";
-import KeyEventsSection from "./KeyEventsSection";
 import ChartSection from "./ChartSection";
-import SnapshotSection from "./SnapshotSection";
 import WatchTodaySection from "./WatchTodaySection";
 import LatAmSection from "./LatAmSection";
 import MarketCommentSection from "./MarketCommentSection";
-import YesterdayRecapSection from "./YesterdayRecapSection";
 import LivePreviewPanel from "../LivePreviewPanel";
 import LazySection from "../ui/LazySection";
 import useDailyStore from "../../store/useDailyStore";
 
+// SnapshotSection / YesterdayRecapSection / KeyEventsSection are
+// retired from the catalogue — their files still live in
+// /sections/ in case the desk wants them back, but they're no
+// longer wired up so SECTION_COMPONENTS doesn't reference them.
 const SECTION_COMPONENTS: Record<string, React.ComponentType> = {
-  yesterdayRecap: YesterdayRecapSection,
-  snapshot: SnapshotSection,
   watchToday: WatchTodaySection,
   marketComment: MarketCommentSection,
   macro: MacroSection,
@@ -34,6 +34,7 @@ const SECTION_COMPONENTS: Record<string, React.ComponentType> = {
   corporate: CorporateSection,
   research: ResearchSection,
   latestReports: LatestReportsSection,
+  bondPipeline: BondPipelineSection,
   topMovers: TopMoversSection,
   tweets: TweetsSection,
   latam: LatAmSection,

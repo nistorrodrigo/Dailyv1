@@ -113,6 +113,27 @@ export interface LatestReport {
   link: string;
 }
 
+/** Upcoming bond issue in the primary-market pipeline. Foreign
+ *  institutional readers track these to size positioning into new
+ *  issues — typical row is "Issuer | Pricing date | Estimated size".
+ *  Sovereign and corporate alike; sub-sovereign too. Free-text
+ *  `estimatedSize` accommodates the analyst's preferred convention
+ *  (e.g. "USD 500M", "$300-500M", "Up to $1B", "TBD"). */
+export interface BondPipelineItem {
+  id: string;
+  /** Issuer name as the desk references it — e.g. "Tecpetrol",
+   *  "Republic of Argentina", "Pampa Energia". */
+  issuer: string;
+  /** ISO YYYY-MM-DD when the deal is expected to price. Optional
+   *  because pre-announcement deals often don't have a firm date
+   *  yet — the row still belongs in the pipeline. */
+  pricingDate?: string;
+  /** Free-text size estimate. Keeping it as a string (rather than a
+   *  number + currency split) so the analyst doesn't have to pick a
+   *  schema for ranges, "up to X", "TBD", etc. */
+  estimatedSize: string;
+}
+
 export interface Signature {
   id: string;
   name: string;
@@ -216,6 +237,11 @@ export interface DailyState {
    *  daily. Title + author + link only — no body. See
    *  `researchReports` for the full-embed variant. */
   latestReports: LatestReport[];
+  /** Primary-market bond pipeline — upcoming new-issue deals the
+   *  desk is tracking. Compact row per deal: issuer + estimated
+   *  pricing date + estimated size. Renders as a small table in
+   *  HTML + a clean column-aligned block in BBG. */
+  bondPipeline: BondPipelineItem[];
   /** Yesterday-in-review block — short prose (3-4 sentences) that
    *  scores the desk's prior-day calls against today's price action.
    *  Builds credibility with foreign institutional readers by being

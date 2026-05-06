@@ -17,9 +17,12 @@ export const DEFAULT_ANALYSTS: Analyst[] = [
 export const DEFAULT_STATE: DailyState & { flows: { global: string; local: string; positioning: string } } = {
   date: new Date().toISOString().split("T")[0],
   sections: [
-    { key: "yesterdayRecap", label: "Yesterday in Review", on: false },
-    { key: "snapshot", label: "Market Snapshot", on: true },
-    { key: "watchToday", label: "What to Watch Today", on: true },
+    // Yesterday in Review and Market Snapshot intentionally removed
+    // from the catalogue — the desk decided they didn't earn their
+    // space in the daily. Underlying state fields (`yesterdayRecap`,
+    // `snapshot`) are preserved for backwards compat with persisted
+    // dailies that still hold those values; nothing reads them now.
+    { key: "watchToday", label: "What to Watch This Week", on: true },
     { key: "marketComment", label: "Market Comment", on: true },
     { key: "macro", label: "Macro / Political", on: true },
     { key: "tradeIdeas", label: "Trade Ideas", on: true },
@@ -27,11 +30,12 @@ export const DEFAULT_STATE: DailyState & { flows: { global: string; local: strin
     { key: "corporate", label: "Corporate", on: true },
     { key: "research", label: "Research Reports", on: true },
     { key: "latestReports", label: "Latest Research Reports", on: true },
+    { key: "bondPipeline", label: "Bond Pipeline", on: false },
     { key: "topMovers", label: "Top Movers", on: false },
     { key: "tweets", label: "Market Intelligence", on: false },
     { key: "latam", label: "LatAm Context", on: false },
     { key: "bcra", label: "BCRA Dashboard", on: false },
-    { key: "events", label: "Upcoming", on: false },
+    { key: "events", label: "Events and Webinars", on: false },
     { key: "macroEstimates", label: "Macro Estimates", on: false },
     { key: "chart", label: "Chart of the Day", on: false },
   ],
@@ -76,6 +80,7 @@ export const DEFAULT_STATE: DailyState & { flows: { global: string; local: strin
   headline: "",
   marketComment: "",
   latestReports: [],
+  bondPipeline: [],
   yesterdayRecap: "",
   signatures: [
     { id: "s1", name: "Rodrigo Nistor", role: "Institutional Sales", email: "rodrigo.nistor@latinsecurities.ar" },

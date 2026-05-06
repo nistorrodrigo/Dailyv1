@@ -208,15 +208,10 @@ describe("editor flow → output", () => {
 
     setField("headline", "Risk-on tape on BCRA dovish surprise");
     setField("summaryBar", "BCRA cuts 100bp to 38%; ARS curve rallies, ADRs +2%.");
-    // yesterdayRecap defaults to `on: false` (analyst opt-in) — enable
-    // it so the assertions below can find the recap content.
-    setField(
-      "sections",
-      useDailyStore.getState().sections.map((s) =>
-        s.key === "yesterdayRecap" ? { ...s, on: true } : s,
-      ),
-    );
-    setField("yesterdayRecap", "Yesterday's call: long Bonares 2030 — paid off, +1.2% on the day.");
+    // marketComment is on by default — use it to assert prose
+    // round-trips end-to-end. (yesterdayRecap was retired from the
+    // catalogue; field still exists on state but no longer renders.)
+    setField("marketComment", "Desk paid yesterday's call to long Bonares 2030 — the position printed +1.2%.");
     addListItem("macroBlocks", {
       id: "e2e-macro-1",
       title: "BCRA RATE DECISION",
