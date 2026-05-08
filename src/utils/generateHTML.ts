@@ -86,6 +86,35 @@ function renderReportLink(
   return opts.wrap ? '<div style="margin-top:' + (opts.compact ? "4px" : "8px") + ';">' + link + '</div>' : link;
 }
 
+/**
+ * Render the earnings / investor call CTA — used by Corporate
+ * blocks during earnings season. Visually distinct from
+ * `renderReportLink` so the analyst's eye separates "join the
+ * call" from "read the report":
+ *
+ *   - Outlined sky-blue button (not the filled accent-blue used
+ *     by report links)
+ *   - Phone glyph + the analyst's free-text date/time inline
+ *
+ * Returns "" when no URL is set so callers can string-concat
+ * unconditionally. The dateTime label is optional — past-replay
+ * scenarios often don't need one ("Replay →").
+ */
+function renderCallLink(url: string | undefined, dateTime: string | undefined): string {
+  if (!url || !url.trim()) return "";
+  const dt = (dateTime || "").trim();
+  const dtLabel = dt ? '<span style="color:' + DS.textLight + ';margin-right:8px;font-size:11.5px;">' + dt + '</span>' : '';
+  // Outlined button (transparent bg, sky border + text) so it
+  // reads as a *secondary* CTA when sitting next to the filled
+  // "Full report →" — earnings emails often have both, and the
+  // visual hierarchy needs to be: report > call.
+  const link =
+    '<a href="' + url +
+    '" style="font-size:12px;color:' + DS.accent + ';background:transparent;padding:5px 13px;border:1.5px solid ' + DS.accent + ';border-radius:4px;text-decoration:none;font-weight:600;display:inline-block;">' +
+    '☎ Join call &#8594;</a>';
+  return '<div style="margin-top:8px;">' + dtLabel + link + '</div>';
+}
+
 const DS = {
   maxW: 640,
   navy: "#000039",
@@ -222,7 +251,7 @@ function generateHTMLImpl(s: DailyState, mode: string = "full", template: string
       const last = !dense && cv.last ? ' \u00B7 ' + cv.last : '';
       return '<span style="display:inline-block;' + chipMargin + 'padding:' + chipPad + ';border-radius:4px;font-size:' + chipFontSize + ';background:' + rb(cv.rating) + ';border:1px solid ' + rc(cv.rating) + '30;"><span style="font-weight:700;color:' + rc(cv.rating) + ';">' + cv.ticker + '</span> <span style="color:' + DS.textLight + ';">' + ratingLabel + (cv.tp ? ' \u00B7 TP ' + cv.tp : '') + last + upside + '</span></span>';
     }).join("");
-    return '<div style="margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid ' + DS.borderLight + ';"><div style="font-size:14px;font-weight:700;color:' + DS.navy + ';text-transform:uppercase;letter-spacing:0.3px;margin-bottom:8px;">' + r.tickers.join(" / ") + ' \u2014 ' + r.headline + '</div><div style="margin-bottom:8px;">' + chips + '</div><div style="font-size:11.5px;color:' + DS.textMuted + ';font-style:italic;margin-bottom:6px;">' + r.analyst + '</div><div style="font-size:13.5px;line-height:1.65;color:' + DS.text + ';text-align:justify;">' + nl2br(r.body) + '</div>' + renderReportLink(r.link, { wrap: true }) + renderNewsLinks(c.newsLinks) + '</div>';
+    return '<div style="margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid ' + DS.borderLight + ';"><div style="font-size:14px;font-weight:700;color:' + DS.navy + ';text-transform:uppercase;letter-spacing:0.3px;margin-bottom:8px;">' + r.tickers.join(" / ") + ' \u2014 ' + r.headline + '</div><div style="margin-bottom:8px;">' + chips + '</div><div style="font-size:11.5px;color:' + DS.textMuted + ';font-style:italic;margin-bottom:6px;">' + r.analyst + '</div><div style="font-size:13.5px;line-height:1.65;color:' + DS.text + ';text-align:justify;">' + nl2br(r.body) + '</div>' + renderReportLink(r.link, { wrap: true }) + renderCallLink(c.callUrl, c.callDateTime) + renderNewsLinks(c.newsLinks) + '</div>';
   }).join("") + '</td></tr>' : "";
 
   // RESEARCH

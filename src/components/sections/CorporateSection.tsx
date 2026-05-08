@@ -142,6 +142,32 @@ export default function CorporateSection() {
                 }}
               />
             </div>
+            {/* Earnings / investor conference call. Two columns so
+                the link + the human-readable date/time fit on one
+                row without dwarfing each other. Both optional —
+                most corporate blocks aren't earnings, and even
+                earnings ones may only have the URL. */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 200px",
+                gap: 8,
+                alignItems: "start",
+              }}
+            >
+              <Inp
+                label="Conference Call Link"
+                value={b.callUrl || ""}
+                onChange={(v) => updateListItem("corpBlocks", b.id, "callUrl", v)}
+                placeholder="https://zoom.us/j/… or webcast URL"
+              />
+              <Inp
+                label="Call Date / Time"
+                value={b.callDateTime || ""}
+                onChange={(v) => updateListItem("corpBlocks", b.id, "callDateTime", v)}
+                placeholder="Wed May 7, 9 AM ET"
+              />
+            </div>
             <NewsLinksEditor
               links={b.newsLinks}
               onChange={(next) => updateListItem("corpBlocks", b.id, "newsLinks", next)}

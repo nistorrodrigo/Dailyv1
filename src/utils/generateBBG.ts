@@ -165,6 +165,14 @@ export function generateBBG(s: DailyState): string {
         // and Latest Research Reports so analysts pasting from any
         // of the three sections get a uniform call-to-action.
         if (r.link) L.push(`  ↗ Full report: ${r.link}`);
+        // Earnings / investor call. Different glyph (☎) so the
+        // recipient distinguishes "join the call" from the
+        // report link sitting one row above. Date/time is inline
+        // with the URL when set.
+        if (c.callUrl?.trim()) {
+          const dt = c.callDateTime?.trim();
+          L.push(`  ☎ Call${dt ? ` (${dt})` : ""}: ${c.callUrl.trim()}`);
+        }
         for (const line of fmtNewsLinks(c.newsLinks)) L.push(line);
         if (i < blocks.length - 1) L.push("");
       });

@@ -72,6 +72,18 @@ export interface CorpBlock {
   link: string;
   /** External news article links rendered alongside the report link. */
   newsLinks?: NewsLink[];
+  /** Earnings / investor conference call link — Zoom, Teams,
+   *  webcast URL, etc. Rendered as a separate CTA button so it
+   *  reads as "join the call" distinct from "read the report".
+   *  Optional; only shown when the analyst sets it. */
+  callUrl?: string;
+  /** Free-text date/time for the call. Free-text rather than ISO
+   *  because the analyst's framing varies by context — "Live Wed
+   *  May 7, 9 AM ET", "Replay available", "Tomorrow 10 AM ET",
+   *  etc. — and a single ISO date can't capture timezone +
+   *  duration + replay availability the way the analyst would
+   *  write it for a foreign institutional reader. */
+  callDateTime?: string;
 }
 
 export interface ResearchReport {
