@@ -207,12 +207,17 @@ export function generateBBG(s: DailyState): string {
   }
 
   // ─── RESEARCH REPORTS ─────────────────────────────────────
+  // Author resolution mirrors Corporate / LatestReports: prefer
+  // the catalogue analyst's display name (via analystId), fall
+  // back to free-text `author` for external contributors.
   if (isOn(s, "research")) {
     const reports = s.researchReports.filter((r) => r.title || r.body);
     if (reports.length) {
       L.push("", "📚 RESEARCH");
       reports.forEach((r) => {
-        const meta = [r.type, r.author].filter(Boolean).join(" · ");
+        const resolvedAnalyst = r.analystId ? s.analysts.find((a) => a.id === r.analystId) : null;
+        const authorName = resolvedAnalyst ? resolvedAnalyst.name : r.author;
+        const meta = [r.type, authorName].filter(Boolean).join(" · ");
         L.push(`• ${r.title || "(untitled)"}${meta ? ` (${meta})` : ""}`);
         // Match Corporate's "↗ Full report:" framing — same call to
         // action across all three report-bearing sections.

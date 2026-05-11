@@ -90,7 +90,17 @@ export interface ResearchReport {
   id: string;
   type: "Macro" | "Weekly" | "Strategy" | "Sector" | "Special";
   title: string;
+  /** Free-text author. Kept for backwards compat with rows
+   *  persisted before the analyst dropdown shipped; also serves
+   *  as the fallback when the author is outside the Analysts
+   *  catalogue (external contributor). When `analystId` is set,
+   *  the resolved analyst's display name takes precedence. */
   author: string;
+  /** Reference into the canonical Analysts list (`state.analysts`).
+   *  Mirrors the LatestReport / CorpBlock pattern so the desk
+   *  doesn't have to retype names. Optional — leave blank for
+   *  external authors. */
+  analystId?: string;
   body: string;
   link: string;
 }

@@ -255,19 +255,28 @@ function generateHTMLImpl(s: DailyState, mode: string = "full", template: string
   }).join("") + '</td></tr>' : "";
 
   // RESEARCH
-  const research = s.sections.find(x => x.key === "research")?.on && s.researchReports?.length ? secHdr("Research Reports") + '<tr><td style="padding:0 40px 8px;">' + (s.researchReports || []).filter(r => r.title).map(r => '<div style="margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid ' + DS.borderLight + ';"><div style="margin-bottom:3px;"><span style="font-size:10px;font-weight:700;color:' + DS.accent + ';text-transform:uppercase;letter-spacing:1px;">' + r.type + '</span></div><div style="font-size:13.5px;font-weight:700;color:' + DS.navy + ';margin-bottom:2px;">' + r.title + '</div>' + (r.author ? '<div style="font-size:11.5px;color:' + DS.textMuted + ';font-style:italic;margin-bottom:4px;">' + r.author + '</div>' : '') + (r.body ? '<div style="font-size:13px;line-height:1.6;color:' + DS.text + ';text-align:justify;">' + nl2br(r.body) + '</div>' : '') + renderReportLink(r.link, { wrap: true }) + '</div>').join("") + '</td></tr>' : "";
+  // Author resolution: prefer the catalogue analyst's display name
+  // (via analystId) over the free-text `author` field — same pattern
+  // as LatestReports / Corporate. Falls back to `author` for
+  // external contributors.
+  const research = s.sections.find(x => x.key === "research")?.on && s.researchReports?.length ? secHdr("Research Reports") + '<tr><td style="padding:0 40px 8px;">' + (s.researchReports || []).filter(r => r.title).map(r => {
+    const resolvedAnalyst = r.analystId ? s.analysts.find((a) => a.id === r.analystId) : null;
+    const authorName = resolvedAnalyst ? resolvedAnalyst.name : r.author;
+    return '<div style="margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid ' + DS.borderLight + ';"><div style="margin-bottom:3px;"><span style="font-size:10px;font-weight:700;color:' + DS.accent + ';text-transform:uppercase;letter-spacing:1px;">' + r.type + '</span></div><div style="font-size:13.5px;font-weight:700;color:' + DS.navy + ';margin-bottom:2px;">' + r.title + '</div>' + (authorName ? '<div style="font-size:11.5px;color:' + DS.textMuted + ';font-style:italic;margin-bottom:4px;">' + authorName + '</div>' : '') + (r.body ? '<div style="font-size:13px;line-height:1.6;color:' + DS.text + ';text-align:justify;">' + nl2br(r.body) + '</div>' : '') + renderReportLink(r.link, { wrap: true }) + '</div>';
+  }).join("") + '</td></tr>' : "";
 
-  // LATEST RESEARCH REPORTS — compact list of recent LS publications.
-  // Same shape as `research` but no body — single row per report
-  // with type tag + title + author + (optional) date + link. Author
-  // is resolved through the analysts catalogue when `analystId` is
-  // set (matches the Corporate block pattern); otherwise falls back
-  // to the free-text `author` for external contributors.
+  // LATEST RESEARCH REPORTS — compact one-line-per-deal digest.
+  // Each row: [TYPE] Title — Author · Date            [Full report]
+  // The desk wants every report to fit on a single line so a quick
+  // scan of the section reads like a publishing index, not a list
+  // of mini-articles. Email-safe two-column table layout: meta on
+  // the left, CTA pinned to the right. Wraps gracefully on narrow
+  // mobile widths (the right cell drops below the left).
   //
-  // Each row also surfaces the unified blue "Full report →" button
-  // so the CTA matches Corporate / Research / Tweets / Events. The
-  // title is non-clickable text now — the button below is the
-  // single, unambiguous click target.
+  // Author resolution: prefers `analystId` (catalogue analyst's
+  // display name + title) over the free-text `author` field.
+  // publishedDate is rendered through fmtEventDate for "May 6,
+  // 2026" formatting — matches Events / Bond Pipeline.
   const latestReportsRows = (s.latestReports || []).filter(r => r.title?.trim());
   const latestReports = s.sections.find(x => x.key === "latestReports")?.on && latestReportsRows.length
     ? secHdr("Latest Research Reports") + '<tr><td style="padding:0 40px 8px;">' + latestReportsRows.map(r => {
@@ -275,12 +284,22 @@ function generateHTMLImpl(s: DailyState, mode: string = "full", template: string
         const titleEl = '<span style="color:' + DS.navy + ';font-weight:700;">' + r.title + '</span>';
         const resolvedAnalyst = r.analystId ? s.analysts.find((a) => a.id === r.analystId) : null;
         const authorName = resolvedAnalyst ? resolvedAnalyst.name : r.author?.trim();
-        const meta = [authorName, r.publishedDate?.trim()].filter(Boolean).join(" · ");
-        return '<div style="padding:8px 0;border-bottom:1px solid ' + DS.borderLight + ';font-size:13px;line-height:1.5;">' +
-          tag + titleEl +
-          (meta ? '<div style="font-size:11px;color:' + DS.textMuted + ';font-style:italic;margin-top:2px;margin-left:0;">' + meta + '</div>' : '') +
-          renderReportLink(r.link, { wrap: true, compact: true }) +
-          '</div>';
+        const dateLabel = r.publishedDate?.trim() ? fmtEventDate(r.publishedDate) : "";
+        const metaParts = [authorName, dateLabel].filter(Boolean).join(" · ");
+        const metaEl = metaParts
+          ? '<span style="font-size:11.5px;color:' + DS.textMuted + ';font-style:italic;margin-left:6px;white-space:nowrap;">— ' + metaParts + '</span>'
+          : "";
+        const ctaEl = r.link?.trim()
+          ? '<a href="' + r.link + '" style="font-size:11px;color:#fff;background:' + DS.accent + ';padding:3px 10px;border-radius:4px;text-decoration:none;font-weight:600;display:inline-block;white-space:nowrap;">Full report &#8594;</a>'
+          : "";
+        // Email-safe table for the row — `<table>` rather than flex
+        // because Outlook desktop doesn't honour flex. Left cell
+        // takes the natural width of the content; right cell stays
+        // tight to the CTA, right-aligned.
+        return '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-bottom:1px solid ' + DS.borderLight + ';margin:0;"><tr>' +
+          '<td valign="middle" style="padding:8px 0;font-size:13px;line-height:1.5;">' + tag + titleEl + metaEl + '</td>' +
+          (ctaEl ? '<td valign="middle" align="right" style="padding:8px 0 8px 10px;white-space:nowrap;">' + ctaEl + '</td>' : '') +
+        '</tr></table>';
       }).join("") + '</td></tr>'
     : "";
 
@@ -414,7 +433,7 @@ function generateHTMLImpl(s: DailyState, mode: string = "full", template: string
     + '<tr><td style="height:3px;background:linear-gradient(90deg,' + DS.sky + ',' + DS.accent + ');"></td></tr>'
 
     // SUMMARY BAR
-    + (s.summaryBar ? '<tr><td style="padding:20px 40px 0;"><div style="border-left:3px solid ' + DS.accent + ';padding:12px 16px;background:' + DS.bgAlt + ';font-size:13.5px;line-height:1.6;color:' + DS.text + ';text-align:justify;"><strong style="color:' + DS.navy + ';">Today</strong> \u2014 ' + s.summaryBar + '</div></td></tr>' : '')
+    + (s.summaryBar ? '<tr><td style="padding:20px 40px 0;"><div style="border-left:3px solid ' + DS.accent + ';padding:12px 16px;background:' + DS.bgAlt + ';font-size:13.5px;line-height:1.6;color:' + DS.text + ';text-align:justify;"><strong style="color:' + DS.navy + ';">Today</strong> ' + s.summaryBar + '</div></td></tr>' : '')
 
     // SECTIONS
     + sectionContent

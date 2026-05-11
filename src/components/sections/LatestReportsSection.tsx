@@ -137,6 +137,7 @@ export default function LatestReportsSection(): React.ReactElement | null {
             </select>
             <Inp
               label=""
+              type="date"
               value={r.publishedDate || ""}
               onChange={(v) => updateListItem("latestReports", r.id, "publishedDate", v)}
               placeholder="2026-05-04"

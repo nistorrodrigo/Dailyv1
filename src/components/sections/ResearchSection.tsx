@@ -10,8 +10,12 @@ const ss: React.CSSProperties = { ...is, background: "var(--bg-card)" };
 const REPORT_TYPES = ["Macro", "Weekly", "Strategy", "Sector", "Special"];
 
 export default function ResearchSection() {
-    const { sections, researchReports } = useDailyStore(useShallow((s) => ({ sections: s.sections, researchReports: s.researchReports })));
-    const updateListItem = useDailyStore((s) => s.updateListItem);
+  const { sections, researchReports, analysts } = useDailyStore(useShallow((s) => ({
+    sections: s.sections,
+    researchReports: s.researchReports,
+    analysts: s.analysts,
+  })));
+  const updateListItem = useDailyStore((s) => s.updateListItem);
   const addListItem = useDailyStore((s) => s.addListItem);
   const removeListItem = useDailyStore((s) => s.removeListItem);
 
@@ -19,7 +23,14 @@ export default function ResearchSection() {
 
   return (
     <Card title="Research Reports" color={BRAND.blue}>
-      {researchReports.map((r) => (
+      {researchReports.map((r) => {
+        // Author dropdown logic mirrors LatestReportsSection: a
+        // catalogue analyst id wins, an "__external__" sentinel
+        // switches to a free-text fallback for visiting / partner-
+        // desk authors, blank shows the placeholder.
+        const useExternal = !r.analystId && (r.author?.trim().length ?? 0) > 0;
+        const dropdownValue = r.analystId || (useExternal ? "__external__" : "");
+        return (
         <div key={r.id} style={{ marginBottom: 16, padding: 12, background: "#f8f9fa", borderRadius: 6, position: "relative" }}>
           <div style={{ position: "absolute", top: 8, right: 8 }}>
             <X onClick={() => removeListItem("researchReports", r.id)} />
@@ -41,12 +52,55 @@ export default function ResearchSection() {
           </div>
 
           <Inp label="Title" value={r.title} onChange={(v) => updateListItem("researchReports", r.id, "title", v)} />
-          <Inp label="Author" value={r.author} onChange={(v) => updateListItem("researchReports", r.id, "author", v)} />
+
+          {/* Author — dropdown of catalogue analysts with an
+              "External / other…" escape hatch for visiting authors.
+              Same pattern Corporate / LatestReports use so the desk
+              gets one consistent UX across every author field. */}
+          <div style={{ marginBottom: 10 }}>
+            <label style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: 0.5, display: "block", marginBottom: 4 }}>
+              Author
+            </label>
+            <select
+              value={dropdownValue}
+              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                const v = e.target.value;
+                if (v === "__external__") {
+                  updateListItem("researchReports", r.id, "analystId", "");
+                } else {
+                  updateListItem("researchReports", r.id, "analystId", v);
+                  if (r.author) updateListItem("researchReports", r.id, "author", "");
+                }
+              }}
+              style={{ ...ss, width: "100%" }}
+            >
+              <option value="">Author…</option>
+              {analysts.map((a) => (
+                <option key={a.id} value={a.id}>{a.name}</option>
+              ))}
+              <option value="__external__">External / other…</option>
+            </select>
+            {dropdownValue === "__external__" && (
+              <div style={{ marginTop: 6 }}>
+                <Inp
+                  label=""
+                  value={r.author}
+                  onChange={(v) => updateListItem("researchReports", r.id, "author", v)}
+                  placeholder="External author name"
+                />
+              </div>
+            )}
+          </div>
+
           <Inp label="Body" value={r.body} onChange={(v) => updateListItem("researchReports", r.id, "body", v)} multi rows={3} />
           <Inp label="Link" value={r.link} onChange={(v) => updateListItem("researchReports", r.id, "link", v)} placeholder="https://..." />
           {/* Auto-fill — pulls title / author / description off the
               report's hosting page. Only writes to fields that are
-              currently empty so the analyst's own typing wins. */}
+              currently empty so the analyst's own typing wins.
+              Author auto-fill only kicks in when the analyst hasn't
+              picked a catalogue entry — `analystId` is the source
+              of truth there and shouldn't be overwritten by a
+              page-level <meta name="author">. */}
           <div style={{ marginTop: -4, marginBottom: 8 }}>
             <AutofillLinkBtn
               url={r.link}
@@ -54,7 +108,7 @@ export default function ResearchSection() {
                 if (meta.title && !r.title.trim()) {
                   updateListItem("researchReports", r.id, "title", meta.title);
                 }
-                if (meta.author && !r.author.trim()) {
+                if (meta.author && !r.analystId && !r.author.trim()) {
                   updateListItem("researchReports", r.id, "author", meta.author);
                 }
                 if (meta.description && !r.body.trim()) {
@@ -64,8 +118,9 @@ export default function ResearchSection() {
             />
           </div>
         </div>
-      ))}
-      <DashBtn onClick={() => addListItem("researchReports", { id: Date.now().toString(), type: "Macro", title: "", author: "", body: "", link: "" })}>
+        );
+      })}
+      <DashBtn onClick={() => addListItem("researchReports", { id: Date.now().toString(), type: "Macro", title: "", author: "", analystId: "", body: "", link: "" })}>
         + Add Research Report
       </DashBtn>
     </Card>

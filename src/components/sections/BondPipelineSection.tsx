@@ -86,6 +86,7 @@ export default function BondPipelineSection(): React.ReactElement | null {
           />
           <Inp
             label=""
+            type="date"
             value={b.pricingDate || ""}
             onChange={(v) => updateListItem("bondPipeline", b.id, "pricingDate", v)}
             placeholder="2026-05-12"
