@@ -21,18 +21,38 @@ function hostOf(url: string): string {
  * gracefully — it shows the form blank.
  */
 export const UNSUBSCRIBE_EMAIL_TOKEN = "__LS_RECIPIENT_EMAIL__";
+/**
+ * SendGrid substitution token replaced at send time with an HMAC of
+ * the recipient's email. Lets /api/unsubscribe verify that the
+ * person clicking the link genuinely received the email — without
+ * the HMAC, anyone on the internet could suppress arbitrary
+ * addresses by guessing them in the query string.
+ *
+ * api/send-email.js generates the HMAC per recipient (via
+ * `UNSUBSCRIBE_HMAC_SECRET` env var) and substitutes it into the
+ * HTML body before posting to SendGrid.
+ */
+export const UNSUBSCRIBE_HMAC_TOKEN = "__LS_RECIPIENT_HMAC__";
 
 /**
  * Public URL for the /api/unsubscribe endpoint. Resolves at runtime so the
  * link works whether the email is generated locally (`http://localhost:5173`)
  * or in production (`https://dailyv1.vercel.app`). Falls back to the prod
  * URL when there's no `window` (i.e. inside vitest's happy-dom tests).
+ *
+ * Two SendGrid substitutions are baked into the URL:
+ *   - `?email=__LS_RECIPIENT_EMAIL__` — the recipient's email
+ *   - `&t=__LS_RECIPIENT_HMAC__`     — HMAC-SHA256(email, secret),
+ *                                       first 16 hex chars
+ * /api/unsubscribe verifies that the HMAC matches the email before
+ * suppressing. Without both substitutions matching, the request
+ * falls through to the manual-form path (rate-limited).
  */
 function unsubscribeUrl(): string {
   const origin = typeof window !== "undefined" && window.location?.origin
     ? window.location.origin
     : "https://dailyv1.vercel.app";
-  return `${origin}/api/unsubscribe?email=${UNSUBSCRIBE_EMAIL_TOKEN}`;
+  return `${origin}/api/unsubscribe?email=${UNSUBSCRIBE_EMAIL_TOKEN}&t=${UNSUBSCRIBE_HMAC_TOKEN}`;
 }
 
 /** Tiny "Sources: <a> · <a>" footer for blocks that have news links. */

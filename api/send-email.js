@@ -17,8 +17,29 @@
 //     key (kept server-only) is the correct choice.
 
 import { createClient } from "@supabase/supabase-js";
+import crypto from "node:crypto";
 import { applyCors } from "./_helpers.js";
 import { peekLimit, recordFailure, callerIp } from "./_rateLimit.js";
+
+/**
+ * Compute the unsubscribe-link HMAC for a single recipient. Uses
+ * `UNSUBSCRIBE_HMAC_SECRET` env var as the key; truncates to 16 hex
+ * chars (64 bits) which is plenty against guessing while keeping
+ * the URL short.
+ *
+ * Returns empty string when the secret isn't set — the receiving
+ * /api/unsubscribe endpoint then falls through to the manual form
+ * path (rate-limited). Don't deploy without setting the env var.
+ */
+function unsubscribeHmac(email) {
+  const secret = process.env.UNSUBSCRIBE_HMAC_SECRET;
+  if (!secret) return "";
+  return crypto
+    .createHmac("sha256", secret)
+    .update(email.toLowerCase())
+    .digest("hex")
+    .slice(0, 16);
+}
 
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL,
@@ -215,12 +236,19 @@ export default async function handler(req, res) {
       },
     };
 
-    // Per-recipient substitution map. The HTML body contains the token
-    // `__LS_RECIPIENT_EMAIL__` inside the unsubscribe URL; SendGrid replaces
-    // it with the recipient's email so each person gets their own pre-filled
-    // unsubscribe link. (Generic v3 substitutions, not the asm group system.)
+    // Per-recipient substitution map. The HTML body contains the
+    // tokens `__LS_RECIPIENT_EMAIL__` and `__LS_RECIPIENT_HMAC__`
+    // inside the unsubscribe URL; SendGrid replaces them per
+    // recipient so each person gets a pre-filled, HMAC-signed
+    // unsubscribe link.
+    //
+    // The HMAC stops an attacker from suppressing arbitrary email
+    // addresses by guessing them in the unsubscribe URL — without
+    // the matching token, /api/unsubscribe falls through to the
+    // (rate-limited) manual-form path.
     const buildSubstitutions = (recipientEmail) => ({
       "__LS_RECIPIENT_EMAIL__": encodeURIComponent(recipientEmail),
+      "__LS_RECIPIENT_HMAC__": unsubscribeHmac(recipientEmail),
     });
 
     // Add attachments if present (base64 encoded)

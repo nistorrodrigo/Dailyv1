@@ -1,16 +1,55 @@
 // Unsubscribe endpoint.
 //
-// GET  /api/unsubscribe                -> renders a simple branded form asking for the email address
-// GET  /api/unsubscribe?email=foo@x... -> pre-fills the form with the email
-// POST /api/unsubscribe (form data: email=...) -> adds the email to the SendGrid
-//                                                  global suppression group and
-//                                                  returns a confirmation page
+// GET  /api/unsubscribe?email=foo&t=HMAC -> 1-click unsubscribe via
+//                                            HMAC-signed link from a
+//                                            sent daily. Suppresses
+//                                            immediately on success.
+// GET  /api/unsubscribe                  -> manual form (no token)
+// POST /api/unsubscribe (form: email=)   -> rate-limited path for
+//                                            recipients who lost the
+//                                            link or are typing the
+//                                            address by hand. 5/IP/hr.
+//
+// The HMAC is generated per-recipient in api/send-email.js at send
+// time (substitution token `__LS_RECIPIENT_HMAC__`) using the env
+// var `UNSUBSCRIBE_HMAC_SECRET`. Without a matching token, the
+// only way to suppress an address is the rate-limited form — so
+// an attacker can't mass-suppress arbitrary inboxes by guessing.
 //
 // Adding to the global suppression list is SendGrid's documented
 // unsubscribe primitive — once on the list, SendGrid refuses to deliver
 // any further mail to that recipient from this account, regardless of
 // which list they were imported from.
 // See: https://docs.sendgrid.com/api-reference/suppressions-global-suppressions
+
+import crypto from "node:crypto";
+import { peekLimit, recordFailure, callerIp } from "./_rateLimit.js";
+
+/** Constant-time compare so HMAC verification doesn't leak
+ *  byte-by-byte timing info. */
+function timingSafeEqualStrings(a, b) {
+  if (typeof a !== "string" || typeof b !== "string" || a.length !== b.length) {
+    return false;
+  }
+  return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
+}
+
+function unsubscribeHmac(email) {
+  const secret = process.env.UNSUBSCRIBE_HMAC_SECRET;
+  if (!secret) return null;
+  return crypto
+    .createHmac("sha256", secret)
+    .update(email.toLowerCase())
+    .digest("hex")
+    .slice(0, 16);
+}
+
+// Rate-limit budget for the manual-form (no-token) path. Tight
+// because an attacker who can pass through this path can suppress
+// any email they guess. 5 per IP per hour absorbs a legitimate
+// re-attempt while bounding abuse to a trivial scale.
+const MANUAL_UNSUB_MAX = 5;
+const MANUAL_UNSUB_WINDOW_SEC = 60 * 60;
 
 const NAVY = "#000039";
 const SKY = "#3399ff";
@@ -127,17 +166,79 @@ function errorPage(msg) {
 // instead of sent via the API), the token comes through literally and
 // shouldn't be pre-filled into the form.
 const SUBSTITUTION_TOKEN = "__LS_RECIPIENT_EMAIL__";
+const HMAC_SUBSTITUTION_TOKEN = "__LS_RECIPIENT_HMAC__";
+
+/** The actual SendGrid global-suppression POST. Returns nothing
+ *  on success; throws on error so callers can render an error
+ *  page. */
+async function suppressEmail(email) {
+  const apiKey = process.env.SENDGRID_API_KEY;
+  if (!apiKey) throw new Error("Server misconfigured (SENDGRID_API_KEY missing).");
+  const sgResp = await fetch("https://api.sendgrid.com/v3/asm/suppressions/global", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ recipient_emails: [email] }),
+  });
+  if (!sgResp.ok) {
+    const text = await sgResp.text();
+    console.warn(`[unsubscribe] SendGrid ${sgResp.status} for ${email}: ${text}`);
+    throw new Error(`Could not register the unsubscribe (SendGrid returned ${sgResp.status}).`);
+  }
+  console.log(`[unsubscribe] global-suppressed ${email}`);
+}
 
 export default async function handler(req, res) {
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+
+  // ── GET: 1-click unsubscribe IF the URL has a valid HMAC token
+  //        Otherwise (no token / bad token / literal SendGrid
+  //        substitution tokens / no email) fall through to the
+  //        manual form.
   if (req.method === "GET") {
-    res.setHeader("Content-Type", "text/html; charset=utf-8");
-    const raw = req.query?.email ? String(req.query.email) : "";
-    const prefill = raw === SUBSTITUTION_TOKEN ? "" : raw;
+    const rawEmail = req.query?.email ? String(req.query.email) : "";
+    const rawToken = req.query?.t ? String(req.query.t) : "";
+    const emailLiteral = rawEmail === SUBSTITUTION_TOKEN || rawEmail === "";
+    const tokenLiteral = rawToken === HMAC_SUBSTITUTION_TOKEN || rawToken === "";
+
+    // Token present + email present + secret configured → verify.
+    if (!emailLiteral && !tokenLiteral) {
+      const email = decodeURIComponent(rawEmail).trim().toLowerCase();
+      const expected = unsubscribeHmac(email);
+      if (expected && timingSafeEqualStrings(rawToken, expected)) {
+        try {
+          await suppressEmail(email);
+          return res.status(200).send(successPage(email));
+        } catch (err) {
+          return res.status(500).send(errorPage(err.message));
+        }
+      }
+      // HMAC mismatch — don't reveal which step failed (could
+      // leak whether the email exists in our list). Just drop to
+      // the manual form with a generic prompt.
+      return res.status(200).send(formPage(email, "Link expired or invalid. Enter your email to unsubscribe."));
+    }
+
+    // No usable token — show the form, optionally pre-filled.
+    const prefill = emailLiteral ? "" : decodeURIComponent(rawEmail);
     return res.status(200).send(formPage(prefill));
   }
 
+  // ── POST: manual form path. Rate-limited per IP to bound abuse.
   if (req.method !== "POST") {
+    res.setHeader("Content-Type", "application/json");
     return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  const ip = callerIp(req);
+  const rl = await peekLimit(`unsub-manual:${ip}`, MANUAL_UNSUB_MAX);
+  if (!rl.ok) {
+    res.setHeader("Retry-After", String(rl.resetSec || MANUAL_UNSUB_WINDOW_SEC));
+    return res.status(429).send(errorPage(
+      `Too many unsubscribe attempts from this IP. Try again in ${Math.ceil((rl.resetSec || MANUAL_UNSUB_WINDOW_SEC) / 60)} minutes.`,
+    ));
   }
 
   // The form posts application/x-www-form-urlencoded which Vercel auto-parses
@@ -146,37 +247,18 @@ export default async function handler(req, res) {
   const email = raw.toLowerCase();
 
   if (!email || !email.includes("@") || email.length > 254) {
-    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    await recordFailure(`unsub-manual:${ip}`, MANUAL_UNSUB_WINDOW_SEC);
     return res.status(400).send(formPage(raw, "Please enter a valid email address."));
   }
 
-  const apiKey = process.env.SENDGRID_API_KEY;
-  if (!apiKey) {
-    res.setHeader("Content-Type", "text/html; charset=utf-8");
-    return res.status(500).send(errorPage("Server misconfigured (SENDGRID_API_KEY missing)."));
-  }
-
   try {
-    const sgResp = await fetch("https://api.sendgrid.com/v3/asm/suppressions/global", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ recipient_emails: [email] }),
-    });
-
-    if (!sgResp.ok) {
-      const text = await sgResp.text();
-      console.warn(`[unsubscribe] SendGrid ${sgResp.status} for ${email}: ${text}`);
-      throw new Error(`Could not register the unsubscribe (SendGrid returned ${sgResp.status}).`);
-    }
-
-    console.log(`[unsubscribe] global-suppressed ${email}`);
-    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    await suppressEmail(email);
+    // Charge the rate limit on success too — a successful manual
+    // unsub still counts toward the 5/hr/IP budget, since the
+    // attack we're bounding IS successful suppressions.
+    await recordFailure(`unsub-manual:${ip}`, MANUAL_UNSUB_WINDOW_SEC);
     return res.status(200).send(successPage(email));
   } catch (err) {
-    res.setHeader("Content-Type", "text/html; charset=utf-8");
     return res.status(500).send(errorPage(err.message));
   }
 }
