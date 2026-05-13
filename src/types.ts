@@ -286,6 +286,20 @@ export interface DailyState {
   chartImage: ChartImage | null;
 }
 
+/** Runtime store shape: `DailyState` plus the `flows` extension that
+ *  lives on the Zustand store. The `flows` field isn't on bare
+ *  DailyState for historical reasons (it predates the slice
+ *  refactor), but every consumer of the persisted state needs the
+ *  combined shape — carryForward, preflightReview, the persisted
+ *  Supabase row, etc. Centralising the alias keeps the type and the
+ *  three or four call sites from drifting (previously this was
+ *  redeclared in carryForward.ts and preflightReview.ts, and
+ *  DuplicateYesterdayBtn cast through `unknown` to invoke
+ *  carryForward — all of which are now a single import). */
+export type StateWithFlows = DailyState & {
+  flows: { global: string; local: string; positioning: string };
+};
+
 export interface UIState {
   tab: "edit" | "analysts" | "ai" | "preview" | "email-editor" | "dashboard";
   previewMode: "html" | "bbg";

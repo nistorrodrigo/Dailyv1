@@ -231,12 +231,31 @@ export default function AIReviewPanel({ open, onClose }: { open: boolean; onClos
       const inputTokens = data.usage?.input || 0;
       const outputTokens = data.usage?.output || 0;
       const whatNeededFor10 = normalizeNeededItems(review.whatNeededFor10);
+      const issues = Array.isArray(review.issues) ? review.issues : [];
+      const suggestions = Array.isArray(review.suggestions) ? review.suggestions : [];
+      const score = typeof review.score === "number" ? review.score : null;
+      const summary = review.summary || "";
+      // Detect "server said ok but returned an empty review" — happens
+      // when the upstream LLM call succeeded but the response shape
+      // drifted, or the model returned no parseable JSON. Without this
+      // check, the panel shows an empty score / no items and the
+      // analyst silently assumes "AI had nothing to say" when in fact
+      // the call failed downstream. Surfacing a toast prompts a retry.
+      const isEmpty =
+        score === null &&
+        issues.length === 0 &&
+        suggestions.length === 0 &&
+        whatNeededFor10.length === 0 &&
+        !summary.trim();
+      if (isEmpty) {
+        toast.error("Review came back empty — try again, or switch models.");
+      }
       setResult({
-        score: typeof review.score === "number" ? review.score : null,
-        issues: Array.isArray(review.issues) ? review.issues : [],
-        suggestions: Array.isArray(review.suggestions) ? review.suggestions : [],
+        score,
+        issues,
+        suggestions,
         whatNeededFor10,
-        summary: review.summary || "",
+        summary,
         tokens: inputTokens + outputTokens,
         cost: estimateCost(model, inputTokens, outputTokens),
         model: data.model || model,

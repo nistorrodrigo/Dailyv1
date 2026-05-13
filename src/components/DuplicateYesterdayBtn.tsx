@@ -6,6 +6,7 @@ import { DEFAULT_STATE } from "../constants/defaultState";
 import { toast } from "../store/useToastStore";
 import { todayLocal, addDaysLocal } from "../utils/dates";
 import { carryForwardYesterday } from "../utils/carryForward";
+import type { StateWithFlows } from "../types";
 
 export default function DuplicateYesterdayBtn(): React.ReactElement {
   const handleDuplicate = async (): Promise<void> => {
@@ -54,13 +55,15 @@ export default function DuplicateYesterdayBtn(): React.ReactElement {
 
       // `loadDaily` returns a bare DailyState shape from Supabase. The
       // runtime row also has the `flows` extension fields persisted
-      // alongside, so cast through a wider type for the carry-forward
-      // helper. If the row is missing flows (older schema), use empty
-      // strings so carry-forward's `seed.flows` defaults take over.
-      const yesterdayWithFlows = {
+      // alongside (it's part of StateWithFlows on the store), but the
+      // DailyRecord typing doesn't surface them. Provide defaults +
+      // overlay the persisted state — the row's own `flows` (if
+      // present) wins over the default; older rows without `flows`
+      // fall through to carry-forward's seed defaults.
+      const yesterdayWithFlows: StateWithFlows = {
         flows: { global: "", local: "", positioning: "" },
-        ...(record.state as unknown as Record<string, unknown>),
-      } as Parameters<typeof carryForwardYesterday>[0];
+        ...record.state,
+      };
       useDailyStore.setState(carryForwardYesterday(yesterdayWithFlows, today));
       toast.success(`Setup carried forward from ${sourceLabel}. Fill in today's content.`);
     } catch (err) {

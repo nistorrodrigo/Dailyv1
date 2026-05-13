@@ -42,7 +42,12 @@ import { createWidgetsSlice } from "./slices/widgets";
  */
 const V3_FORCE_REINTRODUCE = new Set(["marketComment", "latestReports", "yesterdayRecap"]);
 
-function migrateState(
+// Exported for direct unit testing. The migration touches enough
+// independent concerns (section catalogue merge, deprecated-field
+// strip, null/undefined clean-up) that exercising it through the
+// full zustand persist hydration is too coarse — direct tests pin
+// each branch.
+export function migrateState(
   persisted: Partial<DailyStore> | undefined,
   version: number = 0,
 ): Partial<DailyStore> | undefined {
@@ -84,6 +89,17 @@ function migrateState(
   for (const [k, v] of Object.entries(persisted)) {
     if (v !== null && v !== undefined) cleanedPersisted[k] = v;
   }
+  // Strip deprecated fields on load. `snapshot` (Market Snapshot)
+  // and `yesterdayRecap` were retired from the section catalogue —
+  // nothing reads them anymore, but the persisted localStorage from
+  // analysts who used them before the retirement still carries the
+  // bloat (MarketSnapshot alone is ~17 string fields per persisted
+  // daily). The spread below repopulates these slots with the empty
+  // DEFAULT_STATE values, so next persist write is smaller. Kept on
+  // the type with @deprecated so any code path that still reads them
+  // compiles; this migration just stops persisting the stale data.
+  delete cleanedPersisted.snapshot;
+  delete cleanedPersisted.yesterdayRecap;
   return {
     ...DEFAULT_STATE,
     ...(cleanedPersisted as Partial<DailyStore>),

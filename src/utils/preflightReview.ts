@@ -1,12 +1,5 @@
-import type { DailyState } from "../types";
+import type { StateWithFlows } from "../types";
 import { isToday, todayLocal } from "./dates";
-
-/** Runtime store shape — DailyState plus the `flows` extension field
- *  that lives on the store but isn't part of the bare DailyState type.
- *  See `src/store/slices/_helpers.ts` for the canonical compose. */
-type StateWithFlows = DailyState & {
-  flows?: { global: string; local: string; positioning: string };
-};
 
 /**
  * Pre-flight review — a synchronous, deterministic scan for "obvious"

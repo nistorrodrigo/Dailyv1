@@ -145,17 +145,33 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
     setNewName("");
   };
 
+  // Optimistic UI: flip the recipient first, then persist. If the
+  // persist fails we DON'T roll back — the analyst already saw the
+  // change — but we DO surface a toast so they know to refresh. The
+  // previous code silently swallowed the failure (just console.error),
+  // so a failed toggle would silently reappear after page reload with
+  // no warning.
   const handleToggle = async (id: string | number, active: boolean): Promise<void> => {
     setRecipients((prev) => prev.map((r) => (r.id === id ? { ...r, active } : r)));
-    if (supabase) {
-      try { await toggleRecipient(String(id), active); } catch (err) { console.error(err); }
+    if (!supabase) return;
+    try {
+      await toggleRecipient(String(id), active);
+    } catch (err) {
+      toast.error("Couldn't save recipient state — change may revert on reload.");
+      // eslint-disable-next-line no-console
+      console.error("[EmailSendPanel] toggleRecipient failed:", err);
     }
   };
 
   const handleRemove = async (id: string | number): Promise<void> => {
     setRecipients((prev) => prev.filter((r) => r.id !== id));
-    if (supabase) {
-      try { await removeRecipient(String(id)); } catch (err) { console.error(err); }
+    if (!supabase) return;
+    try {
+      await removeRecipient(String(id));
+    } catch (err) {
+      toast.error("Couldn't remove recipient — they'll reappear on reload.");
+      // eslint-disable-next-line no-console
+      console.error("[EmailSendPanel] removeRecipient failed:", err);
     }
   };
 

@@ -28,6 +28,13 @@ import { useWorkflowProgress } from "../hooks/useWorkflowProgress";
 // `lazyWithReload` instead of raw React.lazy — see the helper
 // header for the stale-bundle recovery story (deploy mid-session
 // invalidates the chunk hash references in the analyst's open tab).
+// WhatsApp Web share endpoint. Hoisted to a module constant rather
+// than inlined inside the click handler — a future change to the
+// share target (e.g. WhatsApp deprecates `web.whatsapp.com`, or we
+// add a Telegram / Signal share button alongside) is a single-site
+// edit instead of a search-the-tsx-file hunt.
+const WHATSAPP_SHARE_URL = "https://web.whatsapp.com/send";
+
 const HistoryPanel = lazyWithReload(() => import("./HistoryPanel"));
 const TemplatesPanel = lazyWithReload(() => import("./TemplatesPanel"));
 const DiffPanel = lazyWithReload(() => import("./DiffPanel"));
@@ -195,7 +202,7 @@ export default function Header(): React.ReactElement {
   const sendWhatsApp = () => {
     const state = useDailyStore.getState();
     const bbg = generateBBG(state);
-    window.open("https://web.whatsapp.com/send?text=" + encodeURIComponent(bbg), "_blank");
+    window.open(`${WHATSAPP_SHARE_URL}?text=${encodeURIComponent(bbg)}`, "_blank");
   };
 
   return (

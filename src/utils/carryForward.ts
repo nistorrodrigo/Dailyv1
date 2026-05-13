@@ -1,13 +1,5 @@
 import { DEFAULT_STATE } from "../constants/defaultState";
-import type { DailyState } from "../types";
-
-/** Runtime store shape — DailyState plus the `flows` extension that
- *  lives on the Zustand store but isn't on the bare DailyState type.
- *  Mirrors the shape DEFAULT_STATE is typed as. See
- *  src/store/slices/_helpers.ts for the canonical compose. */
-type StateWithFlows = DailyState & {
-  flows: { global: string; local: string; positioning: string };
-};
+import type { StateWithFlows } from "../types";
 
 /**
  * Build today's draft state by carrying forward only the long-lived
