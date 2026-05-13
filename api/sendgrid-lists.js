@@ -1,7 +1,16 @@
-import { applyCors, fetchWithRetry } from "./_helpers.js";
+import { applyCors, fetchWithRetry, requireAuth } from "./_helpers.js";
 
 export default async function handler(req, res) {
   applyCors(req, res);
+  if (req.method === "OPTIONS") return res.status(204).end();
+
+  // Auth gate — previously this route was wide open, returning the
+  // full list of SendGrid marketing lists (with IDs, names, contact
+  // counts) AND letting anyone start a CSV export of subscriber
+  // emails. Now requires the same Supabase JWT the rest of /api
+  // uses; rejects anonymous traffic with 401.
+  const auth = await requireAuth(req);
+  if (!auth.ok) return res.status(401).json({ ok: false, error: "Auth required" });
 
   const apiKey = process.env.SENDGRID_API_KEY;
   if (!apiKey) return res.status(500).json({ ok: false, error: "SENDGRID_API_KEY env var is not set on the server" });

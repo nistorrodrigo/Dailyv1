@@ -43,8 +43,23 @@ CREATE TABLE daily_versions (
   -- writes ("Auto · 14:35").
   label TEXT,
   state JSONB NOT NULL,
+  -- Email of the analyst who saved this version. Stamped at insert
+  -- time so the DELETE path can require ownership (or admin).
+  -- Nullable for rows persisted before this column existed.
+  created_by TEXT,
   created_at TIMESTAMPTZ DEFAULT now()
 );
+-- Migration for existing deployments — the schema above is for fresh
+-- installs. Existing tables get the column via the additive ALTER:
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'daily_versions' AND column_name = 'created_by'
+  ) THEN
+    ALTER TABLE daily_versions ADD COLUMN created_by TEXT;
+  END IF;
+END $$;
 CREATE INDEX idx_daily_versions_date ON daily_versions (daily_date DESC, created_at DESC);
 
 -- No auth for now — open RLS

@@ -57,9 +57,17 @@ export default async function handler(req, res) {
       label ||
       `Auto · ${new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false })}`;
 
+    // Stamp `created_by` so the DELETE path can enforce ownership.
+    // Falls back to "unknown" if the auth user record is somehow
+    // missing an email (shouldn't happen post-requireAuth).
     const { data, error } = await supabase
       .from("daily_versions")
-      .insert({ daily_date: date, label: finalLabel, state })
+      .insert({
+        daily_date: date,
+        label: finalLabel,
+        state,
+        created_by: auth.user?.email || "unknown",
+      })
       .select("id, daily_date, label, created_at")
       .single();
 
@@ -77,6 +85,31 @@ export default async function handler(req, res) {
   if (req.method === "DELETE") {
     const id = req.query?.id;
     if (!id) return res.status(400).json({ error: "Missing id" });
+    // Ownership check — only the analyst who created the version
+    // (or one of the admin emails) can delete it. Previously any
+    // authed user could delete any version by UUID. Look up the
+    // row first so we can return a precise 403 instead of silently
+    // no-opping (which is what a single-statement delete with
+    // .eq("created_by", ...) would do).
+    const { data: row, error: lookupError } = await supabase
+      .from("daily_versions")
+      .select("created_by")
+      .eq("id", id)
+      .maybeSingle();
+    if (lookupError) return res.status(500).json({ error: lookupError.message });
+    if (!row) return res.status(404).json({ error: "Version not found" });
+    const ADMIN_EMAILS = (process.env.LS_ADMIN_EMAILS || "").split(",").map((s) => s.trim()).filter(Boolean);
+    const userEmail = auth.user?.email || "";
+    const isOwner = row.created_by && row.created_by.toLowerCase() === userEmail.toLowerCase();
+    const isAdmin = ADMIN_EMAILS.some((e) => e.toLowerCase() === userEmail.toLowerCase());
+    // Pre-existing rows from before `created_by` was stamped have
+    // `created_by IS NULL` — any authed analyst is allowed to
+    // delete those (no owner to defer to). This grandfathers the
+    // back-catalogue without a data migration.
+    const grandfathered = row.created_by == null;
+    if (!isOwner && !isAdmin && !grandfathered) {
+      return res.status(403).json({ error: "Not your version to delete" });
+    }
     const { error } = await supabase.from("daily_versions").delete().eq("id", id);
     if (error) return res.status(500).json({ error: error.message });
     return res.status(200).json({ ok: true });
