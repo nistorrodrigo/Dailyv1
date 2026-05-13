@@ -65,7 +65,7 @@ export default function WorkflowPanel({ open, onClose, onOpenSendEmail }: Workfl
 
   return (
     <div
-      className="fixed top-0 right-0 bottom-0 w-[400px] bg-[var(--bg-card)] shadow-[var(--shadow-panel)] z-[1000] flex flex-col panel-slide"
+      className="fixed top-0 right-0 bottom-0 w-[400px] max-w-[100vw] bg-[var(--bg-card)] shadow-[var(--shadow-panel)] z-[1000] flex flex-col panel-slide"
     >
       <div className="flex justify-between items-center px-5 py-4" style={{ background: BRAND.navy }}>
         <span className="text-white text-sm font-bold uppercase tracking-wider">Daily Workflow</span>

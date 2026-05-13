@@ -283,7 +283,7 @@ export default function AIDraftTab(): React.ReactElement {
                 <span className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Flows</span>
                 <span className="text-[10px] text-green-600 font-semibold">Auto-included</span>
               </div>
-              <div className="grid grid-cols-2 gap-3 text-[12px] text-[var(--text-primary)]">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-[12px] text-[var(--text-primary)]">
                 <div><span className="font-semibold text-green-700">EQ Buy:</span> {flowsDraft.eqBuyer}</div>
                 <div><span className="font-semibold text-red-600">EQ Sell:</span> {flowsDraft.eqSeller}</div>
                 <div><span className="font-semibold text-green-700">FI Buy:</span> {flowsDraft.fiBuyer}</div>

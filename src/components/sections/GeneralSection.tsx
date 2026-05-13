@@ -101,7 +101,7 @@ export default function GeneralSection() {
       </div>
       {showShortcuts && (
         <div className="mt-2 p-3 rounded-md bg-[var(--bg-card-alt)] border border-[var(--border-light)]">
-          <div className="grid grid-cols-2 gap-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
             {SHORTCUTS.map(([key, desc]) => (
               <div key={key} className="flex items-center gap-2 text-[11px]">
                 <kbd className="px-1.5 py-0.5 rounded bg-[var(--bg-input)] border border-[var(--border-input)] text-[10px] font-mono text-[var(--text-secondary)]">{key}</kbd>

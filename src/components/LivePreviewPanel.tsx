@@ -74,7 +74,12 @@ export default function LivePreviewPanel({ children }: LivePreviewPanelProps): R
         </div>
         {children}
       </div>
-      <div style={{
+      {/* Side-by-side preview only makes sense at ≥1024px. Below
+       *  that, a 720px column pushes the editor off-screen (the
+       *  default Tailwind `lg` breakpoint matches the smallest
+       *  width where editor + preview both fit comfortably). On
+       *  phones / tablets, the Preview tab is the dedicated path. */}
+      <div className="hidden lg:block" style={{
         width: 720, flexShrink: 0, borderLeft: `2px solid ${BRAND.sky}`,
         background: "var(--bg-page)", overflow: "auto",
       }}>
