@@ -29,7 +29,25 @@ function diffField(label: string, current: string, previous: string): FieldDiff 
   return { label, current: current || "(empty)", previous: previous || "(empty)" };
 }
 
-function diffArrayField(label: string, current: Record<string, unknown>[], previous: Record<string, unknown>[], key: string = "id"): FieldDiff | null {
+/**
+ * Generic per-row diff for a list field. `T` is constrained to
+ * objects with at least one indexable key so the implementation
+ * can compare by `T[K]` without the call-site needing to cast
+ * each list through `unknown`.
+ *
+ * Previously the signature was `Record<string, unknown>[]` and
+ * every call site did `as unknown as Record<string, unknown>[]`
+ * — both verbose and a type-system escape hatch (a typo in the
+ * `key` arg would compile fine and silently match nothing). With
+ * the generic, the `key` is `keyof T` and TypeScript flags
+ * incorrect key names at the call site.
+ */
+function diffArrayField<T extends object>(
+  label: string,
+  current: T[],
+  previous: T[],
+  key: keyof T = "id" as keyof T,
+): FieldDiff | null {
   const added = current.filter((c) => !previous.find((p) => p[key] === c[key]));
   const removed = previous.filter((p) => !current.find((c) => c[key] === p[key]));
   const changed = current.filter((c) => {
@@ -75,11 +93,11 @@ export default function DiffPanel({ open, onClose }: DiffPanelProps): React.Reac
         diffField("FI Buyer", current.fiBuyer, ps.fiBuyer),
         diffField("FI Seller", current.fiSeller, ps.fiSeller),
         diffField("Macro Source", current.macroSource, ps.macroSource),
-        diffArrayField("Macro Blocks", (current.macroBlocks || []) as unknown as Record<string, unknown>[], (ps.macroBlocks || []) as unknown as Record<string, unknown>[]),
-        diffArrayField("Equity Picks", (current.equityPicks || []) as unknown as Record<string, unknown>[], (ps.equityPicks || []) as unknown as Record<string, unknown>[], "ticker"),
-        diffArrayField("FI Ideas", (current.fiIdeas || []) as unknown as Record<string, unknown>[], (ps.fiIdeas || []) as unknown as Record<string, unknown>[], "idea"),
-        diffArrayField("Corp Blocks", (current.corpBlocks || []) as unknown as Record<string, unknown>[], (ps.corpBlocks || []) as unknown as Record<string, unknown>[]),
-        diffArrayField("Research Reports", (current.researchReports || []) as unknown as Record<string, unknown>[], (ps.researchReports || []) as unknown as Record<string, unknown>[]),
+        diffArrayField("Macro Blocks", current.macroBlocks || [], ps.macroBlocks || []),
+        diffArrayField("Equity Picks", current.equityPicks || [], ps.equityPicks || [], "ticker"),
+        diffArrayField("FI Ideas", current.fiIdeas || [], ps.fiIdeas || [], "idea"),
+        diffArrayField("Corp Blocks", current.corpBlocks || [], ps.corpBlocks || []),
+        diffArrayField("Research Reports", current.researchReports || [], ps.researchReports || []),
       ].filter(Boolean);
 
       // Check section toggles

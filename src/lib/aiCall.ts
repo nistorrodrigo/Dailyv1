@@ -18,7 +18,27 @@ interface AICallResult {
   model: string;
 }
 
+/**
+ * Shape of the /api/ai-draft `mode: "macro"` response. Plain JS on
+ * the server side means there's no shared type — this is the
+ * contract the server emits, mirrored here so the client can
+ * type-check the access without `any`.
+ */
+interface AIDraftMacroResponse {
+  ok: boolean;
+  error?: string;
+  blocks?: { title?: string; body?: string; lsPick?: string }[];
+  usage?: { input?: number; output?: number };
+  model?: string;
+  truncated?: boolean;
+  parseRecovered?: boolean;
+}
+
 export async function aiCall({ prompt, model = "haiku", maxTokens = 1024 }: AICallOptions): Promise<AICallResult> {
+  // `maxTokens` is currently unused — the server picks per-mode.
+  // Keep the parameter so callers can pass it; once /api/ai-draft
+  // honours a `max_tokens` body field we'll wire it through.
+  void maxTokens;
   const resp = await authedFetch("/api/ai-draft", {
     method: "POST",
     body: JSON.stringify({
@@ -28,12 +48,12 @@ export async function aiCall({ prompt, model = "haiku", maxTokens = 1024 }: AICa
       mode: "macro",
     }),
   });
-  const data = await resp.json();
-  if (!data.ok) throw new Error(data.error);
+  const data = (await resp.json()) as AIDraftMacroResponse;
+  if (!data.ok) throw new Error(data.error || "AI request failed");
 
-  const text = data.blocks?.map((b: { title?: string; body?: string }) =>
-    [b.title, b.body].filter(Boolean).join("\n")
-  ).join("\n\n") || "";
+  const text = (data.blocks ?? [])
+    .map((b) => [b.title, b.body].filter(Boolean).join("\n"))
+    .join("\n\n");
 
   const inputTokens = data.usage?.input || 0;
   const outputTokens = data.usage?.output || 0;

@@ -82,25 +82,45 @@ export default function AnalystsTab() {
       toast.success(`Imported ${newAnalysts.length} analyst(s)`);
     };
     if (file.name.match(/\.xlsx?$/i)) {
-      // @ts-ignore - dynamic CDN import
-      const XLSX = await import(/* @vite-ignore */ "https://cdn.sheetjs.com/xlsx-0.20.3/package/xlsx.mjs");
+      // Dynamic CDN import of SheetJS — `@vite-ignore` keeps the
+      // string URL from being analysed by Vite's import-graph
+      // resolver. The xlsx package doesn't ship type definitions
+      // for the CDN ESM build; the local `XlsxModule` interface
+      // narrows the surface to exactly the calls we make.
+      interface XlsxModule {
+        read: (data: ArrayBuffer | Uint8Array) => { Sheets: Record<string, unknown>; SheetNames: string[] };
+        utils: { sheet_to_json: (ws: unknown, opts: { header: 1 }) => unknown[][] };
+      }
+      // @ts-expect-error -- dynamic CDN URL has no type declarations
+      const XLSX = (await import(/* @vite-ignore */ "https://cdn.sheetjs.com/xlsx-0.20.3/package/xlsx.mjs")) as unknown as XlsxModule;
       const buf = await file.arrayBuffer();
       const wb = XLSX.read(buf);
       const ws = wb.Sheets[wb.SheetNames[0]];
-      const json: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1 });
-      let hIdx = json.findIndex((r: any[]) => r.some((c: any) => String(c || "").toLowerCase().includes("analyst")) && r.some((c: any) => String(c || "").toLowerCase().includes("ticker")));
+      // Cells are `unknown` — narrow via String() at every read.
+      // Treating each row as `unknown[]` forces the narrowing
+      // discipline instead of letting TypeScript infer `any` and
+      // hide downstream type errors.
+      const json = XLSX.utils.sheet_to_json(ws, { header: 1 }) as unknown[][];
+      const cellAsString = (c: unknown): string => String(c ?? "").trim();
+      const hIdx = json.findIndex((r) =>
+        r.some((c) => cellAsString(c).toLowerCase().includes("analyst")) &&
+        r.some((c) => cellAsString(c).toLowerCase().includes("ticker")),
+      );
       if (hIdx === -1) { toast.error("Could not find header row with 'Analyst Name' and 'Ticker'"); return; }
-      const hdr = json[hIdx].map((c: any) => String(c || "").toLowerCase().trim());
-      const aCol = hdr.findIndex((h: string) => h.includes("analyst"));
-      const tCol = hdr.findIndex((h: string) => h.includes("ticker"));
-      const rCol = hdr.findIndex((h: string) => h.includes("rating"));
-      const pCol = hdr.findIndex((h: string) => h.includes("target") || h.includes("tp") || h.includes("price"));
-      const rows = json.slice(hIdx + 1).filter((r: any[]) => r[aCol] && r[tCol]).map((r: any[]) => ({
-        analyst: String(r[aCol] || "").trim(),
-        ticker: String(r[tCol] || "").trim(),
-        rating: String(r[rCol !== -1 ? rCol : 99] || "NR").trim(),
-        tp: String(r[pCol !== -1 ? pCol : 99] || "").trim(),
-      }));
+      const hdr = json[hIdx].map((c) => cellAsString(c).toLowerCase());
+      const aCol = hdr.findIndex((h) => h.includes("analyst"));
+      const tCol = hdr.findIndex((h) => h.includes("ticker"));
+      const rCol = hdr.findIndex((h) => h.includes("rating"));
+      const pCol = hdr.findIndex((h) => h.includes("target") || h.includes("tp") || h.includes("price"));
+      const rows = json
+        .slice(hIdx + 1)
+        .filter((r) => r[aCol] && r[tCol])
+        .map((r) => ({
+          analyst: cellAsString(r[aCol]),
+          ticker: cellAsString(r[tCol]),
+          rating: cellAsString(rCol !== -1 ? r[rCol] : "") || "NR",
+          tp: cellAsString(pCol !== -1 ? r[pCol] : ""),
+        }));
       processRows(rows);
     } else {
       const reader = new FileReader();
