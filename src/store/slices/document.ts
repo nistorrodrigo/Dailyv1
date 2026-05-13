@@ -1,4 +1,4 @@
-import { DEFAULT_STATE } from "../../constants/defaultState";
+import { DEFAULT_STATE, getDefaultDate } from "../../constants/defaultState";
 import type { DailyState } from "../../types";
 import {
   type DailySliceCreator,
@@ -48,11 +48,16 @@ export const createDocumentSlice: DailySliceCreator<DocumentSlice> = (set, get) 
       // should survive a "reset today's content" click. Earlier
       // resetState wiped them too, destroying months of work on
       // a single accidental click with no undo path.
+      //
+      // `getDefaultDate()` (vs `new Date()`) keeps the date in
+      // the analyst's local tz — matters around midnight UTC
+      // when a UTC-based `toISOString().split("T")[0]` would
+      // jump to tomorrow.
       set({
         ...DEFAULT_STATE,
         analysts: prev.analysts,
         signatures: prev.signatures,
-        date: new Date().toISOString().split("T")[0],
+        date: getDefaultDate(),
       });
     }
   },
@@ -68,7 +73,10 @@ export const createDocumentSlice: DailySliceCreator<DocumentSlice> = (set, get) 
         // earnings notes) gets wiped.
         analysts: prev.analysts,
         signatures: prev.signatures,
-        date: new Date().toISOString().split("T")[0],
+        // `getDefaultDate()` uses the analyst's local timezone via
+        // `todayLocal()` — `new Date().toISOString().split("T")[0]`
+        // would jump to tomorrow in the Americas after ~21:00 local.
+        date: getDefaultDate(),
       });
     }
   },

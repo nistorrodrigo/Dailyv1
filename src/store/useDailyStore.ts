@@ -69,18 +69,25 @@ function migrateState(
     return { ...s, on: persistedEntry.on };
   });
 
+  // Default-first spread, then persisted (with null/undefined
+  // values dropped so they don't override the typed default),
+  // then explicit sections. This guarantees every field in
+  // DEFAULT_STATE has a non-undefined non-null value at the end
+  // even if the persisted blob is missing it or got `null` written
+  // into it by a buggy server response.
+  //
+  // The previous approach only seeded an explicit allow-list of
+  // fields and let any forgotten new field surface as `undefined`
+  // at render time, which crashed downstream `.map` / `.find`
+  // consumers (audit flagged ~8 such crash points).
+  const cleanedPersisted: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(persisted)) {
+    if (v !== null && v !== undefined) cleanedPersisted[k] = v;
+  }
   return {
-    ...persisted,
+    ...DEFAULT_STATE,
+    ...(cleanedPersisted as Partial<DailyStore>),
     sections: mergedSections,
-    // Seed scalar/list fields the persisted shape might predate.
-    // Only fill when the persisted value is `undefined` — preserve
-    // empty strings / empty arrays the analyst may have explicitly
-    // set.
-    headline: persisted.headline ?? DEFAULT_STATE.headline,
-    marketComment: persisted.marketComment ?? DEFAULT_STATE.marketComment,
-    latestReports: persisted.latestReports ?? DEFAULT_STATE.latestReports,
-    bondPipeline: persisted.bondPipeline ?? DEFAULT_STATE.bondPipeline,
-    yesterdayRecap: persisted.yesterdayRecap ?? DEFAULT_STATE.yesterdayRecap,
   };
 }
 

@@ -1,4 +1,21 @@
+import { todayLocal } from "../utils/dates";
 import type { Analyst, DailyState } from "../types";
+
+/**
+ * Lazily compute today's date so callers that spread DEFAULT_STATE
+ * get a fresh value rather than whatever day the bundle was loaded
+ * on. Without this, a service-worker-cached bundle that opens
+ * across midnight gives every "new daily" yesterday's date until
+ * the bundle is replaced.
+ *
+ * Wrapped in a function (not a getter on DEFAULT_STATE) because
+ * the persist middleware uses Object.entries/spread which evaluates
+ * getters at module-load time too — `getDefaultState()` is called
+ * explicitly at every consumer.
+ */
+export function getDefaultDate(): string {
+  return todayLocal();
+}
 
 export const DEFAULT_ANALYSTS: Analyst[] = [
   { id: "a1", name: "George Gasztowtt", title: "O&G Analyst", coverage: [
@@ -15,7 +32,10 @@ export const DEFAULT_ANALYSTS: Analyst[] = [
 ];
 
 export const DEFAULT_STATE: DailyState & { flows: { global: string; local: string; positioning: string } } = {
-  date: new Date().toISOString().split("T")[0],
+  // Frozen-at-module-load fallback. New-daily / reset-state code
+  // paths should call `getDefaultDate()` explicitly instead of
+  // relying on this literal — see the helper above.
+  date: todayLocal(),
   sections: [
     // Yesterday in Review and Market Snapshot intentionally removed
     // from the catalogue — the desk decided they didn't earn their
