@@ -43,10 +43,19 @@ export function useCurrentUser(): CurrentUser | null {
     if (!supabase) return;
 
     let cancelled = false;
-    supabase.auth.getSession().then(({ data }) => {
-      if (cancelled) return;
-      if (data.session?.user) setState({ user: data.session.user, session: data.session });
-    });
+    // .catch absorbs Supabase auth rejections (expired JWT recovery,
+    // network blip on startup) so the rejection doesn't bubble as an
+    // unhandledrejection into Sentry — the onAuthStateChange
+    // listener below will retry once the session settles.
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        if (cancelled) return;
+        if (data.session?.user) setState({ user: data.session.user, session: data.session });
+      })
+      .catch(() => {
+        // silently ignored — listener will recover when auth settles
+      });
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       if (cancelled) return;

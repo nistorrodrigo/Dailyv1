@@ -11,6 +11,11 @@ export default function PresenceIndicator(): React.ReactElement | null {
       config: { presence: { key: "user-" + Math.random().toString(36).slice(2, 8) } },
     });
 
+    // Capture `sb` once at effect start so we don't depend on the
+    // `supabase!` non-null assertion later (could trip if module
+    // teardown happens between checks). Same pattern useRealtimeSync
+    // uses.
+    const sb = supabase;
     channel
       .on("presence", { event: "sync" }, () => {
         const state = channel.presenceState();
@@ -18,13 +23,20 @@ export default function PresenceIndicator(): React.ReactElement | null {
         setUsers([...new Set(online)]);
       })
       .subscribe(async (status) => {
-        if (status === "SUBSCRIBED") {
-          const { data } = await supabase!.auth.getUser();
-          await channel.track({ email: data?.user?.email || "Anonymous", joined: new Date().toISOString() });
+        // try/catch around the awaited calls so a thrown auth /
+        // track rejection doesn't bubble out of the realtime
+        // callback as an unhandledrejection.
+        try {
+          if (status === "SUBSCRIBED") {
+            const { data } = await sb.auth.getUser();
+            await channel.track({ email: data?.user?.email || "Anonymous", joined: new Date().toISOString() });
+          }
+        } catch {
+          // Presence is non-critical — silently ignore.
         }
       });
 
-    return () => { supabase!.removeChannel(channel); };
+    return () => { sb.removeChannel(channel); };
   }, []);
 
   if (users.length <= 1) return null;

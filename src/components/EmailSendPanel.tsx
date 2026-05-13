@@ -91,7 +91,17 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
       setLastSendDismissed(false);
       if (supabase) {
         setLoading(true);
-        listRecipients().then(setRecipients).finally(() => setLoading(false));
+        // .catch is required — `listRecipients` re-throws the raw
+        // Supabase error ({code, details, hint, message}); without
+        // a handler that becomes a global unhandledrejection and
+        // Sentry captures it.
+        listRecipients()
+          .then(setRecipients)
+          .catch((err) => {
+            const msg = (err as { message?: string })?.message || "unknown";
+            toast.error(`Couldn't load recipients: ${msg}`);
+          })
+          .finally(() => setLoading(false));
       }
       // Fetch the most-recent non-test send for today's daily_date so we
       // can warn if the daily was already sent. We always re-fetch on open

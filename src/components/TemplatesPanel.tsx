@@ -26,7 +26,15 @@ export default function TemplatesPanel({ open, onClose }: TemplatesPanelProps): 
   useEffect(() => {
     if (open && supabase) {
       setLoading(true);
-      listTemplates().then(setTemplates).finally(() => setLoading(false));
+      listTemplates()
+        .then(setTemplates)
+        .catch((err) => {
+          // Supabase rejects with `{code, details, hint, message}` —
+          // chain a .catch so it doesn't bubble as unhandledrejection.
+          const msg = (err as { message?: string })?.message || "unknown";
+          toast.error(`Couldn't load templates: ${msg}`);
+        })
+        .finally(() => setLoading(false));
     }
   }, [open]);
 

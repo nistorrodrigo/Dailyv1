@@ -23,10 +23,23 @@ export default function LoginGate({ children }: LoginGateProps): React.ReactElem
   useEffect(() => {
     if (!supabase) { setLoading(false); return; }
 
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setLoading(false);
-    });
+    // .catch is critical here — if getSession() rejects (network
+    // blip on startup, Supabase outage, expired JWT recovery
+    // throwing), the loading flag never clears and `if (loading)
+    // return null;` keeps the page blank forever. The .catch
+    // re-throws nothing and just clears loading so the login
+    // form renders and the user can retry.
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        setSession(data.session);
+      })
+      .catch((err) => {
+        console.error("[LoginGate] getSession failed:", err);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);

@@ -442,7 +442,24 @@ export default function Header(): React.ReactElement {
           <TBtn onClick={sendWhatsApp} accent="#25D366" title="Open WhatsApp Web with BBG text">
             WhatsApp
           </TBtn>
-          <TBtn onClick={() => import("../utils/exportPDF").then((m) => m.exportPDF())} accent="#e74c3c" title="Export as PDF">
+          <TBtn
+            onClick={() => {
+              // Two failure modes: (a) stale-bundle error on the
+              // dynamic import after a deploy, (b) any error inside
+              // exportPDF itself. Both used to bubble as
+              // unhandledrejection. We swallow gracefully with a
+              // toast — the analyst can retry; full recovery (force
+              // reload on stale bundle) is handled by the wrapped
+              // lazy components elsewhere if they're already loaded.
+              import("../utils/exportPDF")
+                .then((m) => m.exportPDF())
+                .catch((err) => {
+                  toast.error("PDF export failed: " + (err as Error).message);
+                });
+            }}
+            accent="#e74c3c"
+            title="Export as PDF"
+          >
             PDF
           </TBtn>
 

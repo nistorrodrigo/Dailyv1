@@ -52,13 +52,21 @@ export function useRealtimeSync() {
   const broadcastEdit = (section: string) => {
     const sb = supabase;
     if (!channelRef.current || !sb) return;
-    sb.auth.getUser().then(({ data }) => {
-      channelRef.current?.send({
-        type: "broadcast",
-        event: "editing",
-        payload: { email: data?.user?.email || "Anonymous", section },
+    // Silent .catch — broadcasting an editing heartbeat is
+    // best-effort; if auth.getUser() fails we just skip this
+    // broadcast rather than surfacing an unhandledrejection.
+    sb.auth
+      .getUser()
+      .then(({ data }) => {
+        channelRef.current?.send({
+          type: "broadcast",
+          event: "editing",
+          payload: { email: data?.user?.email || "Anonymous", section },
+        });
+      })
+      .catch(() => {
+        // ignore — presence is non-critical
       });
-    });
   };
 
   // Clean up stale editors

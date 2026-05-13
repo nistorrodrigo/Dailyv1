@@ -46,10 +46,22 @@ const useUIStore = create<UIStore & UIActions>((set, get) => ({
   },
 
   copyToClipboard: (text: string, label: string) => {
-    navigator.clipboard.writeText(text).then(() => {
-      set({ copiedLabel: label });
-      setTimeout(() => set({ copiedLabel: "" }), 2000);
-    });
+    // .catch covers insecure-context / permissions-denied / no-user-
+    // gesture scenarios where clipboard writes throw. Without it
+    // the rejection bubbles to window.onunhandledrejection and
+    // Sentry captures `NotAllowedError: Write permission denied`
+    // for every Safari-in-iframe or screen-share session.
+    navigator.clipboard
+      .writeText(text)
+      .then(() => {
+        set({ copiedLabel: label });
+        setTimeout(() => set({ copiedLabel: "" }), 2000);
+      })
+      .catch(() => {
+        // Silently swallow — UI doesn't flip to "✓ Copied" so the
+        // analyst sees the failure as "nothing happened" and can
+        // try Ctrl-C manually.
+      });
   },
 
   toggleShortcutsOverlay: () => set((s) => ({ shortcutsOverlayOpen: !s.shortcutsOverlayOpen })),

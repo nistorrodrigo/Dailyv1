@@ -26,9 +26,10 @@ export default function EmailEditorTab(): React.ReactElement {
   };
 
   const copyHtml = () => {
-    navigator.clipboard.writeText(html).then(() => {
-      toast.success("HTML copied to clipboard");
-    });
+    navigator.clipboard
+      .writeText(html)
+      .then(() => toast.success("HTML copied to clipboard"))
+      .catch((err) => toast.error("Couldn't copy: " + (err as Error).message));
   };
 
   return (

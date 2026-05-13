@@ -28,10 +28,17 @@ ${currentText ? `Here is my current draft to improve or expand:\n\n${currentText
 
 Format as plain text, one block after another.`;
 
-    navigator.clipboard.writeText(prompt).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
+    navigator.clipboard
+      .writeText(prompt)
+      .then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      })
+      .catch(() => {
+        // Clipboard write can throw on insecure context / no user
+        // gesture / permissions denied. Silent swallow — `copied`
+        // stays false and the analyst sees the click did nothing.
+      });
   };
 
   return (
