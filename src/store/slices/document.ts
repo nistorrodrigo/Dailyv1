@@ -27,7 +27,18 @@ export interface DocumentSlice {
   resetState: () => void;
   newDaily: () => void;
 
-  updateListItem: (field: ListField, id: string, key: string, value: unknown) => void;
+  /** See `DailyActions.updateListItem` in _helpers.ts for the
+   *  rationale — the generic signature gives per-field key/value
+   *  type-checking instead of a stringly-typed `key: string`. */
+  updateListItem: <
+    K extends ListField,
+    P extends Exclude<keyof DailyState[K][number], "id">,
+  >(
+    field: K,
+    id: string,
+    key: P,
+    value: DailyState[K][number][P],
+  ) => void;
   addListItem: (field: ListField, item: ListItem) => void;
   removeListItem: (field: ListField, id: string) => void;
   reorderList: (field: ListField, from: number, to: number) => void;
@@ -81,10 +92,15 @@ export const createDocumentSlice: DailySliceCreator<DocumentSlice> = (set, get) 
     }
   },
 
+  // Runtime is the same untyped map+spread; the type-safety lives
+  // in the slice's interface above. The internal cast back to a
+  // generic id-bearing array is unavoidable because TS can't
+  // express "for every K the result is still K[]" without a
+  // recursive mapped-type dance that buys nothing at runtime.
   updateListItem: (field, id, key, value) =>
     set((s) => ({
       [field]: (s[field] as Array<{ id: string }>).map((x) =>
-        x.id === id ? { ...x, [key]: value } : x,
+        x.id === id ? { ...x, [key as string]: value } : x,
       ),
     })),
 

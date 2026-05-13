@@ -47,7 +47,22 @@ export interface DailyActions {
   setField: <K extends keyof DailyState>(field: K, value: DailyState[K]) => void;
   resetState: () => void;
   newDaily: () => void;
-  updateListItem: (field: ListField, id: string, key: string, value: unknown) => void;
+  /** Generic id-based row update. The signature is fully discriminated:
+   *  `field` narrows the row type, `key` narrows to that row's own
+   *  property keys (minus `id`), and `value` narrows to the matching
+   *  property type. Result: a typo in `key` is a compile error rather
+   *  than a silent no-op at runtime, and a wrong-typed `value` (e.g.
+   *  passing a number to a string field) is caught at the call site
+   *  instead of slipping into persisted state. */
+  updateListItem: <
+    K extends ListField,
+    P extends Exclude<keyof DailyState[K][number], "id">,
+  >(
+    field: K,
+    id: string,
+    key: P,
+    value: DailyState[K][number][P],
+  ) => void;
   addListItem: (field: ListField, item: ListItem) => void;
   removeListItem: (field: ListField, id: string) => void;
   reorderList: (field: ListField, from: number, to: number) => void;

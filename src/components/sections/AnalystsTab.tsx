@@ -87,12 +87,33 @@ export default function AnalystsTab() {
       // resolver. The xlsx package doesn't ship type definitions
       // for the CDN ESM build; the local `XlsxModule` interface
       // narrows the surface to exactly the calls we make.
+      //
+      // Why CDN instead of `npm install xlsx`: the npm tarball
+      // (xlsx@0.18.5) was abandoned and carries two unpatched
+      // high-severity advisories (prototype pollution + ReDoS).
+      // SheetJS's own published mitigation is the CDN-hosted
+      // 0.20.x line, which the upstream maintains but they no
+      // longer push to npm. We accept the offline-failure
+      // trade-off (handled below with a friendly toast) in
+      // exchange for not shipping known-vulnerable code.
       interface XlsxModule {
         read: (data: ArrayBuffer | Uint8Array) => { Sheets: Record<string, unknown>; SheetNames: string[] };
         utils: { sheet_to_json: (ws: unknown, opts: { header: 1 }) => unknown[][] };
       }
-      // @ts-expect-error -- dynamic CDN URL has no type declarations
-      const XLSX = (await import(/* @vite-ignore */ "https://cdn.sheetjs.com/xlsx-0.20.3/package/xlsx.mjs")) as unknown as XlsxModule;
+      let XLSX: XlsxModule;
+      try {
+        // @ts-expect-error -- dynamic CDN URL has no type declarations
+        XLSX = (await import(/* @vite-ignore */ "https://cdn.sheetjs.com/xlsx-0.20.3/package/xlsx.mjs")) as unknown as XlsxModule;
+      } catch (err: unknown) {
+        // Offline or CDN blocked. The original code let this
+        // bubble up to a console rejection with no UI feedback.
+        // Surface the offline path explicitly — CSV upload still
+        // works fully offline, so point the user there.
+        toast.error("Excel import requires an internet connection (SheetJS loads from CDN). Save the file as CSV and try again.");
+        // eslint-disable-next-line no-console
+        console.error("[AnalystsTab] xlsx CDN import failed:", err);
+        return;
+      }
       const buf = await file.arrayBuffer();
       const wb = XLSX.read(buf);
       const ws = wb.Sheets[wb.SheetNames[0]];

@@ -7,7 +7,12 @@ import { BRAND } from "../../constants/brand";
 const is: React.CSSProperties = { padding: "6px 8px", borderRadius: 4, border: "1px solid var(--border-input)", fontSize: 12, boxSizing: "border-box" };
 const ss: React.CSSProperties = { ...is, background: "var(--bg-card)" };
 
-const REPORT_TYPES = ["Macro", "Weekly", "Strategy", "Sector", "Special"];
+// Typed `as const` so the union flows through the `<option>` map
+// and the typed `updateListItem` cast below — keeps the runtime
+// list and the `ResearchReport.type` union in sync (a typo here
+// would compile-error instead of slipping into persisted state).
+const REPORT_TYPES = ["Macro", "Weekly", "Strategy", "Sector", "Special"] as const;
+type ReportType = (typeof REPORT_TYPES)[number];
 
 export default function ResearchSection() {
   const { sections, researchReports, analysts } = useDailyStore(useShallow((s) => ({
@@ -42,7 +47,7 @@ export default function ResearchSection() {
             </label>
             <select
               value={r.type}
-              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => updateListItem("researchReports", r.id, "type", e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => updateListItem("researchReports", r.id, "type", e.target.value as ReportType)}
               style={{ ...ss, width: "100%" }}
             >
               {REPORT_TYPES.map((t) => (
