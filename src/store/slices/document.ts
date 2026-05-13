@@ -41,8 +41,19 @@ export const createDocumentSlice: DailySliceCreator<DocumentSlice> = (set, get) 
   setField: (field, value) => set(() => ({ [field]: value })),
 
   resetState: () => {
-    if (window.confirm("Reset all fields to defaults? This cannot be undone.")) {
-      set({ ...DEFAULT_STATE });
+    if (window.confirm("Reset all fields to defaults? Analyst database and signatures will be preserved. This cannot be undone for today's content.")) {
+      const prev = get();
+      // Match `newDaily`'s carry-over — analyst coverage takes
+      // hours to maintain and signatures are per-user; both
+      // should survive a "reset today's content" click. Earlier
+      // resetState wiped them too, destroying months of work on
+      // a single accidental click with no undo path.
+      set({
+        ...DEFAULT_STATE,
+        analysts: prev.analysts,
+        signatures: prev.signatures,
+        date: new Date().toISOString().split("T")[0],
+      });
     }
   },
 
