@@ -1,8 +1,9 @@
-import React from "react";
+import React, { useRef } from "react";
 import { BRAND } from "../constants/brand";
 import useUIStore from "../store/useUIStore";
 import { useWorkflowProgress, type WorkflowStep } from "../hooks/useWorkflowProgress";
 import { usePanelEscape } from "../hooks/usePanelEscape";
+import { usePanelFocus } from "../hooks/usePanelFocus";
 
 interface WorkflowPanelProps {
   open: boolean;
@@ -65,16 +66,20 @@ export default function WorkflowPanel({ open, onClose, onOpenSendEmail }: Workfl
   };
 
   usePanelEscape(onClose);
+  const panelRef = useRef<HTMLDivElement>(null);
+  usePanelFocus(panelRef);
 
   return (
     <div
+      ref={panelRef}
       role="dialog"
       aria-modal="true"
       aria-labelledby="workflow-panel-title"
-      className="fixed top-0 right-0 bottom-0 w-[400px] max-w-[100vw] bg-[var(--bg-card)] shadow-[var(--shadow-panel)] z-[1000] flex flex-col panel-slide"
+      tabIndex={-1}
+      className="fixed top-0 right-0 bottom-0 w-[400px] max-w-[100vw] bg-[var(--bg-card)] shadow-[var(--shadow-panel)] z-[1000] flex flex-col panel-slide outline-none"
     >
       <div className="flex justify-between items-center px-5 py-4" style={{ background: BRAND.navy }}>
-        <span id="workflow-panel-title" className="text-white text-sm font-bold uppercase tracking-wider">Daily Workflow</span>
+        <h2 id="workflow-panel-title" className="text-white text-sm font-bold uppercase tracking-wider m-0">Daily Workflow</h2>
         <button onClick={onClose} aria-label="Close Daily Workflow panel" className="bg-transparent border-none text-[var(--color-sky)] text-xl cursor-pointer">
           {"×"}
         </button>

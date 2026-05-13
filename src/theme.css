@@ -30,8 +30,16 @@
 
   --text-primary: #1a1a2e;
   --text-secondary: #555;
-  --text-muted: #888;
-  --text-placeholder: #aaa;
+  /* Darkened from #888 (~3.6:1 on white — fails WCAG AA) to #666
+   * (~5.7:1 — passes AA for body text). Used heavily for helper
+   * text under inputs and inside cards; was hard to read on light
+   * theme. */
+  --text-muted: #666;
+  /* Darkened from #aaa (~2.4:1 — fails AA badly) to #767676
+   * (4.5:1 — meets AA). Placeholder text is short and contextual
+   * so we can sit right at the threshold without sacrificing the
+   * visual softness vs. real input text. */
+  --text-placeholder: #767676;
 
   --border-light: #e4e8ed;
   --border-input: #d0d5dd;
@@ -55,8 +63,13 @@
 
   --text-primary: #e8e8f0;
   --text-secondary: #b0b0c0;
-  --text-muted: #707088;
-  --text-placeholder: #555570;
+  /* Lightened from #707088 (~3.9:1 on the dark page bg — fails
+   * WCAG AA) to #9090a8 (~5.4:1). Same field that needed darkening
+   * on light theme; the dark-theme tone was tight in the other
+   * direction. */
+  --text-muted: #9090a8;
+  /* Lightened from #555570 (~2.4:1) to #7a7a90 (~4.5:1, AA). */
+  --text-placeholder: #7a7a90;
 
   --border-light: #2a2a45;
   --border-input: #3a3a55;
@@ -72,6 +85,33 @@ body {
   color: var(--text-primary);
   transition: background 0.25s ease, color 0.25s ease;
   -webkit-font-smoothing: antialiased;
+}
+
+/* === Skip-to-content link ===
+ * Visually hidden until focused. A keyboard user pressing Tab
+ * from the URL bar lands here first and can jump straight to the
+ * active tab's content, bypassing the 7-button toolbar in
+ * Header.tsx. The standard a11y pattern — `clip` keeps it
+ * off-screen for sighted users, the `:focus` state pops it into
+ * view with strong contrast. */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 8px;
+  z-index: 10000;
+  padding: 8px 16px;
+  background: var(--color-navy);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  border-radius: 4px;
+  transition: top 0.15s ease;
+}
+.skip-link:focus {
+  top: 8px;
+  outline: 2px solid var(--color-sky);
+  outline-offset: 2px;
 }
 
 /* === Scrollbar === */

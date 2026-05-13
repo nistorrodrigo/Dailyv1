@@ -20,11 +20,16 @@ function SortableItemWrapper({ id, children }: SortableItemWrapperProps) {
   return (
     <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition }}>
       <div className="flex gap-2">
+        {/* dnd-kit's KeyboardSensor wires Space/Enter to grab and
+         *  arrow keys to move + commit — the handle IS keyboard-
+         *  operable, it was just non-discoverable. The title +
+         *  aria-label spell that out. */}
         <div
           {...attributes}
           {...listeners}
           className="flex items-center cursor-grab text-[var(--text-muted)] text-sm px-1 select-none hover:text-[var(--text-primary)]"
-          title="Drag to reorder"
+          title="Drag, or press Space then ↑/↓ to reorder"
+          aria-label="Reorder item — drag, or press Space to grab and arrow keys to move"
         >
           {"☰"}
         </div>

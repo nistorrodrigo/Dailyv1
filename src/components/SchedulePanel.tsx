@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { BRAND } from "../constants/brand";
 import { fetchSendGridLists, type SendGridList } from "../lib/sendgridApi";
 import { authedFetch } from "../lib/authedFetch";
 import { todayLocal, fmtRelativeTime } from "../utils/dates";
 import { displayNameFromEmail } from "../utils/displayName";
 import { usePanelEscape } from "../hooks/usePanelEscape";
+import { usePanelFocus } from "../hooks/usePanelFocus";
 
 interface SchedulePanelProps {
   open: boolean;
@@ -174,6 +175,8 @@ export default function SchedulePanel({ open, onClose }: SchedulePanelProps): Re
   };
 
   usePanelEscape(onClose, open);
+  const panelRef = useRef<HTMLDivElement>(null);
+  usePanelFocus(panelRef, open);
 
   if (!open) return null;
 
@@ -181,13 +184,15 @@ export default function SchedulePanel({ open, onClose }: SchedulePanelProps): Re
 
   return (
     <div
+      ref={panelRef}
       role="dialog"
       aria-modal="true"
       aria-labelledby="schedule-panel-title"
-      className="fixed top-0 right-0 bottom-0 w-[400px] max-w-[100vw] bg-[var(--bg-card)] shadow-[var(--shadow-panel)] z-[1000] flex flex-col panel-slide"
+      tabIndex={-1}
+      className="fixed top-0 right-0 bottom-0 w-[400px] max-w-[100vw] bg-[var(--bg-card)] shadow-[var(--shadow-panel)] z-[1000] flex flex-col panel-slide outline-none"
     >
       <div className="flex justify-between items-center px-5 py-4" style={{ background: BRAND.navy }}>
-        <span id="schedule-panel-title" className="text-white text-sm font-bold uppercase tracking-wider">Schedule Send</span>
+        <h2 id="schedule-panel-title" className="text-white text-sm font-bold uppercase tracking-wider m-0">Schedule Send</h2>
         <button onClick={onClose} aria-label="Close Schedule Send panel" className="bg-transparent border-none text-[var(--color-sky)] text-xl cursor-pointer">{"\u00D7"}</button>
       </div>
       <div className="flex-1 overflow-auto p-4">

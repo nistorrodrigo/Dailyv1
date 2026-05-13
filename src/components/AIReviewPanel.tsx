@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { BRAND } from "../constants/brand";
 import useDailyStore from "../store/useDailyStore";
 import useUIStore from "../store/useUIStore";
@@ -10,6 +10,7 @@ import { toast } from "../store/useToastStore";
 import { authedFetch } from "../lib/authedFetch";
 import { copyText } from "../utils/clipboard";
 import { usePanelEscape } from "../hooks/usePanelEscape";
+import { usePanelFocus } from "../hooks/usePanelFocus";
 
 /** A single "to reach 10/10" item. The model returns these as objects
  *  with both the human-readable instruction and a section key the UI
@@ -291,20 +292,26 @@ export default function AIReviewPanel({ open, onClose }: { open: boolean; onClos
     void copyText(prompt, { successMessage: "Prompt copied — paste into ChatGPT or Claude" });
   };
 
-  // Escape to close \u2014 see usePanelEscape for the rationale. The
-  // panel was previously a keyboard-user trap (only mouse-click \u00D7
-  // or click-outside dismissed it).
+  // Escape to close + focus management. The panel was previously a
+  // keyboard-user trap (only mouse-click \u00D7 or click-outside
+  // dismissed it) and a focus dead-zone (focus stayed on the
+  // toolbar trigger when the panel opened, leaving screen readers
+  // unaware anything changed).
   usePanelEscape(onClose);
+  const panelRef = useRef<HTMLDivElement>(null);
+  usePanelFocus(panelRef);
 
   return (
     <div
+      ref={panelRef}
       role="dialog"
       aria-modal="true"
       aria-labelledby="ai-review-panel-title"
-      className="fixed top-0 right-0 bottom-0 w-[440px] max-w-[100vw] bg-[var(--bg-card)] shadow-[var(--shadow-panel)] z-[1000] flex flex-col panel-slide"
+      tabIndex={-1}
+      className="fixed top-0 right-0 bottom-0 w-[440px] max-w-[100vw] bg-[var(--bg-card)] shadow-[var(--shadow-panel)] z-[1000] flex flex-col panel-slide outline-none"
     >
       <div className="flex justify-between items-center px-5 py-4" style={{ background: BRAND.navy }}>
-        <span id="ai-review-panel-title" className="text-white text-sm font-bold uppercase tracking-wider">AI Review</span>
+        <h2 id="ai-review-panel-title" className="text-white text-sm font-bold uppercase tracking-wider m-0">AI Review</h2>
         <button onClick={onClose} aria-label="Close AI Review panel" className="bg-transparent border-none text-[var(--color-sky)] text-xl cursor-pointer">{"\u00D7"}</button>
       </div>
       <div className="flex-1 overflow-auto p-4">

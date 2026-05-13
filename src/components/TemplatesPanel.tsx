@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { BRAND } from "../constants/brand";
 import { listTemplates, saveTemplate, deleteTemplate } from "../lib/templatesApi";
 import { supabase } from "../lib/supabase";
@@ -6,6 +6,7 @@ import useDailyStore from "../store/useDailyStore";
 import type { Section, DailyState } from "../types";
 import { toast } from "../store/useToastStore";
 import { usePanelEscape } from "../hooks/usePanelEscape";
+import { usePanelFocus } from "../hooks/usePanelFocus";
 
 interface TemplatesPanelProps {
   open: boolean;
@@ -76,26 +77,31 @@ export default function TemplatesPanel({ open, onClose }: TemplatesPanelProps): 
   };
 
   usePanelEscape(onClose);
+  const panelRef = useRef<HTMLDivElement>(null);
+  usePanelFocus(panelRef);
 
   return (
     <div
+      ref={panelRef}
       role="dialog"
       aria-modal="true"
       aria-labelledby="templates-panel-title"
+      tabIndex={-1}
       style={{
         position: "fixed", top: 0, right: 0, bottom: 0, width: 360,
         maxWidth: "100vw",
         background: "var(--bg-card)", boxShadow: "var(--shadow-panel)",
         zIndex: 1000, display: "flex", flexDirection: "column", animation: "slideInRight 0.2s ease",
+        outline: "none",
       }}
     >
       <div style={{
         background: BRAND.navy, padding: "16px 20px",
         display: "flex", justifyContent: "space-between", alignItems: "center",
       }}>
-        <span id="templates-panel-title" style={{ color: "#fff", fontSize: 14, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>
+        <h2 id="templates-panel-title" style={{ color: "#fff", fontSize: 14, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, margin: 0 }}>
           Templates
-        </span>
+        </h2>
         <button onClick={onClose} aria-label="Close Templates panel" style={{
           background: "none", border: "none", color: BRAND.sky,
           fontSize: 20, cursor: "pointer",

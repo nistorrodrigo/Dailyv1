@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { BRAND } from "../constants/brand";
 import { fetchSendGridLists, fetchSendGridContacts, invalidateSendGridListsCache, type SendGridList } from "../lib/sendgridApi";
 import { toast } from "../store/useToastStore";
 import { copyText } from "../utils/clipboard";
 import { usePanelEscape } from "../hooks/usePanelEscape";
+import { usePanelFocus } from "../hooks/usePanelFocus";
 
 interface Contact {
   email: string;
@@ -208,19 +209,23 @@ export default function ContactsPanel({ open, onClose }: ContactsPanelProps): Re
   const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
   usePanelEscape(onClose);
+  const panelRef = useRef<HTMLDivElement>(null);
+  usePanelFocus(panelRef);
 
   return (
     <div
+      ref={panelRef}
       role="dialog"
       aria-modal="true"
       aria-labelledby="contacts-panel-title"
-      className="fixed top-0 right-0 bottom-0 w-[520px] max-w-[100vw] bg-[var(--bg-card)] shadow-[var(--shadow-panel)] z-[1000] flex flex-col panel-slide"
+      tabIndex={-1}
+      className="fixed top-0 right-0 bottom-0 w-[520px] max-w-[100vw] bg-[var(--bg-card)] shadow-[var(--shadow-panel)] z-[1000] flex flex-col panel-slide outline-none"
     >
       {/* Header */}
       <div className="flex justify-between items-center px-5 py-4" style={{ background: BRAND.navy }}>
-        <span id="contacts-panel-title" className="text-white text-sm font-bold uppercase tracking-wider">
+        <h2 id="contacts-panel-title" className="text-white text-sm font-bold uppercase tracking-wider m-0">
           {view === "contacts" && selectedList ? selectedList.name : view === "saved" ? "Saved Selections" : "Contact Manager"}
-        </span>
+        </h2>
         <div className="flex gap-2">
           {view === "lists" && (
             <button

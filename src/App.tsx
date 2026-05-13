@@ -71,17 +71,22 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[var(--bg-page)] font-sans">
+      {/* Skip-to-content — visible only when keyboard-focused (Tab
+       *  from the URL bar). Lets keyboard users bypass the 7-button
+       *  toolbar in Header.tsx and land directly on the active tab's
+       *  content. The `skip-link` CSS class lives in theme.css. */}
+      <a href="#main-content" className="skip-link">Skip to main content</a>
       <OfflineBanner />
       <Header />
-      <div className="flex bg-[var(--bg-tab-bar)] border-b border-[var(--border-light)] max-md:justify-center">
-        <button onClick={() => setTab("edit")} className={tabCls(tab === "edit")}>Editor</button>
-        <button onClick={() => setTab("analysts")} className={tabCls(tab === "analysts")}>Analysts</button>
-        <button onClick={() => setTab("ai")} className={tabCls(tab === "ai")}>AI Draft</button>
-        <button onClick={() => setTab("preview")} className={tabCls(tab === "preview")}>Preview</button>
-        <button onClick={() => setTab("email-editor")} className={tabCls(tab === "email-editor")}>HTML Editor</button>
-        <button onClick={() => setTab("dashboard")} className={tabCls(tab === "dashboard")}>Dashboard</button>
+      <div role="tablist" aria-label="Editor sections" className="flex bg-[var(--bg-tab-bar)] border-b border-[var(--border-light)] max-md:justify-center">
+        <button role="tab" aria-selected={tab === "edit"} onClick={() => setTab("edit")} className={tabCls(tab === "edit")}>Editor</button>
+        <button role="tab" aria-selected={tab === "analysts"} onClick={() => setTab("analysts")} className={tabCls(tab === "analysts")}>Analysts</button>
+        <button role="tab" aria-selected={tab === "ai"} onClick={() => setTab("ai")} className={tabCls(tab === "ai")}>AI Draft</button>
+        <button role="tab" aria-selected={tab === "preview"} onClick={() => setTab("preview")} className={tabCls(tab === "preview")}>Preview</button>
+        <button role="tab" aria-selected={tab === "email-editor"} onClick={() => setTab("email-editor")} className={tabCls(tab === "email-editor")}>HTML Editor</button>
+        <button role="tab" aria-selected={tab === "dashboard"} onClick={() => setTab("dashboard")} className={tabCls(tab === "dashboard")}>Dashboard</button>
       </div>
-      <div key={tab} className="page-enter">
+      <main id="main-content" key={tab} className="page-enter" tabIndex={-1}>
         {tab === "edit" && <EditorTab />}
         <Suspense fallback={<div className="text-center py-20 text-[var(--text-muted)]">Loading…</div>}>
           {tab === "analysts" && <AnalystsTab />}
@@ -90,7 +95,7 @@ export default function App() {
           {tab === "email-editor" && <EmailEditorTab />}
           {tab === "dashboard" && <DashboardTab />}
         </Suspense>
-      </div>
+      </main>
       <Toaster />
       <KeyboardShortcutsOverlay />
     </div>

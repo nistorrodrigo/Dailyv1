@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { BRAND } from "../constants/brand";
 import { listRecipients, addRecipient, toggleRecipient, removeRecipient } from "../lib/recipientsApi";
 import { fetchSendGridLists, fetchSendGridContacts, type SendGridList, type SendGridContact } from "../lib/sendgridApi";
@@ -16,6 +16,7 @@ import { useCurrentUser } from "../hooks/useCurrentUser";
 import { displayNameFromUser, displayNameFromEmail } from "../utils/displayName";
 import { authedFetch } from "../lib/authedFetch";
 import { usePanelEscape } from "../hooks/usePanelEscape";
+import { usePanelFocus } from "../hooks/usePanelFocus";
 
 interface EmailSendPanelProps {
   open: boolean;
@@ -129,6 +130,8 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
   }, [open, date]);
 
   usePanelEscape(onClose, open);
+  const panelRef = useRef<HTMLDivElement>(null);
+  usePanelFocus(panelRef, open);
 
   if (!open) return null;
 
@@ -298,23 +301,26 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
 
   return (
     <div
+      ref={panelRef}
       role="dialog"
       aria-modal="true"
       aria-labelledby="email-send-panel-title"
+      tabIndex={-1}
       style={{
         position: "fixed", top: 0, right: 0, bottom: 0, width: 400,
         maxWidth: "100vw",
         background: "var(--bg-card)", boxShadow: "var(--shadow-panel)",
         zIndex: 1000, display: "flex", flexDirection: "column", animation: "slideInRight 0.2s ease",
+        outline: "none",
       }}
     >
       <div style={{
         background: BRAND.navy, padding: "16px 20px",
         display: "flex", justifyContent: "space-between", alignItems: "center",
       }}>
-        <span id="email-send-panel-title" style={{ color: "#fff", fontSize: 14, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>
+        <h2 id="email-send-panel-title" style={{ color: "#fff", fontSize: 14, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, margin: 0 }}>
           Send Email
-        </span>
+        </h2>
         <button onClick={onClose} aria-label="Close Send Email panel" style={{
           background: "none", border: "none", color: BRAND.sky,
           fontSize: 20, cursor: "pointer",
