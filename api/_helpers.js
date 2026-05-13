@@ -185,9 +185,12 @@ function isPrivateIp(ip) {
     if (lower === "::1" || lower === "::") return true;
     if (/^fc/.test(lower) || /^fd/.test(lower)) return true; // fc00::/7
     if (/^fe[89ab]/.test(lower)) return true;                // fe80::/10
-    // IPv4-mapped — pull the v4 part out for the IPv4 check below.
-    const mapped = /::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/i.exec(lower);
-    if (mapped) ipv4 = mapped[1];
+    // IPv4-mapped IPv6 — block the entire ::ffff:0:0/96 range
+    // outright (no legitimate reason to fetch a tunnel-encoded
+    // IPv4 address). Covers both the dotted form
+    // `::ffff:127.0.0.1` and the canonical normalised form
+    // `::ffff:7f00:1` that Node's URL parser emits.
+    if (/^::ffff:/.test(lower)) return true;
   }
 
   if (ipv4) {
@@ -214,21 +217,26 @@ function isPrivateIp(ip) {
  *  far-more-common single-resolve attack vector.
  */
 async function resolveAndValidateHost(hostname) {
+  // `new URL("http://[::1]/").hostname` returns `[::1]` (with
+  // brackets) in Node. Strip brackets before any net.isIP check —
+  // otherwise `net.isIP("[::1]")` returns 0 ("not an IP") and we'd
+  // fall through to DNS, which then fails for the malformed name.
+  const bareHost = hostname.replace(/^\[/, "").replace(/\]$/, "");
   // Literal hostnames we never want to resolve.
-  if (BLOCKED_LITERAL_HOSTNAMES.has(hostname.toLowerCase())) {
+  if (BLOCKED_LITERAL_HOSTNAMES.has(bareHost.toLowerCase())) {
     return { ok: false, error: "Hostname not allowed" };
   }
   // If it's already an IP literal, validate directly without DNS.
-  if (net.isIP(hostname)) {
-    if (isPrivateIp(hostname)) {
+  if (net.isIP(bareHost)) {
+    if (isPrivateIp(bareHost)) {
       return { ok: false, error: "IP literal in private range not allowed" };
     }
-    return { ok: true, ip: hostname };
+    return { ok: true, ip: bareHost };
   }
   // Resolve and check every returned address.
   try {
     const records = await new Promise((resolve, reject) => {
-      dns.lookup(hostname, { all: true, family: 0 }, (err, addrs) => {
+      dns.lookup(bareHost, { all: true, family: 0 }, (err, addrs) => {
         if (err) reject(err); else resolve(addrs);
       });
     });

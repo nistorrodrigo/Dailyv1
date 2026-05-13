@@ -18,9 +18,37 @@ const STALE_BUNDLE_PATTERNS = [
   /Importing a module script failed/i,
 ];
 
-function isStaleBundleError(err: unknown): boolean {
+/** Exported for testability — see __tests__/lazyWithReload.test.tsx. */
+export function isStaleBundleError(err: unknown): boolean {
   const msg = err instanceof Error ? err.message : String(err ?? "");
   return STALE_BUNDLE_PATTERNS.some((re) => re.test(msg));
+}
+
+/**
+ * The recovery action: set the dedupe flag, fire window.location.reload,
+ * and return a never-resolving promise so React's Suspense doesn't
+ * render a fallback while the tab is reloading. Returns `false` if
+ * the reload was suppressed (already reloaded once this session) so
+ * the caller knows to re-throw the underlying error.
+ *
+ * Exported for testability — the inline closure in `lazyWithReload`
+ * is unreachable through React.lazy's opaque internals.
+ */
+export function triggerReload(): Promise<never> | false {
+  const alreadyReloaded =
+    typeof sessionStorage !== "undefined" &&
+    sessionStorage.getItem(RELOAD_FLAG) === "1";
+  if (alreadyReloaded || typeof window === "undefined") return false;
+  try {
+    sessionStorage.setItem(RELOAD_FLAG, "1");
+  } catch {
+    // ignore quota / disabled-storage issues — worst case we
+    // skip the dedupe and may reload again, no harm
+  }
+  window.location.reload();
+  // Return a never-resolving promise so React doesn't try to
+  // render a fallback (the tab is reloading anyway).
+  return new Promise<never>(() => {});
 }
 
 /**
@@ -54,25 +82,8 @@ export function lazyWithReload<T extends ComponentType<any>>(
   return lazy(() =>
     loader().catch((err: unknown) => {
       if (isStaleBundleError(err)) {
-        // Only reload once per session — if the reload itself loads
-        // a still-broken bundle, surfacing the error is more useful
-        // than a redirect loop.
-        const alreadyReloaded =
-          typeof sessionStorage !== "undefined" &&
-          sessionStorage.getItem(RELOAD_FLAG) === "1";
-
-        if (!alreadyReloaded && typeof window !== "undefined") {
-          try {
-            sessionStorage.setItem(RELOAD_FLAG, "1");
-          } catch {
-            // ignore quota / disabled-storage issues — worst case we
-            // skip the dedupe and may reload again, no harm
-          }
-          window.location.reload();
-          // Return a never-resolving promise so React doesn't try to
-          // render a fallback (the tab is reloading anyway).
-          return new Promise<{ default: T }>(() => {});
-        }
+        const reload = triggerReload();
+        if (reload) return reload as unknown as { default: T };
       }
       throw err;
     }),

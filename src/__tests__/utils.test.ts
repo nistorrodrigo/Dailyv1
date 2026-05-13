@@ -34,8 +34,35 @@ describe("dates", () => {
     expect(fmtTime("23:59")).toBe("11:59 PM");
   });
 
-  it("fmtEventDate handles empty", () => {
+  // Regression guards — previously these returned strings with
+  // literal "undefined" or invalid hours that landed in rendered
+  // emails. Now they cleanly return "" for malformed input.
+  it("fmtTime returns '' for malformed input", () => {
+    expect(fmtTime("morning")).toBe("");
+    expect(fmtTime("8")).toBe("");           // missing minutes
+    expect(fmtTime("8:")).toBe("");          // missing minutes
+    expect(fmtTime(":30")).toBe("");         // missing hour
+    expect(fmtTime("25:00")).toBe("");       // hour out of range
+    expect(fmtTime("12:60")).toBe("12:60 PM"); // minute pattern matches, kept as-is (not parsed)
+  });
+
+  it("fmtTime accepts single-digit hour with leading zero or none", () => {
+    expect(fmtTime("8:30")).toBe("8:30 AM");
+    expect(fmtTime("08:30")).toBe("8:30 AM");
+  });
+
+  it("fmtEventDate handles empty / malformed", () => {
     expect(fmtEventDate("")).toBe("");
+    expect(fmtEventDate(null as unknown as string)).toBe("");
+    expect(fmtEventDate("not-a-date")).toBe("");
+    expect(fmtEventDate("2026-13-99")).toBe("");
+  });
+
+  it("formatDate returns '' for malformed instead of 'Invalid Date'", () => {
+    expect(formatDate("")).toBe("");
+    expect(formatDate(null as unknown as string)).toBe("");
+    expect(formatDate("not-a-date")).toBe("");
+    expect(formatDate("2026/04/05")).toBe("");  // wrong separator
   });
 
   it("fmtRelativeTime returns 'just now' for very recent timestamps", () => {
@@ -128,6 +155,41 @@ describe("prices", () => {
   it("parsePrice returns null for non-numeric strings", () => {
     expect(parsePrice("--")).toBe(null);
     expect(parsePrice("N/A")).toBe(null);
+  });
+
+  // Regression guard for the LatAm-format 1000x bug. Before fix:
+  // `parsePrice("US$1,750")` silently returned 1.75 because the
+  // implementation stripped every non-digit/non-`.` char.
+  it("parsePrice handles US thousands-comma separators", () => {
+    expect(parsePrice("1,750")).toBe(1750);
+    expect(parsePrice("US$1,750")).toBe(1750);
+    expect(parsePrice("$1,750.25")).toBe(1750.25);
+    expect(parsePrice("1,234,567")).toBe(1234567);
+    expect(parsePrice("1,234,567.89")).toBe(1234567.89);
+  });
+
+  it("parsePrice handles LatAm/EU thousands-dot + decimal-comma", () => {
+    // `"1.750"` alone is ambiguous (could be LatAm thousands or
+    // US decimal) — defer to parseFloat which reads it as 1.75.
+    // The disambiguation only kicks in when both `,` and `.` are
+    // present (then rightmost wins as the decimal).
+    expect(parsePrice("1.750")).toBe(1.75);            // parseFloat default
+    expect(parsePrice("1.750,25")).toBe(1750.25);      // explicit LatAm
+    expect(parsePrice("ARS 1.250,50")).toBe(1250.5);
+    expect(parsePrice("12,5")).toBe(12.5);             // single-comma decimal
+    expect(parsePrice("18,75")).toBe(18.75);
+  });
+
+  it("parsePrice bails on range / ambiguous input", () => {
+    // Range like "$18-22" — silently returning 18 (or 22) misleads
+    // the upside calculation. Better to surface as null and skip.
+    expect(parsePrice("18-22")).toBe(null);
+    expect(parsePrice("$18-22")).toBe(null);
+  });
+
+  it("parsePrice handles approximate / unicode prefixes", () => {
+    expect(parsePrice("~22")).toBe(22);
+    expect(parsePrice("≈18.50")).toBe(18.5);
   });
 
   it("calcUpside handles non-numeric inputs as null", () => {
