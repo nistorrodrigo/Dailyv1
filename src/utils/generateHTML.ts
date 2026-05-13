@@ -465,46 +465,48 @@ function generateHTMLImpl(s: DailyState, mode: string = "full", template: string
   const sectionMap: Record<string, string> = { watchToday, marketComment, macro, tradeIdeas: trade, flows: flow, corporate: corp, research, latestReports, bondPipeline, topMovers, tweets, latam, bcra, events, macroEstimates: mEst, chart };
   const enabledSections = s.sections.filter(x => x.on);
 
-  // Build Table of Contents
-  const tocBlock = '<tr><td style="padding:20px 40px 4px;"><div style="font-size:10px;font-weight:700;color:' + DS.navy + ';text-transform:uppercase;letter-spacing:2px;margin-bottom:10px;">In This Issue</div>' + enabledSections.map((sec, i) => '<a href="#sec-' + sec.key + '" style="display:inline-block;font-size:12px;color:' + DS.accent + ';text-decoration:none;margin-right:6px;margin-bottom:4px;">' + SEC_LABELS[sec.key] + (i < enabledSections.length - 1 ? ' <span style="color:' + DS.textMuted + ';">&middot;</span>' : '') + '</a>').join("") + '</td></tr>';
-
-  // Build compact summaries (1-line per section). All free-text
-  // strings pass through escapeHtml when written into compactBlock
-  // below (a single escape at the consumer site is simpler than
-  // escaping each leaf above).
-  const compactSummaries = {
-    macro: s.macroBlocks.length ? s.macroBlocks.map(b => b.title).join(", ") : "",
-    tradeIdeas: s.equityPicks.filter(p => p.ticker).map(p => p.ticker).join(", ") + (s.fiIdeas.filter(f => f.idea).length ? " + " + s.fiIdeas.filter(f => f.idea).length + " FI ideas" : ""),
-    flows: "EQ Net Buyer: " + (s.eqBuyer || "...").substring(0, 30) + " | FI Net Buyer: " + (s.fiBuyer || "...").substring(0, 30),
-    macroEstimates: s.macroRows.length + " metrics, " + s.macroCols.join("/"),
-    marketComment: (() => {
-      const t = s.marketComment?.trim() || "";
-      return t ? t.slice(0, 80) + (t.length > 80 ? "…" : "") : "";
-    })(),
-    corporate: s.corpBlocks.map(c => (c.tickers || []).join("/")).filter(Boolean).join(", "),
-    research: (s.researchReports || []).filter(r => r.title).map(r => r.title).join(", "),
-    latestReports: (s.latestReports || []).filter(r => r.title).map(r => r.title).join(", "),
-    bondPipeline: (s.bondPipeline || []).filter(b => b.issuer).length ? (s.bondPipeline || []).filter(b => b.issuer).length + " deals" : "",
-    topMovers: topMoversGainers.map(m => m.ticker + " +" + m.chgPct + "%").concat(topMoversLosers.map(m => m.ticker + " " + m.chgPct + "%")).join(", "),
-    tweets: s.tweets?.length ? s.tweets.length + " posts" : "",
-    bcra: s.bcraData ? Object.keys(s.bcraData).length + " indicators" : "",
-    events: s.events?.length ? s.events.length + " events" : "",
-    keyEvents: s.keyEvents?.length ? s.keyEvents.length + " events" : "",
-    chart: s.chartImage?.title || "Chart attached",
-  };
-
-  const compactBlock = enabledSections.map(sec => {
-    const summary = compactSummaries[sec.key as keyof typeof compactSummaries];
-    if (!summary) return "";
-    // Use an email-safe `<table>` row rather than `display:flex` —
-    // Word renderer ignores flex and stacks the label / summary.
-    return '<tr><td style="padding:4px 40px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-bottom:1px solid ' + DS.borderLight + ';"><tr><td valign="top" style="padding:8px 0;font-size:11px;font-weight:700;color:' + DS.navy + ';text-transform:uppercase;letter-spacing:1px;width:140px;">' + escapeHtml(SEC_LABELS[sec.key] || sec.key) + '</td><td valign="top" style="padding:8px 0 8px 12px;font-size:12.5px;color:' + DS.textLight + ';">' + escapeHtml(summary) + '</td></tr></table></td></tr>';
-  }).join("");
-
+  // `tocBlock`, `compactSummaries`, and `compactBlock` are only used
+  // by the `toc` and `compact` modes respectively. Previously they
+  // were computed unconditionally at this scope — wasted work on
+  // every `mode: "full"` call, which is the common path
+  // (LivePreviewPanel + the email send modal). Now lazy.
   let sectionContent: string;
   if (mode === "compact") {
+    // Build compact summaries (1-line per section). All free-text
+    // strings pass through escapeHtml when written into compactBlock
+    // below (a single escape at the consumer site is simpler than
+    // escaping each leaf above).
+    const compactSummaries = {
+      macro: s.macroBlocks.length ? s.macroBlocks.map(b => b.title).join(", ") : "",
+      tradeIdeas: s.equityPicks.filter(p => p.ticker).map(p => p.ticker).join(", ") + (s.fiIdeas.filter(f => f.idea).length ? " + " + s.fiIdeas.filter(f => f.idea).length + " FI ideas" : ""),
+      flows: "EQ Net Buyer: " + (s.eqBuyer || "...").substring(0, 30) + " | FI Net Buyer: " + (s.fiBuyer || "...").substring(0, 30),
+      macroEstimates: s.macroRows.length + " metrics, " + s.macroCols.join("/"),
+      marketComment: (() => {
+        const t = s.marketComment?.trim() || "";
+        return t ? t.slice(0, 80) + (t.length > 80 ? "…" : "") : "";
+      })(),
+      corporate: s.corpBlocks.map(c => (c.tickers || []).join("/")).filter(Boolean).join(", "),
+      research: (s.researchReports || []).filter(r => r.title).map(r => r.title).join(", "),
+      latestReports: (s.latestReports || []).filter(r => r.title).map(r => r.title).join(", "),
+      bondPipeline: (s.bondPipeline || []).filter(b => b.issuer).length ? (s.bondPipeline || []).filter(b => b.issuer).length + " deals" : "",
+      topMovers: topMoversGainers.map(m => m.ticker + " +" + m.chgPct + "%").concat(topMoversLosers.map(m => m.ticker + " " + m.chgPct + "%")).join(", "),
+      tweets: s.tweets?.length ? s.tweets.length + " posts" : "",
+      bcra: s.bcraData ? Object.keys(s.bcraData).length + " indicators" : "",
+      events: s.events?.length ? s.events.length + " events" : "",
+      keyEvents: s.keyEvents?.length ? s.keyEvents.length + " events" : "",
+      chart: s.chartImage?.title || "Chart attached",
+    };
+    const compactBlock = enabledSections.map(sec => {
+      const summary = compactSummaries[sec.key as keyof typeof compactSummaries];
+      if (!summary) return "";
+      // Use an email-safe `<table>` row rather than `display:flex` —
+      // Word renderer ignores flex and stacks the label / summary.
+      return '<tr><td style="padding:4px 40px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-bottom:1px solid ' + DS.borderLight + ';"><tr><td valign="top" style="padding:8px 0;font-size:11px;font-weight:700;color:' + DS.navy + ';text-transform:uppercase;letter-spacing:1px;width:140px;">' + escapeHtml(SEC_LABELS[sec.key] || sec.key) + '</td><td valign="top" style="padding:8px 0 8px 12px;font-size:12.5px;color:' + DS.textLight + ';">' + escapeHtml(summary) + '</td></tr></table></td></tr>';
+    }).join("");
     sectionContent = '<tr><td style="padding:20px 40px 4px;"><div style="font-size:10px;font-weight:700;color:' + DS.navy + ';text-transform:uppercase;letter-spacing:2px;margin-bottom:6px;">Summary</div></td></tr>' + compactBlock;
   } else if (mode === "toc") {
+    // Table of Contents: anchor links per enabled section.
+    const tocBlock = '<tr><td style="padding:20px 40px 4px;"><div style="font-size:10px;font-weight:700;color:' + DS.navy + ';text-transform:uppercase;letter-spacing:2px;margin-bottom:10px;">In This Issue</div>' + enabledSections.map((sec, i) => '<a href="#sec-' + sec.key + '" style="display:inline-block;font-size:12px;color:' + DS.accent + ';text-decoration:none;margin-right:6px;margin-bottom:4px;">' + SEC_LABELS[sec.key] + (i < enabledSections.length - 1 ? ' <span style="color:' + DS.textMuted + ';">&middot;</span>' : '') + '</a>').join("") + '</td></tr>';
     sectionContent = tocBlock + enabledSections.map(x => sectionMap[x.key] || "").join("");
   } else if (template === "flash") {
     // Flash template: only snapshot, watch, macro (first block), and picks
