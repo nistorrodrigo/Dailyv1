@@ -143,6 +143,42 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "Missing html, subject, or recipients" });
   }
 
+  // ── Blast-radius caps ───────────────────────────────────────────
+  // Hard recipient ceiling per single API call. If a compromised
+  // JWT is used to send mass spam, this caps the damage per call —
+  // 3000 is comfortably above the desk's largest legitimate list
+  // (~1500 institutional clients) while well below SendGrid's per-
+  // call quota and the IP-warmup budget. Lower this number if the
+  // recipient list ever shrinks.
+  const MAX_RECIPIENTS_PER_SEND = 3000;
+  if (!Array.isArray(recipients) || recipients.length > MAX_RECIPIENTS_PER_SEND) {
+    console.warn(
+      `[send-email] Rejecting send from ${authedUserEmail}: ` +
+      `recipients.length=${Array.isArray(recipients) ? recipients.length : "<not-array>"}, cap=${MAX_RECIPIENTS_PER_SEND}`,
+    );
+    return res.status(413).json({
+      error: `Too many recipients (${Array.isArray(recipients) ? recipients.length : 0}). Max ${MAX_RECIPIENTS_PER_SEND} per send.`,
+    });
+  }
+
+  // Validate every recipient looks like an email — reject the whole
+  // batch on the first malformed entry. SendGrid will accept almost
+  // anything as a `to`, including strings with newlines (header
+  // injection) or unicode lookalikes that don't deliver. A strict
+  // local regex catches most analyst typos AND most abuse payloads
+  // before the upstream call.
+  //
+  // Regex is intentionally conservative (RFC 5322 quoted-local-part
+  // addresses are legal but rare for institutional emails; we
+  // trade those off for sanity).
+  const EMAIL_RE = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
+  const badEmail = recipients.find((r) => typeof r !== "string" || !EMAIL_RE.test(r.trim()));
+  if (badEmail !== undefined) {
+    return res.status(400).json({
+      error: `Invalid recipient email: ${typeof badEmail === "string" ? badEmail.slice(0, 60) : "<non-string>"}`,
+    });
+  }
+
   // Defensive size check.
   if (attachments?.length) {
     const totalBytes = attachments.reduce((s, a) => s + (a.content ? a.content.length : 0), 0);
