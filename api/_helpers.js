@@ -5,6 +5,11 @@
 // to derive routes, but underscore-prefixed files are treated as
 // support modules.)
 
+// Top-level imports for the SSRF guard further down. Vercel's Node
+// runtime supports the `node:` prefix for Node core modules.
+import dns from "node:dns";
+import net from "node:net";
+
 /**
  * Apply CORS headers to a serverless response. Replaces the previous
  * `Access-Control-Allow-Origin: *` blanket pattern that let any site on
@@ -137,33 +142,109 @@ export async function requireAuth(req) {
 // inside /api/ai-draft.js — same auth gate, same POST contract.
 // ─────────────────────────────────────────────────────────────────
 
-/** Hostnames we refuse to fetch (SSRF guard). Covers loopback, RFC
- *  1918 private ranges, link-local, and the cloud-metadata IPs. The
- *  cloud-metadata service in particular is the classic SSRF target
- *  on AWS / GCP, returning instance credentials to anyone who can
- *  GET 169.254.169.254. */
-const BLOCKED_HOSTNAME_PREFIXES = [
-  "localhost",
-  "127.",
-  "10.",
-  "169.254.",
-  "192.168.",
-  "0.0.0.0",
-  "::1",
-];
-// 172.16.0.0/12 → 172.16. through 172.31.
-const BLOCKED_172 = /^172\.(1[6-9]|2\d|3[01])\./;
+/**
+ * SSRF guard for `extractLinkMeta` and any future server-side URL
+ * fetcher. The audit surfaced bypasses in the previous lexical-
+ * prefix check:
+ *
+ *   - `http://2130706433/` (decimal IP for 127.0.0.1)
+ *   - `http://0x7f000001/` (hex IP)
+ *   - `http://[::ffff:127.0.0.1]/` (IPv6-mapped IPv4)
+ *   - `http://metadata.aws.attacker.com/` (DNS-resolved to 169.254.x)
+ *   - 302 redirect from a public IP to a private IP — old code did
+ *     `redirect: "follow"` and never re-validated the target.
+ *
+ * Fix: resolve the hostname's actual IP via dns.lookup before fetch,
+ * check IP families correctly (IPv4 *and* IPv6 private ranges),
+ * disable automatic redirect following and re-validate each Location
+ * through the same guard. (`dns` and `net` imported at the top of
+ * the file.)
+ */
 
-function isBlockedHost(hostname) {
-  const lower = hostname.toLowerCase();
-  if (BLOCKED_HOSTNAME_PREFIXES.some((p) => lower === p.replace(/\.$/, "") || lower.startsWith(p))) {
-    return true;
+/** Quick lexical safety net — keeps obvious literals out of the
+ *  resolver entirely. The DNS step below is the authoritative check
+ *  but a literal `localhost` shouldn't even be sent for resolution. */
+const BLOCKED_LITERAL_HOSTNAMES = new Set(["localhost", "0.0.0.0", "broadcasthost"]);
+
+/** True if an IP literal lands in a range we never want to talk to.
+ *  Treats IPv4-mapped IPv6 (`::ffff:127.0.0.1`) as IPv4 for the
+ *  check. Treats all IPv6 ULA / link-local / loopback as blocked. */
+function isPrivateIp(ip) {
+  if (!ip) return true;
+  const v = net.isIP(ip);
+  if (v === 0) return true; // not an IP at all — fail closed
+
+  // Normalise IPv4-mapped IPv6 (e.g. `::ffff:127.0.0.1`) to the
+  // underlying IPv4 string for the private-range check.
+  let ipv4 = null;
+  if (v === 4) {
+    ipv4 = ip;
+  } else if (v === 6) {
+    // ::1 loopback, fc00::/7 ULA, fe80::/10 link-local — block.
+    const lower = ip.toLowerCase();
+    if (lower === "::1" || lower === "::") return true;
+    if (/^fc/.test(lower) || /^fd/.test(lower)) return true; // fc00::/7
+    if (/^fe[89ab]/.test(lower)) return true;                // fe80::/10
+    // IPv4-mapped — pull the v4 part out for the IPv4 check below.
+    const mapped = /::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/i.exec(lower);
+    if (mapped) ipv4 = mapped[1];
   }
-  if (BLOCKED_172.test(lower)) return true;
+
+  if (ipv4) {
+    const [a, b] = ipv4.split(".").map((x) => parseInt(x, 10));
+    if (a === 0) return true;                                   // 0.0.0.0/8
+    if (a === 10) return true;                                  // 10.0.0.0/8
+    if (a === 127) return true;                                 // 127.0.0.0/8
+    if (a === 169 && b === 254) return true;                    // 169.254.0.0/16 (link-local + AWS/GCP metadata)
+    if (a === 172 && b >= 16 && b <= 31) return true;           // 172.16.0.0/12
+    if (a === 192 && b === 168) return true;                    // 192.168.0.0/16
+    if (a === 100 && b >= 64 && b <= 127) return true;          // 100.64.0.0/10 (CGNAT)
+    if (a >= 224) return true;                                  // 224.0.0.0/4 multicast + 240.0.0.0/4 reserved
+  }
   return false;
 }
 
-function validateUrl(raw) {
+/** Async DNS-resolve the hostname and reject if any returned IP is
+ *  in a private range. Returns the first public IP on success.
+ *
+ *  Note: we don't fully mitigate DNS rebinding (the attacker could
+ *  TTL-flip between this lookup and the actual fetch's resolve).
+ *  Real-world mitigation would involve fetching by IP with a `Host:`
+ *  header — left for a future hardening pass; this fix closes the
+ *  far-more-common single-resolve attack vector.
+ */
+async function resolveAndValidateHost(hostname) {
+  // Literal hostnames we never want to resolve.
+  if (BLOCKED_LITERAL_HOSTNAMES.has(hostname.toLowerCase())) {
+    return { ok: false, error: "Hostname not allowed" };
+  }
+  // If it's already an IP literal, validate directly without DNS.
+  if (net.isIP(hostname)) {
+    if (isPrivateIp(hostname)) {
+      return { ok: false, error: "IP literal in private range not allowed" };
+    }
+    return { ok: true, ip: hostname };
+  }
+  // Resolve and check every returned address.
+  try {
+    const records = await new Promise((resolve, reject) => {
+      dns.lookup(hostname, { all: true, family: 0 }, (err, addrs) => {
+        if (err) reject(err); else resolve(addrs);
+      });
+    });
+    if (!records.length) return { ok: false, error: "Hostname did not resolve" };
+    for (const r of records) {
+      if (isPrivateIp(r.address)) {
+        return { ok: false, error: "Hostname resolves into a private range" };
+      }
+    }
+    return { ok: true, ip: records[0].address };
+  } catch (err) {
+    return { ok: false, error: `DNS lookup failed: ${err?.message || "unknown"}` };
+  }
+}
+
+async function validateUrl(raw) {
   let u;
   try {
     u = new URL(raw);
@@ -173,9 +254,8 @@ function validateUrl(raw) {
   if (u.protocol !== "http:" && u.protocol !== "https:") {
     return { ok: false, error: "Only http and https URLs are supported" };
   }
-  if (isBlockedHost(u.hostname)) {
-    return { ok: false, error: "Hostname not allowed" };
-  }
+  const dnsCheck = await resolveAndValidateHost(u.hostname);
+  if (!dnsCheck.ok) return { ok: false, error: dnsCheck.error };
   return { ok: true, url: u };
 }
 
@@ -275,33 +355,49 @@ export async function extractLinkMeta(rawUrl) {
   if (typeof rawUrl !== "string" || !rawUrl.trim()) {
     return { ok: false, status: 400, error: "Missing url" };
   }
-  const v = validateUrl(rawUrl.trim());
-  if (!v.ok) return { ok: false, status: 400, error: v.error };
+  let current = await validateUrl(rawUrl.trim());
+  if (!current.ok) return { ok: false, status: 400, error: current.error };
 
-  // 6s ceiling — slow CDNs / Cloudflare-protected sites occasionally
-  // dribble TTFB. Past that we bail rather than hold the function
-  // open and run up Vercel's per-invocation budget.
+  // 6s wall-clock ceiling across the whole redirect chain.
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 6000);
 
   try {
-    const resp = await fetchWithRetry(
-      v.url.toString(),
-      {
-        method: "GET",
-        signal: controller.signal,
-        headers: {
-          "User-Agent": "Mozilla/5.0 (compatible; LSResearchBot/1.0; +https://latinsecurities.com.ar)",
-          Accept: "text/html,application/xhtml+xml",
-          "Accept-Language": "en-US,en;q=0.9,es;q=0.5",
+    // Manual redirect handling so we can re-validate every hop's
+    // Location through the same SSRF guard. `redirect: "follow"`
+    // (the old default) would silently chase a 302 from a public
+    // IP to 127.0.0.1 or 169.254.169.254. We cap at 5 hops to
+    // avoid loops.
+    let resp = null;
+    for (let hop = 0; hop < 5; hop++) {
+      resp = await fetchWithRetry(
+        current.url.toString(),
+        {
+          method: "GET",
+          signal: controller.signal,
+          headers: {
+            "User-Agent": "Mozilla/5.0 (compatible; LSResearchBot/1.0; +https://latinsecurities.com.ar)",
+            Accept: "text/html,application/xhtml+xml",
+            "Accept-Language": "en-US,en;q=0.9,es;q=0.5",
+          },
+          redirect: "manual",
         },
-        redirect: "follow",
-      },
-      { maxAttempts: 2 },
-    );
+        { maxAttempts: 2 },
+      );
+      // Treat 3xx with a Location header as a hop. Anything else
+      // (success or non-redirect error) is the final response.
+      const isRedirect = resp.status >= 300 && resp.status < 400 && resp.headers.get("location");
+      if (!isRedirect) break;
+      const next = new URL(resp.headers.get("location"), current.url).toString();
+      const revalidated = await validateUrl(next);
+      if (!revalidated.ok) {
+        return { ok: false, status: 400, error: `Redirect rejected: ${revalidated.error}` };
+      }
+      current = revalidated;
+    }
 
-    if (!resp.ok) {
-      return { ok: false, status: 502, error: `Upstream returned ${resp.status}` };
+    if (!resp || !resp.ok) {
+      return { ok: false, status: 502, error: `Upstream returned ${resp?.status ?? "no-response"}` };
     }
 
     const contentType = (resp.headers.get("content-type") || "").toLowerCase();
