@@ -3,7 +3,7 @@ import { getEmailLogoUrl } from "./emailLogoUrl";
 import { formatDate, fmtEventDate, fmtTime } from "./dates";
 import { rc, rb, ra, resolveCorporateBlock } from "./ratings";
 import { fmtUpside, upsideColor, calcUpside } from "./prices";
-import { nl2br } from "./text";
+import { nl2br, escapeHtml, safeUrl } from "./text";
 import type { DailyState, NewsLink } from "../types";
 
 /** Hostname-only fallback when a NewsLink has no label, e.g. "ft.com". */
@@ -38,10 +38,16 @@ function unsubscribeUrl(): string {
 /** Tiny "Sources: <a> · <a>" footer for blocks that have news links. */
 function renderNewsLinks(links: NewsLink[] | undefined): string {
   if (!links || !links.length) return "";
-  const valid = links.filter((l) => l.url && l.url.trim());
+  // Filter on a SAFE url — `safeUrl` returns "" for `javascript:`,
+  // `data:`, malformed schemes, etc. so a tampered NewsLink doesn't
+  // emit an anchor with an unsafe href. Then escape the label /
+  // hostname for body-context interpolation.
+  const valid = links
+    .map((l) => ({ url: safeUrl(l.url), label: l.label ?? "" }))
+    .filter((l) => l.url);
   if (!valid.length) return "";
   const items = valid
-    .map((l) => '<a href="' + l.url + '" style="color:#1e5ab0;text-decoration:none;font-weight:600;">' + (l.label.trim() || hostOf(l.url)) + ' ↗</a>')
+    .map((l) => '<a href="' + l.url + '" style="color:#1e5ab0;text-decoration:none;font-weight:600;">' + escapeHtml(l.label.trim() || hostOf(l.url)) + ' ↗</a>')
     .join('<span style="color:#bbb;margin:0 6px;">·</span>');
   return '<div style="margin-top:10px;font-size:11.5px;line-height:1.6;color:#888;"><span style="font-weight:600;text-transform:uppercase;letter-spacing:0.5px;font-size:10px;margin-right:6px;">Sources</span>' + items + '</div>';
 }
@@ -67,22 +73,20 @@ function renderReportLink(
   url: string | undefined,
   opts: { wrap?: boolean; label?: string; compact?: boolean } = {},
 ): string {
-  if (!url || !url.trim()) return "";
+  // Allowlist-check the URL: `javascript:` / `data:` URLs return ""
+  // and the whole CTA is suppressed.
+  const safe = safeUrl(url);
+  if (!safe) return "";
+  // Labels can contain HTML entities like `&#8594;` (callers use
+  // those intentionally for arrows) so we don't escape `label` —
+  // it's controlled at the call site and never user input.
   const label = opts.label || "Full report &#8594;";
-  // Compact variant — half the padding and a tick smaller font, for
-  // digest-style sections (Latest Reports) where the button sits
-  // inside a tight one-line-per-item row and a full-size CTA looks
-  // out of proportion.
   const padding = opts.compact ? "3px 10px" : "6px 14px";
   const fontSize = opts.compact ? "11px" : "12px";
   const link =
-    '<a href="' + url +
+    '<a href="' + safe +
     '" style="font-size:' + fontSize + ';color:#fff;background:#1e5ab0;padding:' + padding + ';border-radius:4px;text-decoration:none;font-weight:600;display:inline-block;">' +
     label + '</a>';
-  // `wrap` adds a small top margin so the button sits cleanly below
-  // a body paragraph (Corporate / Research bodies). Skip wrapping
-  // when the caller is placing the button inline in a compact row
-  // (Latest Reports digest, Events row).
   return opts.wrap ? '<div style="margin-top:' + (opts.compact ? "4px" : "8px") + ';">' + link + '</div>' : link;
 }
 
@@ -101,15 +105,18 @@ function renderReportLink(
  * scenarios often don't need one ("Replay →").
  */
 function renderCallLink(url: string | undefined, dateTime: string | undefined): string {
-  if (!url || !url.trim()) return "";
+  const safe = safeUrl(url);
+  if (!safe) return "";
+  // dateTime is analyst-supplied free-text → must escape before
+  // interpolation. URL is already attribute-safe-encoded by safeUrl.
   const dt = (dateTime || "").trim();
-  const dtLabel = dt ? '<span style="color:' + DS.textLight + ';margin-right:8px;font-size:11.5px;">' + dt + '</span>' : '';
+  const dtLabel = dt ? '<span style="color:' + DS.textLight + ';margin-right:8px;font-size:11.5px;">' + escapeHtml(dt) + '</span>' : '';
   // Outlined button (transparent bg, sky border + text) so it
   // reads as a *secondary* CTA when sitting next to the filled
   // "Full report →" — earnings emails often have both, and the
   // visual hierarchy needs to be: report > call.
   const link =
-    '<a href="' + url +
+    '<a href="' + safe +
     '" style="font-size:12px;color:' + DS.accent + ';background:transparent;padding:5px 13px;border:1.5px solid ' + DS.accent + ';border-radius:4px;text-decoration:none;font-weight:600;display:inline-block;">' +
     '☎ Join call &#8594;</a>';
   return '<div style="margin-top:8px;">' + dtLabel + link + '</div>';
@@ -190,9 +197,10 @@ function generateHTMLImpl(s: DailyState, mode: string = "full", template: string
   // are preserved on the type for backwards compat with persisted
   // dailies that still hold those values; nothing renders them now.
 
-  // WHAT TO WATCH (this week)
+  // WHAT TO WATCH (this week) — bullet list of free-text items;
+  // each entry escaped before interpolation.
   const watchItems = (s.watchToday || []).filter((w: string) => w.trim());
-  const watchToday = s.sections.find(x => x.key === "watchToday")?.on && watchItems.length ? secHdr("What to Watch This Week") + '<tr><td style="padding:0 40px 8px;">' + watchItems.map((w: string) => '<div style="padding:6px 0;font-size:13.5px;line-height:1.55;color:' + DS.text + ';"><span style="color:#e67e22;font-weight:700;margin-right:8px;">&#9656;</span>' + w + '</div>').join("") + '</td></tr>' : "";
+  const watchToday = s.sections.find(x => x.key === "watchToday")?.on && watchItems.length ? secHdr("What to Watch This Week") + '<tr><td style="padding:0 40px 8px;">' + watchItems.map((w: string) => '<div style="padding:6px 0;font-size:13.5px;line-height:1.55;color:' + DS.text + ';"><span style="color:#e67e22;font-weight:700;margin-right:8px;">&#9656;</span>' + escapeHtml(w) + '</div>').join("") + '</td></tr>' : "";
 
   // MARKET COMMENT — single free-form prose block.
   const marketComment = s.sections.find(x => x.key === "marketComment")?.on && s.marketComment?.trim()
@@ -202,8 +210,9 @@ function generateHTMLImpl(s: DailyState, mode: string = "full", template: string
   // LATAM CONTEXT
   const latam = s.sections.find(x => x.key === "latam")?.on && s.latam ? secHdr("LatAm Context") + '<tr><td style="padding:0 40px 8px;"><div style="font-size:13.5px;line-height:1.65;color:' + DS.text + ';text-align:justify;">' + nl2br(s.latam) + '</div></td></tr>' : "";
 
-  // MACRO
-  const macro = s.sections.find(x => x.key === "macro")?.on ? secHdr("Macro / Political") + '<tr><td style="padding:0 40px 8px;">' + s.macroBlocks.map(b => '<div style="margin-bottom:20px;"><div style="font-size:13px;font-weight:700;color:' + DS.navy + ';text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">' + b.title + '</div><div style="font-size:13.5px;line-height:1.65;color:' + DS.text + ';text-align:justify;">' + nl2br(b.body) + '</div>' + (b.lsPick ? '<div style="background:' + DS.greenBg + ';border-left:3px solid ' + DS.green + ';padding:10px 14px;margin-top:10px;font-size:13px;line-height:1.55;color:' + DS.green + ';"><span style="font-weight:700;">LS View:</span> ' + nl2br(b.lsPick) + '</div>' : '') + renderNewsLinks(b.newsLinks) + '</div>').join("") + '</td></tr>' : "";
+  // MACRO — `b.title` is a single-line heading (escape, no nl2br);
+  // `b.body` and `b.lsPick` are prose (nl2br already escapes).
+  const macro = s.sections.find(x => x.key === "macro")?.on ? secHdr("Macro / Political") + '<tr><td style="padding:0 40px 8px;">' + s.macroBlocks.map(b => '<div style="margin-bottom:20px;"><div style="font-size:13px;font-weight:700;color:' + DS.navy + ';text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">' + escapeHtml(b.title) + '</div><div style="font-size:13.5px;line-height:1.65;color:' + DS.text + ';text-align:justify;">' + nl2br(b.body) + '</div>' + (b.lsPick ? '<div style="background:' + DS.greenBg + ';border-left:3px solid ' + DS.green + ';padding:10px 14px;margin-top:10px;font-size:13px;line-height:1.55;color:' + DS.green + ';"><span style="font-weight:700;">LS View:</span> ' + nl2br(b.lsPick) + '</div>' : '') + renderNewsLinks(b.newsLinks) + '</div>').join("") + '</td></tr>' : "";
 
   // TRADE IDEAS
   const trade = s.sections.find(x => x.key === "tradeIdeas")?.on ? secHdr("Trade Ideas") + '<tr><td style="padding:0 40px 8px;"><div style="font-size:11px;font-weight:700;color:' + DS.navy + ';text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;padding-bottom:4px;">Equity \u2014 Research Top Picks</div>' + s.equityPicks.filter(p => p.ticker).map(p => {
@@ -215,10 +224,10 @@ function generateHTMLImpl(s: DailyState, mode: string = "full", template: string
     // invalidation criterion at a glance \u2014 the thing that
     // distinguishes a real recommendation from a generic buy.
     const exitBlock = p.exitTrigger?.trim()
-      ? '<div style="font-size:11px;color:' + DS.textMuted + ';margin-top:4px;padding-top:4px;border-top:1px dashed ' + DS.borderLight + ';"><span style="font-weight:700;text-transform:uppercase;letter-spacing:0.4px;color:' + DS.text + ';">Change my mind:</span> ' + p.exitTrigger + '</div>'
+      ? '<div style="font-size:11px;color:' + DS.textMuted + ';margin-top:4px;padding-top:4px;border-top:1px dashed ' + DS.borderLight + ';"><span style="font-weight:700;text-transform:uppercase;letter-spacing:0.4px;color:' + DS.text + ';">Change my mind:</span> ' + escapeHtml(p.exitTrigger) + '</div>'
       : '';
-    return '<div style="margin-bottom:10px;padding:10px 12px;background:' + DS.bgAlt + ';border-radius:4px;border-left:3px solid ' + ratingColor + ';"><div style="margin-bottom:3px;"><span style="font-size:14px;font-weight:700;color:' + DS.navy + ';letter-spacing:0.5px;">' + p.ticker + '</span>' + (info ? ' <span style="display:inline-block;font-size:10px;font-weight:700;color:' + ratingColor + ';background:' + rb(info.rating) + ';padding:2px 6px;border-radius:3px;margin-left:6px;text-transform:uppercase;">' + info.rating + '</span>' : '') + '</div>' + (info ? '<div style="font-size:11.5px;color:' + DS.textLight + ';margin-bottom:2px;">TP ' + info.tp + (info.last ? ' \u00B7 Last ' + info.last : '') + (info.tp && info.last ? ' \u00B7 <span style="color:' + upsideColor(info.tp, info.last) + ';font-weight:700;">' + fmtUpside(info.tp, info.last) + '</span>' : '') + '</div>' : '') + (p.reason ? '<div style="font-size:12.5px;color:' + DS.textMuted + ';font-style:italic;margin-top:2px;">' + p.reason + '</div>' : '') + exitBlock + '</div>';
-  }).join("") + '<div style="border-top:1px solid ' + DS.borderLight + ';margin:18px 0;"></div><div style="font-size:11px;font-weight:700;color:' + DS.navy + ';text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;padding-bottom:4px;">Fixed Income</div>' + s.fiIdeas.filter(f => f.idea).map(f => '<div style="margin-bottom:10px;padding:10px 12px;background:' + DS.bgAlt + ';border-radius:4px;border-left:3px solid ' + DS.accent + ';"><div style="font-size:13.5px;line-height:1.55;color:' + DS.text + ';font-weight:600;">' + f.idea + '</div>' + (f.reason ? '<div style="font-size:12px;color:' + DS.textLight + ';font-style:italic;margin-top:3px;">' + f.reason + '</div>' : '') + '</div>').join("") + '</td></tr>' : "";
+    return '<div style="margin-bottom:10px;padding:10px 12px;background:' + DS.bgAlt + ';border-radius:4px;border-left:3px solid ' + ratingColor + ';"><div style="margin-bottom:3px;"><span style="font-size:14px;font-weight:700;color:' + DS.navy + ';letter-spacing:0.5px;">' + escapeHtml(p.ticker) + '</span>' + (info ? ' <span style="display:inline-block;font-size:10px;font-weight:700;color:' + ratingColor + ';background:' + rb(info.rating) + ';padding:2px 6px;border-radius:3px;margin-left:6px;text-transform:uppercase;">' + escapeHtml(info.rating) + '</span>' : '') + '</div>' + (info ? '<div style="font-size:11.5px;color:' + DS.textLight + ';margin-bottom:2px;">TP ' + escapeHtml(info.tp) + (info.last ? ' \u00B7 Last ' + escapeHtml(info.last) : '') + (info.tp && info.last ? ' \u00B7 <span style="color:' + upsideColor(info.tp, info.last) + ';font-weight:700;">' + fmtUpside(info.tp, info.last) + '</span>' : '') + '</div>' : '') + (p.reason ? '<div style="font-size:12.5px;color:' + DS.textMuted + ';font-style:italic;margin-top:2px;">' + escapeHtml(p.reason) + '</div>' : '') + exitBlock + '</div>';
+  }).join("") + '<div style="border-top:1px solid ' + DS.borderLight + ';margin:18px 0;"></div><div style="font-size:11px;font-weight:700;color:' + DS.navy + ';text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;padding-bottom:4px;">Fixed Income</div>' + s.fiIdeas.filter(f => f.idea).map(f => '<div style="margin-bottom:10px;padding:10px 12px;background:' + DS.bgAlt + ';border-radius:4px;border-left:3px solid ' + DS.accent + ';"><div style="font-size:13.5px;line-height:1.55;color:' + DS.text + ';font-weight:600;">' + escapeHtml(f.idea) + '</div>' + (f.reason ? '<div style="font-size:12px;color:' + DS.textLight + ';font-style:italic;margin-top:3px;">' + escapeHtml(f.reason) + '</div>' : '') + '</div>').join("") + '</td></tr>' : "";
 
   // FLOWS — two instrument cards side by side. Each card has a
   // colored top stripe (navy for Equities, accent-blue for FI),
@@ -248,10 +257,10 @@ function generateHTMLImpl(s: DailyState, mode: string = "full", template: string
         '<div style="font-size:11px;font-weight:700;color:' + headerColor + ';text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;">' + label + '</div>' +
         '<div style="font-size:13px;line-height:1.8;color:' + DS.text + ';">' +
           '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + DS.green + ';margin-right:8px;vertical-align:middle;"></span>' +
-          '<span style="font-weight:700;color:' + DS.green + ';">Net Buyer</span> ' + buyer +
+          '<span style="font-weight:700;color:' + DS.green + ';">Net Buyer</span> ' + escapeHtml(buyer) +
           '<br>' +
           '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + DS.red + ';margin-right:8px;vertical-align:middle;"></span>' +
-          '<span style="font-weight:700;color:' + DS.red + ';">Net Seller</span> ' + seller +
+          '<span style="font-weight:700;color:' + DS.red + ';">Net Seller</span> ' + escapeHtml(seller) +
         '</div>' +
       '</div>' +
     '</td>';
@@ -263,8 +272,9 @@ function generateHTMLImpl(s: DailyState, mode: string = "full", template: string
       '</tr></table></td></tr>'
     : "";
 
-  // MACRO ESTIMATES
-  const mEst = s.sections.find(x => x.key === "macroEstimates")?.on ? secHdr("Macro Estimates") + '<tr><td style="padding:0 40px 8px;"><div style="font-size:10.5px;color:' + DS.textMuted + ';margin-bottom:8px;">Source: ' + s.macroSource + '</div><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid ' + DS.border + ';"><tr style="background:' + DS.bgAlt + ';"><td style="padding:8px 12px;font-size:11px;font-weight:700;color:' + DS.navy + ';width:40%;border-bottom:1px solid ' + DS.border + ';"></td>' + s.macroCols.map(c => '<td style="padding:8px 12px;font-size:11px;font-weight:700;color:' + DS.navy + ';text-align:center;border-bottom:1px solid ' + DS.border + ';border-left:1px solid ' + DS.borderLight + ';">' + c + '</td>').join("") + '</tr>' + s.macroRows.map((r, i) => '<tr style="background:' + (i % 2 === 0 ? "#fff" : DS.bgAlt) + ';"><td style="padding:7px 12px;font-size:12.5px;font-weight:600;color:' + DS.text + ';border-bottom:1px solid ' + DS.borderLight + ';">' + r.label + '</td>' + s.macroCols.map(c => '<td style="padding:7px 12px;font-size:12.5px;color:' + DS.text + ';text-align:center;border-bottom:1px solid ' + DS.borderLight + ';border-left:1px solid ' + DS.borderLight + ';">' + (r.vals[c] || "") + '</td>').join("") + '</tr>').join("") + '</table></td></tr>' : "";
+  // MACRO ESTIMATES — every user-input cell (source, col header,
+  // row label, value) is escaped before interpolation.
+  const mEst = s.sections.find(x => x.key === "macroEstimates")?.on ? secHdr("Macro Estimates") + '<tr><td style="padding:0 40px 8px;"><div style="font-size:10.5px;color:' + DS.textMuted + ';margin-bottom:8px;">Source: ' + escapeHtml(s.macroSource) + '</div><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid ' + DS.border + ';"><tr style="background:' + DS.bgAlt + ';"><td style="padding:8px 12px;font-size:11px;font-weight:700;color:' + DS.navy + ';width:40%;border-bottom:1px solid ' + DS.border + ';"></td>' + s.macroCols.map(c => '<td style="padding:8px 12px;font-size:11px;font-weight:700;color:' + DS.navy + ';text-align:center;border-bottom:1px solid ' + DS.border + ';border-left:1px solid ' + DS.borderLight + ';">' + escapeHtml(c) + '</td>').join("") + '</tr>' + s.macroRows.map((r, i) => '<tr style="background:' + (i % 2 === 0 ? "#fff" : DS.bgAlt) + ';"><td style="padding:7px 12px;font-size:12.5px;font-weight:600;color:' + DS.text + ';border-bottom:1px solid ' + DS.borderLight + ';">' + escapeHtml(r.label) + '</td>' + s.macroCols.map(c => '<td style="padding:7px 12px;font-size:12.5px;color:' + DS.text + ';text-align:center;border-bottom:1px solid ' + DS.borderLight + ';border-left:1px solid ' + DS.borderLight + ';">' + escapeHtml(r.vals[c] || "") + '</td>').join("") + '</tr>').join("") + '</table></td></tr>' : "";
 
   // CORPORATE
   // Each block lists every ticker it covers as a coloured chip.
@@ -282,16 +292,20 @@ function generateHTMLImpl(s: DailyState, mode: string = "full", template: string
     const chipFontSize = dense ? "10.5px" : "11px";
     const chipMargin = dense ? "margin-right:6px;margin-bottom:4px;" : "margin-right:8px;margin-bottom:4px;";
     const chips = r.covs.filter(cv => cv.ticker).map(cv => {
+      // Rating label can be either the verbose word ("Overweight")
+      // or the abbreviation (`ra(...)` returns "OW"). Both come from
+      // the catalogue but escape defensively in case future data is
+      // free-text. tp/last/ticker are all analyst-typed strings.
       const ratingLabel = dense ? ra(cv.rating) : cv.rating;
       const upside = cv.tp && cv.last
-        ? ' \u00B7 <span style="color:' + upsideColor(cv.tp, cv.last) + ';font-weight:700;">' + fmtUpside(cv.tp, cv.last) + '</span>'
+        ? ' \u00B7 <span style="color:' + upsideColor(cv.tp, cv.last) + ';font-weight:700;">' + escapeHtml(fmtUpside(cv.tp, cv.last)) + '</span>'
         : '';
-      // In dense mode drop the standalone "Last $YY.YY" \u2014 the upside
-      // % already encodes that information.
-      const last = !dense && cv.last ? ' \u00B7 ' + cv.last : '';
-      return '<span style="display:inline-block;' + chipMargin + 'padding:' + chipPad + ';border-radius:4px;font-size:' + chipFontSize + ';background:' + rb(cv.rating) + ';border:1px solid ' + rc(cv.rating) + '30;"><span style="font-weight:700;color:' + rc(cv.rating) + ';">' + cv.ticker + '</span> <span style="color:' + DS.textLight + ';">' + ratingLabel + (cv.tp ? ' \u00B7 TP ' + cv.tp : '') + last + upside + '</span></span>';
+      const last = !dense && cv.last ? ' \u00B7 ' + escapeHtml(cv.last) : '';
+      return '<span style="display:inline-block;' + chipMargin + 'padding:' + chipPad + ';border-radius:4px;font-size:' + chipFontSize + ';background:' + rb(cv.rating) + ';border:1px solid ' + rc(cv.rating) + '30;"><span style="font-weight:700;color:' + rc(cv.rating) + ';">' + escapeHtml(cv.ticker) + '</span> <span style="color:' + DS.textLight + ';">' + escapeHtml(ratingLabel) + (cv.tp ? ' \u00B7 TP ' + escapeHtml(cv.tp) : '') + last + upside + '</span></span>';
     }).join("");
-    return '<div style="margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid ' + DS.borderLight + ';"><div style="font-size:14px;font-weight:700;color:' + DS.navy + ';text-transform:uppercase;letter-spacing:0.3px;margin-bottom:8px;">' + r.tickers.join(" / ") + ' \u2014 ' + r.headline + '</div><div style="margin-bottom:8px;">' + chips + '</div><div style="font-size:11.5px;color:' + DS.textMuted + ';font-style:italic;margin-bottom:6px;">' + r.analyst + '</div><div style="font-size:13.5px;line-height:1.65;color:' + DS.text + ';text-align:justify;">' + nl2br(r.body) + '</div>' + renderReportLink(r.link, { wrap: true }) + renderCallLink(c.callUrl, c.callDateTime) + renderNewsLinks(c.newsLinks) + '</div>';
+    // Tickers join is a plain `/` separator \u2014 each ticker escaped.
+    // Headline + analyst-name strings are free-text \u2192 escape.
+    return '<div style="margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid ' + DS.borderLight + ';"><div style="font-size:14px;font-weight:700;color:' + DS.navy + ';text-transform:uppercase;letter-spacing:0.3px;margin-bottom:8px;">' + r.tickers.map(escapeHtml).join(" / ") + ' \u2014 ' + escapeHtml(r.headline) + '</div><div style="margin-bottom:8px;">' + chips + '</div><div style="font-size:11.5px;color:' + DS.textMuted + ';font-style:italic;margin-bottom:6px;">' + escapeHtml(r.analyst) + '</div><div style="font-size:13.5px;line-height:1.65;color:' + DS.text + ';text-align:justify;">' + nl2br(r.body) + '</div>' + renderReportLink(r.link, { wrap: true }) + renderCallLink(c.callUrl, c.callDateTime) + renderNewsLinks(c.newsLinks) + '</div>';
   }).join("") + '</td></tr>' : "";
 
   // RESEARCH
@@ -302,7 +316,7 @@ function generateHTMLImpl(s: DailyState, mode: string = "full", template: string
   const research = s.sections.find(x => x.key === "research")?.on && s.researchReports?.length ? secHdr("Research Reports") + '<tr><td style="padding:0 40px 8px;">' + (s.researchReports || []).filter(r => r.title).map(r => {
     const resolvedAnalyst = r.analystId ? s.analysts.find((a) => a.id === r.analystId) : null;
     const authorName = resolvedAnalyst ? resolvedAnalyst.name : r.author;
-    return '<div style="margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid ' + DS.borderLight + ';"><div style="margin-bottom:3px;"><span style="font-size:10px;font-weight:700;color:' + DS.accent + ';text-transform:uppercase;letter-spacing:1px;">' + r.type + '</span></div><div style="font-size:13.5px;font-weight:700;color:' + DS.navy + ';margin-bottom:2px;">' + r.title + '</div>' + (authorName ? '<div style="font-size:11.5px;color:' + DS.textMuted + ';font-style:italic;margin-bottom:4px;">' + authorName + '</div>' : '') + (r.body ? '<div style="font-size:13px;line-height:1.6;color:' + DS.text + ';text-align:justify;">' + nl2br(r.body) + '</div>' : '') + renderReportLink(r.link, { wrap: true }) + '</div>';
+    return '<div style="margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid ' + DS.borderLight + ';"><div style="margin-bottom:3px;"><span style="font-size:10px;font-weight:700;color:' + DS.accent + ';text-transform:uppercase;letter-spacing:1px;">' + escapeHtml(r.type) + '</span></div><div style="font-size:13.5px;font-weight:700;color:' + DS.navy + ';margin-bottom:2px;">' + escapeHtml(r.title) + '</div>' + (authorName ? '<div style="font-size:11.5px;color:' + DS.textMuted + ';font-style:italic;margin-bottom:4px;">' + escapeHtml(authorName) + '</div>' : '') + (r.body ? '<div style="font-size:13px;line-height:1.6;color:' + DS.text + ';text-align:justify;">' + nl2br(r.body) + '</div>' : '') + renderReportLink(r.link, { wrap: true }) + '</div>';
   }).join("") + '</td></tr>' : "";
 
   // LATEST RESEARCH REPORTS — compact one-line-per-deal digest.
@@ -320,17 +334,20 @@ function generateHTMLImpl(s: DailyState, mode: string = "full", template: string
   const latestReportsRows = (s.latestReports || []).filter(r => r.title?.trim());
   const latestReports = s.sections.find(x => x.key === "latestReports")?.on && latestReportsRows.length
     ? secHdr("Latest Research Reports") + '<tr><td style="padding:0 40px 8px;">' + latestReportsRows.map(r => {
-        const tag = r.type?.trim() ? '<span style="display:inline-block;font-size:9.5px;font-weight:700;color:' + DS.accent + ';text-transform:uppercase;letter-spacing:1px;background:' + DS.bgAlt + ';padding:2px 8px;border-radius:3px;margin-right:8px;vertical-align:middle;">' + r.type + '</span>' : '';
-        const titleEl = '<span style="color:' + DS.navy + ';font-weight:700;">' + r.title + '</span>';
+        const tag = r.type?.trim() ? '<span style="display:inline-block;font-size:9.5px;font-weight:700;color:' + DS.accent + ';text-transform:uppercase;letter-spacing:1px;background:' + DS.bgAlt + ';padding:2px 8px;border-radius:3px;margin-right:8px;vertical-align:middle;">' + escapeHtml(r.type) + '</span>' : '';
+        const titleEl = '<span style="color:' + DS.navy + ';font-weight:700;">' + escapeHtml(r.title) + '</span>';
         const resolvedAnalyst = r.analystId ? s.analysts.find((a) => a.id === r.analystId) : null;
         const authorName = resolvedAnalyst ? resolvedAnalyst.name : r.author?.trim();
         const dateLabel = r.publishedDate?.trim() ? fmtEventDate(r.publishedDate) : "";
-        const metaParts = [authorName, dateLabel].filter(Boolean).join(" · ");
+        // Pre-escape meta parts individually so any embedded HTML
+        // metacharacter in author name / date is neutralised.
+        const metaParts = [authorName, dateLabel].filter(Boolean).map(escapeHtml).join(" · ");
         const metaEl = metaParts
           ? '<span style="font-size:11.5px;color:' + DS.textMuted + ';font-style:italic;margin-left:6px;white-space:nowrap;">— ' + metaParts + '</span>'
           : "";
-        const ctaEl = r.link?.trim()
-          ? '<a href="' + r.link + '" style="font-size:11px;color:#fff;background:' + DS.accent + ';padding:3px 10px;border-radius:4px;text-decoration:none;font-weight:600;display:inline-block;white-space:nowrap;">Full report &#8594;</a>'
+        const safeLink = safeUrl(r.link);
+        const ctaEl = safeLink
+          ? '<a href="' + safeLink + '" style="font-size:11px;color:#fff;background:' + DS.accent + ';padding:3px 10px;border-radius:4px;text-decoration:none;font-weight:600;display:inline-block;white-space:nowrap;">Full report &#8594;</a>'
           : "";
         // Email-safe table for the row — `<table>` rather than flex
         // because Outlook desktop doesn't honour flex. Left cell
@@ -361,9 +378,9 @@ function generateHTMLImpl(s: DailyState, mode: string = "full", template: string
           const date = b.pricingDate?.trim() ? fmtEventDate(b.pricingDate) : "TBD";
           const size = b.estimatedSize?.trim() || "—";
           return '<tr style="background:' + (i % 2 === 0 ? "#fff" : DS.bgAlt) + ';">' +
-            '<td style="padding:7px 12px;font-size:13px;font-weight:600;color:' + DS.text + ';border-bottom:1px solid ' + DS.borderLight + ';">' + b.issuer + '</td>' +
-            '<td style="padding:7px 12px;font-size:12.5px;color:' + DS.text + ';border-bottom:1px solid ' + DS.borderLight + ';border-left:1px solid ' + DS.borderLight + ';">' + date + '</td>' +
-            '<td style="padding:7px 12px;font-size:12.5px;color:' + DS.text + ';text-align:right;border-bottom:1px solid ' + DS.borderLight + ';border-left:1px solid ' + DS.borderLight + ';">' + size + '</td>' +
+            '<td style="padding:7px 12px;font-size:13px;font-weight:600;color:' + DS.text + ';border-bottom:1px solid ' + DS.borderLight + ';">' + escapeHtml(b.issuer) + '</td>' +
+            '<td style="padding:7px 12px;font-size:12.5px;color:' + DS.text + ';border-bottom:1px solid ' + DS.borderLight + ';border-left:1px solid ' + DS.borderLight + ';">' + escapeHtml(date) + '</td>' +
+            '<td style="padding:7px 12px;font-size:12.5px;color:' + DS.text + ';text-align:right;border-bottom:1px solid ' + DS.borderLight + ';border-left:1px solid ' + DS.borderLight + ';">' + escapeHtml(size) + '</td>' +
           '</tr>';
         }).join("") +
       '</table></td></tr>'
@@ -372,36 +389,40 @@ function generateHTMLImpl(s: DailyState, mode: string = "full", template: string
   // TOP MOVERS
   const topMoversGainers: typeof s.topMovers.gainers = s.topMovers?.gainers?.filter(m => m.ticker) || [];
   const topMoversLosers: typeof s.topMovers.losers = s.topMovers?.losers?.filter(m => m.ticker) || [];
-  const topMovers = s.sections.find(x => x.key === "topMovers")?.on && (topMoversGainers.length || topMoversLosers.length) ? secHdr("Top Movers") + '<tr><td style="padding:0 40px 8px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid ' + DS.border + ';"><tr style="background:' + DS.bgAlt + ';"><td style="padding:7px 12px;font-size:11px;font-weight:700;color:' + DS.navy + ';border-bottom:1px solid ' + DS.border + ';">Ticker</td><td style="padding:7px 12px;font-size:11px;font-weight:700;color:' + DS.navy + ';text-align:right;border-bottom:1px solid ' + DS.border + ';">Chg</td><td style="padding:7px 12px;font-size:11px;font-weight:700;color:' + DS.navy + ';border-bottom:1px solid ' + DS.border + ';">Comment</td></tr>' + topMoversGainers.map((m, i) => '<tr style="background:' + (i % 2 === 0 ? "#fff" : DS.bgAlt) + ';"><td style="padding:6px 12px;font-size:12.5px;font-weight:600;color:' + DS.text + ';border-bottom:1px solid ' + DS.borderLight + ';">' + m.ticker + '</td><td style="padding:6px 12px;font-size:12.5px;font-weight:700;color:' + DS.green + ';text-align:right;border-bottom:1px solid ' + DS.borderLight + ';">+' + m.chgPct + '%</td><td style="padding:6px 12px;font-size:12px;color:' + DS.textLight + ';border-bottom:1px solid ' + DS.borderLight + ';">' + (m.comment || "") + '</td></tr>').join("") + topMoversLosers.map((m, i) => '<tr style="background:' + (i % 2 === 0 ? "#fff" : DS.bgAlt) + ';"><td style="padding:6px 12px;font-size:12.5px;font-weight:600;color:' + DS.text + ';border-bottom:1px solid ' + DS.borderLight + ';">' + m.ticker + '</td><td style="padding:6px 12px;font-size:12.5px;font-weight:700;color:' + DS.red + ';text-align:right;border-bottom:1px solid ' + DS.borderLight + ';">' + m.chgPct + '%</td><td style="padding:6px 12px;font-size:12px;color:' + DS.textLight + ';border-bottom:1px solid ' + DS.borderLight + ';">' + (m.comment || "") + '</td></tr>').join("") + '</table></td></tr>' : "";
+  const topMovers = s.sections.find(x => x.key === "topMovers")?.on && (topMoversGainers.length || topMoversLosers.length) ? secHdr("Top Movers") + '<tr><td style="padding:0 40px 8px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid ' + DS.border + ';"><tr style="background:' + DS.bgAlt + ';"><td style="padding:7px 12px;font-size:11px;font-weight:700;color:' + DS.navy + ';border-bottom:1px solid ' + DS.border + ';">Ticker</td><td style="padding:7px 12px;font-size:11px;font-weight:700;color:' + DS.navy + ';text-align:right;border-bottom:1px solid ' + DS.border + ';">Chg</td><td style="padding:7px 12px;font-size:11px;font-weight:700;color:' + DS.navy + ';border-bottom:1px solid ' + DS.border + ';">Comment</td></tr>' + topMoversGainers.map((m, i) => '<tr style="background:' + (i % 2 === 0 ? "#fff" : DS.bgAlt) + ';"><td style="padding:6px 12px;font-size:12.5px;font-weight:600;color:' + DS.text + ';border-bottom:1px solid ' + DS.borderLight + ';">' + escapeHtml(m.ticker) + '</td><td style="padding:6px 12px;font-size:12.5px;font-weight:700;color:' + DS.green + ';text-align:right;border-bottom:1px solid ' + DS.borderLight + ';">+' + escapeHtml(m.chgPct) + '%</td><td style="padding:6px 12px;font-size:12px;color:' + DS.textLight + ';border-bottom:1px solid ' + DS.borderLight + ';">' + escapeHtml(m.comment || "") + '</td></tr>').join("") + topMoversLosers.map((m, i) => '<tr style="background:' + (i % 2 === 0 ? "#fff" : DS.bgAlt) + ';"><td style="padding:6px 12px;font-size:12.5px;font-weight:600;color:' + DS.text + ';border-bottom:1px solid ' + DS.borderLight + ';">' + escapeHtml(m.ticker) + '</td><td style="padding:6px 12px;font-size:12.5px;font-weight:700;color:' + DS.red + ';text-align:right;border-bottom:1px solid ' + DS.borderLight + ';">' + escapeHtml(m.chgPct) + '%</td><td style="padding:6px 12px;font-size:12px;color:' + DS.textLight + ';border-bottom:1px solid ' + DS.borderLight + ';">' + escapeHtml(m.comment || "") + '</td></tr>').join("") + '</table></td></tr>' : "";
 
   // TWEETS
-  const tweets = s.sections.find(x => x.key === "tweets")?.on && s.tweets?.length ? secHdr("Market Noise") + '<tr><td style="padding:0 40px 8px;">' + s.tweets.filter(t => t.content).map(t => { const sColor = t.sentiment === "Bullish" ? DS.green : t.sentiment === "Bearish" ? DS.red : DS.textMuted; return '<div style="margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid ' + DS.borderLight + ';"><div style="margin-bottom:4px;font-size:11px;"><span style="color:' + sColor + ';font-weight:700;text-transform:uppercase;">' + t.sentiment + '</span>' + (t.impactType && t.impactValue ? ' <span style="color:' + DS.textMuted + ';"> \u00B7 ' + t.impactType + ': ' + t.impactValue + '</span>' : '') + (t.time ? ' <span style="color:' + DS.textMuted + ';"> \u00B7 ' + t.time + '</span>' : '') + '</div><div style="font-size:13.5px;line-height:1.6;color:' + DS.text + ';text-align:justify;">' + nl2br(t.content) + '</div>' + renderReportLink(t.link, { wrap: true, label: "Source &#8594;" }) + '</div>'; }).join("") + '</td></tr>' : "";
+  const tweets = s.sections.find(x => x.key === "tweets")?.on && s.tweets?.length ? secHdr("Market Noise") + '<tr><td style="padding:0 40px 8px;">' + s.tweets.filter(t => t.content).map(t => { const sColor = t.sentiment === "Bullish" ? DS.green : t.sentiment === "Bearish" ? DS.red : DS.textMuted; return '<div style="margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid ' + DS.borderLight + ';"><div style="margin-bottom:4px;font-size:11px;"><span style="color:' + sColor + ';font-weight:700;text-transform:uppercase;">' + escapeHtml(t.sentiment) + '</span>' + (t.impactType && t.impactValue ? ' <span style="color:' + DS.textMuted + ';"> \u00B7 ' + escapeHtml(t.impactType) + ': ' + escapeHtml(t.impactValue) + '</span>' : '') + (t.time ? ' <span style="color:' + DS.textMuted + ';"> \u00B7 ' + escapeHtml(t.time) + '</span>' : '') + '</div><div style="font-size:13.5px;line-height:1.6;color:' + DS.text + ';text-align:justify;">' + nl2br(t.content) + '</div>' + renderReportLink(t.link, { wrap: true, label: "Source &#8594;" }) + '</div>'; }).join("") + '</td></tr>' : "";
 
   // BCRA
-  const bcra = s.sections.find(x => x.key === "bcra")?.on && s.bcraData ? (() => { const hidden = s.bcraHiddenRows || {}; const entries = Object.entries(s.bcraData).filter(([k]) => !hidden[k]); if (!entries.length) return ""; return secHdr("BCRA Dashboard") + '<tr><td style="padding:0 40px 8px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid ' + DS.border + ';"><tr style="background:' + DS.bgAlt + ';"><td style="padding:7px 12px;font-size:11px;font-weight:700;color:' + DS.navy + ';border-bottom:1px solid ' + DS.border + ';">Indicator</td><td style="padding:7px 12px;font-size:11px;font-weight:700;color:' + DS.navy + ';text-align:right;border-bottom:1px solid ' + DS.border + ';">Value</td></tr>' + entries.map(([k, v], i) => '<tr style="background:' + (i % 2 === 0 ? "#fff" : DS.bgAlt) + ';"><td style="padding:6px 12px;font-size:12.5px;font-weight:600;color:' + DS.text + ';border-bottom:1px solid ' + DS.borderLight + ';">' + k + '</td><td style="padding:6px 12px;font-size:12.5px;color:' + DS.text + ';text-align:right;border-bottom:1px solid ' + DS.borderLight + ';">' + v + '</td></tr>').join("") + '</table></td></tr>'; })() : "";
+  const bcra = s.sections.find(x => x.key === "bcra")?.on && s.bcraData ? (() => { const hidden = s.bcraHiddenRows || {}; const entries = Object.entries(s.bcraData).filter(([k]) => !hidden[k]); if (!entries.length) return ""; return secHdr("BCRA Dashboard") + '<tr><td style="padding:0 40px 8px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid ' + DS.border + ';"><tr style="background:' + DS.bgAlt + ';"><td style="padding:7px 12px;font-size:11px;font-weight:700;color:' + DS.navy + ';border-bottom:1px solid ' + DS.border + ';">Indicator</td><td style="padding:7px 12px;font-size:11px;font-weight:700;color:' + DS.navy + ';text-align:right;border-bottom:1px solid ' + DS.border + ';">Value</td></tr>' + entries.map(([k, v], i) => '<tr style="background:' + (i % 2 === 0 ? "#fff" : DS.bgAlt) + ';"><td style="padding:6px 12px;font-size:12.5px;font-weight:600;color:' + DS.text + ';border-bottom:1px solid ' + DS.borderLight + ';">' + escapeHtml(k) + '</td><td style="padding:6px 12px;font-size:12.5px;color:' + DS.text + ';text-align:right;border-bottom:1px solid ' + DS.borderLight + ';">' + escapeHtml(String(v)) + '</td></tr>').join("") + '</table></td></tr>'; })() : "";
 
   // EVENTS AND WEBINARS — analyst access events, conference calls,
   // earnings webinars, etc. The catalogue label was renamed in the
   // same pass that removed yesterdayRecap and snapshot.
   const events = s.sections.find(x => x.key === "events")?.on && s.events?.length ? secHdr("Events and Webinars") + '<tr><td style="padding:0 40px 8px;">' + s.events.filter(e => e.title).map(e => {
-    const times = [e.timeET ? 'ET ' + fmtTime(e.timeET) : '', e.timeBUE ? 'BUE ' + fmtTime(e.timeBUE) : '', e.timeLON ? 'LON ' + fmtTime(e.timeLON) : ''].filter(Boolean).join(' \u00B7 ');
+    const times = [e.timeET ? 'ET ' + fmtTime(e.timeET) : '', e.timeBUE ? 'BUE ' + fmtTime(e.timeBUE) : '', e.timeLON ? 'LON ' + fmtTime(e.timeLON) : ''].filter(Boolean).map(escapeHtml).join(' \u00B7 ');
     return '<div style="margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid ' + DS.borderLight + ';">' +
-      '<div style="margin-bottom:3px;"><span style="font-size:10px;font-weight:700;color:' + DS.accent + ';text-transform:uppercase;letter-spacing:1px;">' + e.type + '</span></div>' +
-      '<div style="font-size:13.5px;font-weight:700;color:' + DS.navy + ';margin-bottom:2px;">' + e.title + '</div>' +
-      '<div style="font-size:11.5px;color:' + DS.textMuted + ';margin-bottom:4px;">' + (e.date ? fmtEventDate(e.date) : '') + (times ? ' \u00B7 ' + times : '') + '</div>' +
+      '<div style="margin-bottom:3px;"><span style="font-size:10px;font-weight:700;color:' + DS.accent + ';text-transform:uppercase;letter-spacing:1px;">' + escapeHtml(e.type) + '</span></div>' +
+      '<div style="font-size:13.5px;font-weight:700;color:' + DS.navy + ';margin-bottom:2px;">' + escapeHtml(e.title) + '</div>' +
+      '<div style="font-size:11.5px;color:' + DS.textMuted + ';margin-bottom:4px;">' + (e.date ? escapeHtml(fmtEventDate(e.date)) : '') + (times ? ' \u00B7 ' + times : '') + '</div>' +
       (e.description ? '<div style="font-size:13px;line-height:1.6;color:' + DS.text + ';text-align:justify;">' + nl2br(e.description) + '</div>' : '') +
       renderReportLink(e.link, { wrap: true, label: "Register / Details &#8594;" }) +
       '</div>';
   }).join("") + '</td></tr>' : "";
 
   // KEY EVENTS
-  const keyEvents = s.sections.find(x => x.key === "keyEvents")?.on && s.keyEvents?.length ? secHdr("Key Events Calendar") + '<tr><td style="padding:0 40px 8px;">' + s.keyEvents.filter(e => e.event).map(e => '<div style="padding:4px 0;font-size:13px;color:' + DS.text + ';"><span style="font-weight:700;color:' + DS.navy + ';margin-right:10px;">' + (e.date ? fmtEventDate(e.date) : "") + '</span>' + e.event + '</div>').join("") + '</td></tr>' : "";
+  const keyEvents = s.sections.find(x => x.key === "keyEvents")?.on && s.keyEvents?.length ? secHdr("Key Events Calendar") + '<tr><td style="padding:0 40px 8px;">' + s.keyEvents.filter(e => e.event).map(e => '<div style="padding:4px 0;font-size:13px;color:' + DS.text + ';"><span style="font-weight:700;color:' + DS.navy + ';margin-right:10px;">' + escapeHtml(e.date ? fmtEventDate(e.date) : "") + '</span>' + escapeHtml(e.event) + '</div>').join("") + '</td></tr>' : "";
 
-  // CHART
-  const chart = s.sections.find(x => x.key === "chart")?.on && s.chartImage?.base64 ? secHdr("Chart of the Day") + '<tr><td style="padding:0 40px 8px;">' + (s.chartImage.title ? '<div style="font-size:13.5px;font-weight:700;color:' + DS.navy + ';margin-bottom:10px;">' + s.chartImage.title + '</div>' : '') + '<img src="' + s.chartImage.base64 + '" alt="' + (s.chartImage.title || "Chart") + '" style="max-width:100%;height:auto;display:block;border:1px solid ' + DS.borderLight + ';" />' + (s.chartImage.caption ? '<div style="font-size:11px;color:' + DS.textMuted + ';font-style:italic;margin-top:6px;">' + s.chartImage.caption + '</div>' : '') + '</td></tr>' : "";
+  // CHART \u2014 base64 src is generated by the analyst's browser via
+  // FileReader; not directly user-typed text but defensive escape
+  // on title / caption / alt attrs to neutralise quotes that would
+  // break out of the attribute context.
+  const chart = s.sections.find(x => x.key === "chart")?.on && s.chartImage?.base64 ? secHdr("Chart of the Day") + '<tr><td style="padding:0 40px 8px;">' + (s.chartImage.title ? '<div style="font-size:13.5px;font-weight:700;color:' + DS.navy + ';margin-bottom:10px;">' + escapeHtml(s.chartImage.title) + '</div>' : '') + '<img src="' + s.chartImage.base64 + '" alt="' + escapeHtml(s.chartImage.title || "Chart") + '" style="max-width:100%;height:auto;display:block;border:1px solid ' + DS.borderLight + ';" />' + (s.chartImage.caption ? '<div style="font-size:11px;color:' + DS.textMuted + ';font-style:italic;margin-top:6px;">' + escapeHtml(s.chartImage.caption) + '</div>' : '') + '</td></tr>' : "";
 
-  // SIGNATURES
-  const sig = s.signatures.map(x => '<div style="margin-bottom:6px;"><span style="font-size:13px;font-weight:600;color:' + DS.navy + ';">' + x.name + '</span><span style="font-size:12px;color:' + DS.textLight + ';margin-left:6px;">' + x.role + '</span><br><span style="font-size:12px;color:' + DS.accent + ';">' + x.email + '</span></div>').join("");
+  // SIGNATURES \u2014 `email` is rendered as plain text (not a mailto:);
+  // every field is analyst-typed, so escape all three.
+  const sig = s.signatures.map(x => '<div style="margin-bottom:6px;"><span style="font-size:13px;font-weight:600;color:' + DS.navy + ';">' + escapeHtml(x.name) + '</span><span style="font-size:12px;color:' + DS.textLight + ';margin-left:6px;">' + escapeHtml(x.role) + '</span><br><span style="font-size:12px;color:' + DS.accent + ';">' + escapeHtml(x.email) + '</span></div>').join("");
 
   // SECTION MAP
   const sectionMap: Record<string, string> = { watchToday, marketComment, macro, tradeIdeas: trade, flows: flow, corporate: corp, research, latestReports, bondPipeline, topMovers, tweets, latam, bcra, events, macroEstimates: mEst, chart };
@@ -410,13 +431,19 @@ function generateHTMLImpl(s: DailyState, mode: string = "full", template: string
   // Build Table of Contents
   const tocBlock = '<tr><td style="padding:20px 40px 4px;"><div style="font-size:10px;font-weight:700;color:' + DS.navy + ';text-transform:uppercase;letter-spacing:2px;margin-bottom:10px;">In This Issue</div>' + enabledSections.map((sec, i) => '<a href="#sec-' + sec.key + '" style="display:inline-block;font-size:12px;color:' + DS.accent + ';text-decoration:none;margin-right:6px;margin-bottom:4px;">' + SEC_LABELS[sec.key] + (i < enabledSections.length - 1 ? ' <span style="color:' + DS.textMuted + ';">&middot;</span>' : '') + '</a>').join("") + '</td></tr>';
 
-  // Build compact summaries (1-line per section)
+  // Build compact summaries (1-line per section). All free-text
+  // strings pass through escapeHtml when written into compactBlock
+  // below (a single escape at the consumer site is simpler than
+  // escaping each leaf above).
   const compactSummaries = {
     macro: s.macroBlocks.length ? s.macroBlocks.map(b => b.title).join(", ") : "",
     tradeIdeas: s.equityPicks.filter(p => p.ticker).map(p => p.ticker).join(", ") + (s.fiIdeas.filter(f => f.idea).length ? " + " + s.fiIdeas.filter(f => f.idea).length + " FI ideas" : ""),
-    flows: "EQ: Buy " + (s.eqBuyer || "...").substring(0, 30) + " | FI: Buy " + (s.fiBuyer || "...").substring(0, 30),
+    flows: "EQ Net Buyer: " + (s.eqBuyer || "...").substring(0, 30) + " | FI Net Buyer: " + (s.fiBuyer || "...").substring(0, 30),
     macroEstimates: s.macroRows.length + " metrics, " + s.macroCols.join("/"),
-    marketComment: s.marketComment?.trim() ? s.marketComment.trim().slice(0, 80) + (s.marketComment.length > 80 ? "…" : "") : "",
+    marketComment: (() => {
+      const t = s.marketComment?.trim() || "";
+      return t ? t.slice(0, 80) + (t.length > 80 ? "…" : "") : "";
+    })(),
     corporate: s.corpBlocks.map(c => (c.tickers || []).join("/")).filter(Boolean).join(", "),
     research: (s.researchReports || []).filter(r => r.title).map(r => r.title).join(", "),
     latestReports: (s.latestReports || []).filter(r => r.title).map(r => r.title).join(", "),
@@ -432,7 +459,9 @@ function generateHTMLImpl(s: DailyState, mode: string = "full", template: string
   const compactBlock = enabledSections.map(sec => {
     const summary = compactSummaries[sec.key as keyof typeof compactSummaries];
     if (!summary) return "";
-    return '<tr><td style="padding:4px 40px;"><div style="display:flex;padding:8px 0;border-bottom:1px solid ' + DS.borderLight + ';"><span style="font-size:11px;font-weight:700;color:' + DS.navy + ';text-transform:uppercase;letter-spacing:1px;min-width:140px;">' + SEC_LABELS[sec.key] + '</span><span style="font-size:12.5px;color:' + DS.textLight + ';margin-left:12px;">' + summary + '</span></div></td></tr>';
+    // Use an email-safe `<table>` row rather than `display:flex` —
+    // Word renderer ignores flex and stacks the label / summary.
+    return '<tr><td style="padding:4px 40px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-bottom:1px solid ' + DS.borderLight + ';"><tr><td valign="top" style="padding:8px 0;font-size:11px;font-weight:700;color:' + DS.navy + ';text-transform:uppercase;letter-spacing:1px;width:140px;">' + escapeHtml(SEC_LABELS[sec.key] || sec.key) + '</td><td valign="top" style="padding:8px 0 8px 12px;font-size:12.5px;color:' + DS.textLight + ';">' + escapeHtml(summary) + '</td></tr></table></td></tr>';
   }).join("");
 
   let sectionContent: string;
@@ -472,8 +501,8 @@ function generateHTMLImpl(s: DailyState, mode: string = "full", template: string
     // ACCENT LINE
     + '<tr><td style="height:3px;background:linear-gradient(90deg,' + DS.sky + ',' + DS.accent + ');"></td></tr>'
 
-    // SUMMARY BAR
-    + (s.summaryBar ? '<tr><td style="padding:20px 40px 0;"><div style="border-left:3px solid ' + DS.accent + ';padding:12px 16px;background:' + DS.bgAlt + ';font-size:13.5px;line-height:1.6;color:' + DS.text + ';text-align:justify;"><strong style="color:' + DS.navy + ';">Today</strong> ' + s.summaryBar + '</div></td></tr>' : '')
+    // SUMMARY BAR — `s.summaryBar` is analyst free-text → escape.
+    + (s.summaryBar ? '<tr><td style="padding:20px 40px 0;"><div style="border-left:3px solid ' + DS.accent + ';padding:12px 16px;background:' + DS.bgAlt + ';font-size:13.5px;line-height:1.6;color:' + DS.text + ';text-align:justify;"><strong style="color:' + DS.navy + ';">Today</strong> ' + escapeHtml(s.summaryBar) + '</div></td></tr>' : '')
 
     // SECTIONS
     + sectionContent
@@ -484,8 +513,11 @@ function generateHTMLImpl(s: DailyState, mode: string = "full", template: string
     // glyphs ~6% — analysts described it as "looking cut off".
     + '<tr><td style="padding:24px 40px 0;border-top:1px solid ' + DS.border + ';"><img src="' + logo + '" alt="Latin Securities" width="120" height="30" style="width:120px;height:30px;display:block;margin-bottom:14px;border:0;outline:none;text-decoration:none;-ms-interpolation-mode:bicubic;" />' + sig + '</td></tr>'
 
-    // FOOTER
-    + '<tr><td style="padding:20px 40px 24px;"><div style="border-top:1px solid ' + DS.borderLight + ';padding-top:16px;"><div style="font-size:10px;font-weight:600;color:' + DS.textMuted + ';text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Latin Securities S.A.</div><div style="font-size:9.5px;color:' + DS.textMuted + ';line-height:1.6;">Arenales 707, 6th Floor \u00B7 Buenos Aires, Argentina \u00B7 <a href="https://www.latinsecurities.com.ar" style="color:' + DS.accent + ';text-decoration:none;">latinsecurities.com.ar</a></div><div style="font-size:10px;color:' + DS.textMuted + ';line-height:1.6;margin-top:10px;">Don\'t want these emails? <a href="' + unsubscribeUrl() + '" style="color:' + DS.accent + ';text-decoration:underline;">Unsubscribe</a>.</div><div style="font-size:9px;color:#b0b0b0;line-height:1.5;margin-top:10px;">' + (s.disclaimer || 'This material has been prepared by Latin Securities S.A. for informational purposes only.') + ' \u00A9 ' + new Date().getFullYear() + ' Latin Securities S.A. All rights reserved.</div></div></td></tr>'
+    // FOOTER \u2014 disclaimer is analyst-editable (legal team can swap
+    // it via the editor), so escape. Unsubscribe URL is built from
+    // window.location.origin + a constant token; safe to interpolate
+    // raw but pass through safeUrl as defensive measure.
+    + '<tr><td style="padding:20px 40px 24px;"><div style="border-top:1px solid ' + DS.borderLight + ';padding-top:16px;"><div style="font-size:10px;font-weight:600;color:' + DS.textMuted + ';text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Latin Securities S.A.</div><div style="font-size:9.5px;color:' + DS.textMuted + ';line-height:1.6;">Arenales 707, 6th Floor \u00B7 Buenos Aires, Argentina \u00B7 <a href="https://www.latinsecurities.com.ar" style="color:' + DS.accent + ';text-decoration:none;">latinsecurities.com.ar</a></div><div style="font-size:10px;color:' + DS.textMuted + ';line-height:1.6;margin-top:10px;">Don\'t want these emails? <a href="' + safeUrl(unsubscribeUrl()) + '" style="color:' + DS.accent + ';text-decoration:underline;">Unsubscribe</a>.</div><div style="font-size:9px;color:#b0b0b0;line-height:1.5;margin-top:10px;">' + escapeHtml(s.disclaimer || 'This material has been prepared by Latin Securities S.A. for informational purposes only.') + ' \u00A9 ' + new Date().getFullYear() + ' Latin Securities S.A. All rights reserved.</div></div></td></tr>'
 
     + '</table></td></tr></table></body></html>';
 }
