@@ -162,7 +162,36 @@ const useDailyStore = create<DailyStore>()(
       ),
       { name: "DailyBuilder" },
     ),
-    { limit: 50 },
+    {
+      // 50 past states is the right number for an editing session,
+      // but the *contents* of each state matter too. The audit
+      // surfaced that zundo deep-clones the entire state on every
+      // mutation, so every keystroke that touches `chartImage`
+      // duplicates the base64 image bytes into a new history
+      // entry — a chart with a 500 KB PNG and 50 history entries
+      // is 25 MB held permanently for the tab's lifetime, growing
+      // every time the analyst pastes a new chart.
+      //
+      // `partialize` excludes fields from the history snapshot
+      // entirely. zundo merges the partialized past state INTO the
+      // current state on undo — fields NOT in the partial stay at
+      // their current values. We strip three things:
+      //
+      //   - `chartImage` — the base64 payload can be hundreds of
+      //     KB; 50 past states × keystroke-frequency multiplication
+      //     = MB of leaked memory per chart. Skipping it means
+      //     undo won't restore a previous chart image but the rest
+      //     of the daily's content still reverts cleanly.
+      //   - `analysts` — months of coverage data; an accidental
+      //     Ctrl-Z storm shouldn't rewind it. Edits to analysts
+      //     happen via the AnalystsTab and shouldn't share an undo
+      //     stack with today's daily content.
+      //   - `signatures` — same reasoning as analysts (per-user
+      //     reference data, not document content).
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      partialize: ({ chartImage, analysts, signatures, ...rest }) => rest,
+      limit: 50,
+    },
   ),
 );
 

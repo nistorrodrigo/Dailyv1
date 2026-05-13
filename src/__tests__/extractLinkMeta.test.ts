@@ -157,7 +157,12 @@ describe("extractLinkMeta SSRF guards", () => {
         <meta property="og:description" content="A test page" />
       </head></html>`,
     });
-    const r = await extractLinkMeta("https://news.example/article");
+    // Cast to a wider shape — the API helper's return type is a
+    // union; extractLinkMeta isn't TypeScript so the inferred
+    // type uses `ok: boolean` rather than a proper discriminated
+    // union. Casting here avoids touching the API file just for
+    // the test's type-narrowing.
+    const r = (await extractLinkMeta("https://news.example/article")) as { ok: boolean; title?: string; author?: string; description?: string };
     expect(r.ok).toBe(true);
     expect(r.title).toBe("Hello World");
     expect(r.author).toBe("Jane Analyst");
