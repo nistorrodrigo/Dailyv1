@@ -220,8 +220,48 @@ function generateHTMLImpl(s: DailyState, mode: string = "full", template: string
     return '<div style="margin-bottom:10px;padding:10px 12px;background:' + DS.bgAlt + ';border-radius:4px;border-left:3px solid ' + ratingColor + ';"><div style="margin-bottom:3px;"><span style="font-size:14px;font-weight:700;color:' + DS.navy + ';letter-spacing:0.5px;">' + p.ticker + '</span>' + (info ? ' <span style="display:inline-block;font-size:10px;font-weight:700;color:' + ratingColor + ';background:' + rb(info.rating) + ';padding:2px 6px;border-radius:3px;margin-left:6px;text-transform:uppercase;">' + info.rating + '</span>' : '') + '</div>' + (info ? '<div style="font-size:11.5px;color:' + DS.textLight + ';margin-bottom:2px;">TP ' + info.tp + (info.last ? ' \u00B7 Last ' + info.last : '') + (info.tp && info.last ? ' \u00B7 <span style="color:' + upsideColor(info.tp, info.last) + ';font-weight:700;">' + fmtUpside(info.tp, info.last) + '</span>' : '') + '</div>' : '') + (p.reason ? '<div style="font-size:12.5px;color:' + DS.textMuted + ';font-style:italic;margin-top:2px;">' + p.reason + '</div>' : '') + exitBlock + '</div>';
   }).join("") + '<div style="border-top:1px solid ' + DS.borderLight + ';margin:18px 0;"></div><div style="font-size:11px;font-weight:700;color:' + DS.navy + ';text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;padding-bottom:4px;">Fixed Income</div>' + s.fiIdeas.filter(f => f.idea).map(f => '<div style="margin-bottom:10px;padding:10px 12px;background:' + DS.bgAlt + ';border-radius:4px;border-left:3px solid ' + DS.accent + ';"><div style="font-size:13.5px;line-height:1.55;color:' + DS.text + ';font-weight:600;">' + f.idea + '</div>' + (f.reason ? '<div style="font-size:12px;color:' + DS.textLight + ';font-style:italic;margin-top:3px;">' + f.reason + '</div>' : '') + '</div>').join("") + '</td></tr>' : "";
 
-  // FLOWS
-  const flow = s.sections.find(x => x.key === "flows")?.on ? secHdr("LS Trading Desk Flows") + '<tr><td style="padding:0 40px 8px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td width="50%" valign="top" style="padding-right:16px;"><div style="font-size:11px;font-weight:700;color:' + DS.navy + ';text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Equities</div><div style="font-size:13px;line-height:1.8;color:' + DS.text + ';"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + DS.green + ';margin-right:6px;vertical-align:middle;"></span><span style="font-weight:600;">Buy</span> ' + s.eqBuyer + '<br><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + DS.red + ';margin-right:6px;vertical-align:middle;"></span><span style="font-weight:600;">Sell</span> ' + s.eqSeller + '</div></td><td width="50%" valign="top" style="padding-left:16px;border-left:2px solid ' + DS.borderLight + ';"><div style="font-size:11px;font-weight:700;color:' + DS.navy + ';text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Fixed Income</div><div style="font-size:13px;line-height:1.8;color:' + DS.text + ';"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + DS.green + ';margin-right:6px;vertical-align:middle;"></span><span style="font-weight:600;">Buy</span> ' + s.fiBuyer + '<br><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + DS.red + ';margin-right:6px;vertical-align:middle;"></span><span style="font-weight:600;">Sell</span> ' + s.fiSeller + '</div></td></tr></table></td></tr>' : "";
+  // FLOWS — two instrument cards side by side. Each card has a
+  // colored top stripe (navy for Equities, accent-blue for FI),
+  // a tinted background to separate it from the white email body,
+  // and a caps header that matches the stripe colour. Replaces the
+  // previous "two unstyled columns separated by a thin gray border"
+  // — the desk reported that layout made it hard to tell at a
+  // glance which side was which instrument.
+  //
+  // Direction labels are now "Net Buyer" / "Net Seller" (was
+  // "Buy" / "Sell") and rendered in the green / red brand colours
+  // for a quick scan. Bold weight so the eye lands on direction
+  // before reading the ticker list.
+  //
+  // Layout: 3-column outer table (card · spacer · card) so a CSS-
+  // free email client still gets clean spacing. The middle td is
+  // a thin gap rather than the previous border-left, which gives
+  // each card breathing room without a hairline rule.
+  const flowsCard = (
+    label: string,
+    headerColor: string,
+    buyer: string,
+    seller: string,
+  ): string =>
+    '<td width="48%" valign="top" style="background:' + DS.bgAlt + ';border:1px solid ' + DS.borderLight + ';border-top:3px solid ' + headerColor + ';border-radius:4px;">' +
+      '<div style="padding:12px 14px;">' +
+        '<div style="font-size:11px;font-weight:700;color:' + headerColor + ';text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;">' + label + '</div>' +
+        '<div style="font-size:13px;line-height:1.8;color:' + DS.text + ';">' +
+          '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + DS.green + ';margin-right:8px;vertical-align:middle;"></span>' +
+          '<span style="font-weight:700;color:' + DS.green + ';">Net Buyer</span> ' + buyer +
+          '<br>' +
+          '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + DS.red + ';margin-right:8px;vertical-align:middle;"></span>' +
+          '<span style="font-weight:700;color:' + DS.red + ';">Net Seller</span> ' + seller +
+        '</div>' +
+      '</div>' +
+    '</td>';
+  const flow = s.sections.find(x => x.key === "flows")?.on
+    ? secHdr("LS Trading Desk Flows") + '<tr><td style="padding:0 40px 8px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>' +
+        flowsCard("Equities", DS.navy, s.eqBuyer, s.eqSeller) +
+        '<td width="4%" style="font-size:0;line-height:0;">&nbsp;</td>' +
+        flowsCard("Fixed Income", DS.accent, s.fiBuyer, s.fiSeller) +
+      '</tr></table></td></tr>'
+    : "";
 
   // MACRO ESTIMATES
   const mEst = s.sections.find(x => x.key === "macroEstimates")?.on ? secHdr("Macro Estimates") + '<tr><td style="padding:0 40px 8px;"><div style="font-size:10.5px;color:' + DS.textMuted + ';margin-bottom:8px;">Source: ' + s.macroSource + '</div><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid ' + DS.border + ';"><tr style="background:' + DS.bgAlt + ';"><td style="padding:8px 12px;font-size:11px;font-weight:700;color:' + DS.navy + ';width:40%;border-bottom:1px solid ' + DS.border + ';"></td>' + s.macroCols.map(c => '<td style="padding:8px 12px;font-size:11px;font-weight:700;color:' + DS.navy + ';text-align:center;border-bottom:1px solid ' + DS.border + ';border-left:1px solid ' + DS.borderLight + ';">' + c + '</td>').join("") + '</tr>' + s.macroRows.map((r, i) => '<tr style="background:' + (i % 2 === 0 ? "#fff" : DS.bgAlt) + ';"><td style="padding:7px 12px;font-size:12.5px;font-weight:600;color:' + DS.text + ';border-bottom:1px solid ' + DS.borderLight + ';">' + r.label + '</td>' + s.macroCols.map(c => '<td style="padding:7px 12px;font-size:12.5px;color:' + DS.text + ';text-align:center;border-bottom:1px solid ' + DS.borderLight + ';border-left:1px solid ' + DS.borderLight + ';">' + (r.vals[c] || "") + '</td>').join("") + '</tr>').join("") + '</table></td></tr>' : "";

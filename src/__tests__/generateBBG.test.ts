@@ -27,11 +27,16 @@ describe("generateBBG", () => {
     expect(bbg).toContain("ARGENT");
   });
 
-  it("includes flows as buy/sell", () => {
+  it("includes flows as net buyer / net seller", () => {
     const bbg = generateBBG(DEFAULT_STATE);
     expect(bbg).toContain("MARKET COLOR");
-    expect(bbg).toMatch(/Buy:/);
-    expect(bbg).toMatch(/Sell:/);
+    // Desk-preferred terminology — "Net Buyer / Net Seller" rather
+    // than the bare "Buy / Sell" the section used to render.
+    expect(bbg).toContain("Net Buyer:");
+    expect(bbg).toContain("Net Seller:");
+    // Regression guard: the old bare labels shouldn't reappear.
+    expect(bbg).not.toMatch(/^Equities — Buy:/m);
+    expect(bbg).not.toMatch(/^FI\s+— Buy:/m);
   });
 
   it("includes footer", () => {

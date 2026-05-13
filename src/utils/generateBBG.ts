@@ -135,15 +135,23 @@ export function generateBBG(s: DailyState): string {
   }
 
   // ─── MARKET COLOR / FLOWS ─────────────────────────────────
+  // Each instrument as its own labelled block with the caps
+  // header on its own line — the previous one-line-per-direction
+  // format made it harder to scan which side was which when
+  // pasted into Bloomberg chat. "Net Buyer" / "Net Seller" labels
+  // mirror the HTML output so the language is consistent across
+  // both surfaces.
   if (isOn(s, "flows") && (s.eqBuyer || s.eqSeller || s.fiBuyer || s.fiSeller)) {
     L.push("", "🟢 MARKET COLOR");
     if (s.eqBuyer || s.eqSeller) {
-      L.push(`Equities — Buy: ${s.eqBuyer || "—"}`);
-      L.push(`         Sell: ${s.eqSeller || "—"}`);
+      L.push("", "EQUITIES");
+      L.push(`  ● Net Buyer:  ${s.eqBuyer || "—"}`);
+      L.push(`  ● Net Seller: ${s.eqSeller || "—"}`);
     }
     if (s.fiBuyer || s.fiSeller) {
-      L.push(`FI       — Buy: ${s.fiBuyer || "—"}`);
-      L.push(`         Sell: ${s.fiSeller || "—"}`);
+      L.push("", "FIXED INCOME");
+      L.push(`  ● Net Buyer:  ${s.fiBuyer || "—"}`);
+      L.push(`  ● Net Seller: ${s.fiSeller || "—"}`);
     }
   }
 
