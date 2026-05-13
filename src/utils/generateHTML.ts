@@ -158,8 +158,19 @@ const DS = {
   greenBg: "#edf7ed",
 } as const;
 
+// Reverse SEC_LABELS lookup so `secHdr("Market Color")` resolves
+// to the section key `"flows"` for the `id="sec-flows"` anchor —
+// matching the TOC link target `<a href="#sec-flows">`. Without
+// this, the TOC links pointed at `#sec-flows` but the section
+// header had `id="sec-Market Color"` (with a space, also non-
+// standard HTML id), and clicks didn't jump.
+const SEC_KEY_BY_LABEL: Record<string, string> = {};
+
 function secHdr(title: string, id?: string): string {
-  return '<tr><td style="padding:28px 40px 0;" id="sec-' + (id || title) + '"><div style="font-size:11px;font-weight:700;color:' + DS.navy + ';text-transform:uppercase;letter-spacing:2px;padding-bottom:8px;border-bottom:2px solid ' + DS.navy + ';margin-bottom:16px;">' + title + '</div></td></tr>';
+  // Prefer an explicit `id` arg; else reverse-lookup from the
+  // label map; fall back to the raw title (legacy behaviour).
+  const anchorId = id || SEC_KEY_BY_LABEL[title] || title.replace(/\s+/g, "-").replace(/[^A-Za-z0-9_-]/g, "");
+  return '<tr><td style="padding:28px 40px 0;" id="sec-' + anchorId + '"><div style="font-size:11px;font-weight:700;color:' + DS.navy + ';text-transform:uppercase;letter-spacing:2px;padding-bottom:8px;border-bottom:2px solid ' + DS.navy + ';margin-bottom:16px;">' + escapeHtml(title) + '</div></td></tr>';
 }
 
 // Section label map for TOC
@@ -174,6 +185,12 @@ const SEC_LABELS: Record<string, string> = {
   bcra: "BCRA Dashboard", events: "Events and Webinars", macroEstimates: "Macro Estimates",
   chart: "Chart of the Day",
 };
+
+// Populate the reverse map so secHdr can resolve `"Market Color"`
+// → `"flows"` without touching every caller.
+for (const [key, label] of Object.entries(SEC_LABELS)) {
+  SEC_KEY_BY_LABEL[label] = key;
+}
 
 // mode: "full" (default) | "toc" (with table of contents) | "compact" (summary only)
 // template: "formal" (default) | "flash" | "executive"
@@ -491,7 +508,11 @@ function generateHTMLImpl(s: DailyState, mode: string = "full", template: string
     sectionContent = tocBlock + enabledSections.map(x => sectionMap[x.key] || "").join("");
   } else if (template === "flash") {
     // Flash template: only snapshot, watch, macro (first block), and picks
-    const flashKeys = ["snapshot", "watchToday", "macro", "tradeIdeas"];
+    // `snapshot` was retired from the catalogue; replaced with
+    // `marketComment` so flash mode still has a "what's the
+    // story today" lead. The intent of flash mode is a fast
+    // morning skim — keep it to ~4 sections max.
+    const flashKeys = ["marketComment", "watchToday", "macro", "tradeIdeas"];
     sectionContent = enabledSections.filter(x => flashKeys.includes(x.key)).map(x => sectionMap[x.key] || "").join("");
   } else if (template === "executive") {
     // Executive: summary bar + macro + trade ideas + corporate headlines only
@@ -521,8 +542,18 @@ function generateHTMLImpl(s: DailyState, mode: string = "full", template: string
     // ACCENT LINE
     + '<tr><td style="height:3px;background:linear-gradient(90deg,' + DS.sky + ',' + DS.accent + ');"></td></tr>'
 
+    // HEADLINE — the analyst's subject hook, rendered above the
+    // summary bar as a prominent lede. Previously this field was
+    // ONLY used as the SendGrid email subject and never appeared
+    // in the body, which made the preflight warning "Headline is
+    // empty" mislead the analyst (they couldn't see the headline
+    // anywhere in the body, so they didn't know where it goes).
+    // Now it's the first visible content after the date pill,
+    // styled as a large navy heading.
+    + (s.headline?.trim() ? '<tr><td style="padding:20px 40px 0;"><div style="font-size:20px;font-weight:600;color:' + DS.navy + ';line-height:1.3;letter-spacing:-0.2px;">' + escapeHtml(s.headline) + '</div></td></tr>' : '')
+
     // SUMMARY BAR — `s.summaryBar` is analyst free-text → escape.
-    + (s.summaryBar ? '<tr><td style="padding:20px 40px 0;"><div style="border-left:3px solid ' + DS.accent + ';padding:12px 16px;background:' + DS.bgAlt + ';font-size:13.5px;line-height:1.6;color:' + DS.text + ';text-align:justify;"><strong style="color:' + DS.navy + ';">Today</strong> ' + escapeHtml(s.summaryBar) + '</div></td></tr>' : '')
+    + (s.summaryBar ? '<tr><td style="padding:' + (s.headline?.trim() ? '12px' : '20px') + ' 40px 0;"><div style="border-left:3px solid ' + DS.accent + ';padding:12px 16px;background:' + DS.bgAlt + ';font-size:13.5px;line-height:1.6;color:' + DS.text + ';text-align:justify;"><strong style="color:' + DS.navy + ';">Today</strong> ' + escapeHtml(s.summaryBar) + '</div></td></tr>' : '')
 
     // SECTIONS
     + sectionContent

@@ -51,8 +51,27 @@ export const isToday = (iso: string | null | undefined, now: Date = new Date()):
   return iso === todayLocal(now);
 };
 
-export const formatDate = (iso: string): string => {
+/**
+ * Format `YYYY-MM-DD` as e.g. `"Wednesday, May 6, 2026"`.
+ *
+ * Defensive input validation — previously `formatDate("")` or
+ * `formatDate(undefined as unknown as string)` evaluated
+ * `new Date("T12:00:00")` which is Invalid Date, and
+ * `toLocaleDateString` on Invalid Date literally returns the
+ * string `"Invalid Date"` in Chrome / Node. That string would
+ * land in the email header. Now: return "" for any input that
+ * doesn't match the ISO shape — callers (header banner, BBG
+ * footer) already gracefully handle empty strings.
+ *
+ * `"en-US"` locale is pinned explicitly so CI runners with
+ * non-US locale env vars (Spanish, German, etc.) don't render
+ * "miércoles, 6 mayo 2026" — the audit flagged this as a
+ * brittleness in the snapshot tests.
+ */
+export const formatDate = (iso: string | null | undefined): string => {
+  if (!iso || typeof iso !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return "";
   const d = new Date(iso + "T12:00:00");
+  if (Number.isNaN(d.getTime())) return "";
   return d.toLocaleDateString("en-US", {
     weekday: "long",
     year: "numeric",
@@ -61,19 +80,37 @@ export const formatDate = (iso: string): string => {
   });
 };
 
-export const fmtEventDate = (iso: string): string => {
-  if (!iso) return "";
+/** Short event date — e.g. `"May 6, 2026"`. Same defensive shape
+ *  as `formatDate` above (empty string on garbage input, en-US
+ *  locale pinned). */
+export const fmtEventDate = (iso: string | null | undefined): string => {
+  if (!iso || typeof iso !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return "";
   const d = new Date(iso + "T12:00:00");
+  if (Number.isNaN(d.getTime())) return "";
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 };
 
-export const fmtTime = (hhmm: string): string => {
-  if (!hhmm) return "";
-  const [h, m] = hhmm.split(":");
-  const hour = parseInt(h, 10);
+/**
+ * Render `HH:MM` (24-h, zero-padded) as 12-hour with AM/PM.
+ *
+ * Previously did no input validation, so:
+ *   `fmtTime("morning")` → "12:undefined AM"
+ *   `fmtTime("8:30")`    → ok
+ *   `fmtTime("8")`       → "8:undefined AM"
+ * Each of those landed in the rendered email's Events row. Now
+ * we require a strict `H{1,2}:MM` regex and pad single-digit
+ * minutes / hours; anything else returns `""`.
+ */
+export const fmtTime = (hhmm: string | null | undefined): string => {
+  if (!hhmm || typeof hhmm !== "string") return "";
+  const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm.trim());
+  if (!m) return "";
+  const hour = parseInt(m[1], 10);
+  const minute = m[2];
+  if (Number.isNaN(hour) || hour < 0 || hour > 23) return "";
   const ampm = hour >= 12 ? "PM" : "AM";
   const h12 = hour % 12 || 12;
-  return `${h12}:${m} ${ampm}`;
+  return `${h12}:${minute} ${ampm}`;
 };
 
 /**

@@ -63,6 +63,9 @@ export function generateBBG(s: DailyState): string {
 
   // ─── HEADER ───────────────────────────────────────────────
   L.push(`🇦🇷 LS DAILY | ${formatDate(s.date)}`);
+  // Headline first when set — mirrors the HTML rendering which
+  // now leads with the headline above the summary bar.
+  if (s.headline?.trim()) L.push("", `📌 ${s.headline.trim()}`);
   if (s.summaryBar) L.push("", `🔥 ${s.summaryBar.replace(/\n/g, " ")}`);
 
   // Yesterday in Review and Market Snapshot were retired from the
@@ -283,6 +286,53 @@ export function generateBBG(s: DailyState): string {
         L.push(`• ${when ? `[${when}] ` : ""}${e.title}${e.type ? ` (${e.type})` : ""}`);
       });
     }
+  }
+
+  // ─── BCRA DASHBOARD ───────────────────────────────────────
+  // Mirror the HTML render — previously the BBG paste silently
+  // skipped BCRA data even when the section was on, leaving the
+  // chat recipient with a less informative copy than the email.
+  if (isOn(s, "bcra") && s.bcraData) {
+    const hidden = s.bcraHiddenRows || {};
+    const entries = Object.entries(s.bcraData).filter(([k]) => !hidden[k]);
+    if (entries.length) {
+      L.push("", "📊 BCRA DASHBOARD");
+      entries.forEach(([k, v]) => L.push(`  ${k}: ${v}`));
+    }
+  }
+
+  // ─── MARKET NOISE (tweets / sentiment items) ──────────────
+  if (isOn(s, "tweets") && s.tweets?.length) {
+    const items = s.tweets.filter((t) => t.content?.trim());
+    if (items.length) {
+      L.push("", "🐦 MARKET NOISE");
+      items.forEach((t) => {
+        const meta = [t.sentiment, t.impactType && t.impactValue ? `${t.impactType}: ${t.impactValue}` : "", t.time].filter(Boolean).join(" · ");
+        L.push(`• ${meta ? `[${meta}] ` : ""}${oneLine(t.content)}`);
+        if (t.link) L.push(`  ↗ Source: ${t.link}`);
+      });
+    }
+  }
+
+  // ─── MACRO ESTIMATES TABLE ────────────────────────────────
+  if (isOn(s, "macroEstimates") && s.macroRows?.length && s.macroCols?.length) {
+    L.push("", "📈 MACRO ESTIMATES");
+    if (s.macroSource?.trim()) L.push(`  Source: ${s.macroSource.trim()}`);
+    L.push(`  ${"".padEnd(28)} ${s.macroCols.map((c) => c.padStart(10)).join(" ")}`);
+    s.macroRows.forEach((r) => {
+      L.push(`  ${(r.label || "").slice(0, 28).padEnd(28)} ${s.macroCols.map((c) => (r.vals[c] || "").padStart(10)).join(" ")}`);
+    });
+  }
+
+  // ─── CHART OF THE DAY ─────────────────────────────────────
+  // No image in BBG chat, but advertising that a chart exists in
+  // the email lets the recipient know to switch over. Title +
+  // optional caption are enough context to decide.
+  if (isOn(s, "chart") && s.chartImage?.base64) {
+    L.push("", "📊 CHART OF THE DAY");
+    if (s.chartImage.title?.trim()) L.push(`  ${s.chartImage.title.trim()}`);
+    if (s.chartImage.caption?.trim()) L.push(`  ${oneLine(s.chartImage.caption)}`);
+    L.push(`  (See attached chart in the email version)`);
   }
 
   // ─── FOOTER ───────────────────────────────────────────────
