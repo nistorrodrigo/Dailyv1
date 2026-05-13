@@ -131,7 +131,15 @@ export default function SchedulePanel({ open, onClose }: SchedulePanelProps): Re
         body: JSON.stringify({ ...schedule, enabled: true }),
       });
       const data = await resp.json();
-      if (!data.ok) throw new Error(data.error);
+      if (!data.ok) {
+        // 403 fires when the analyst's email isn't in LS_ADMIN_EMAILS.
+        // The server's "Admin only" message is correct but cryptic —
+        // surface a more actionable note inline.
+        if (resp.status === 403) {
+          throw new Error("You're not authorised to change the schedule. Ask an admin to add your email to LS_ADMIN_EMAILS in Vercel.");
+        }
+        throw new Error(data.error || `HTTP ${resp.status}`);
+      }
       setSchedule({ ...schedule!, enabled: true });
       setResult({ type: "success", message: "Scheduled! Email will be sent on " + schedule!.scheduled_date + " at " + schedule!.send_time + " BUE" });
     } catch (err) {
@@ -149,7 +157,12 @@ export default function SchedulePanel({ open, onClose }: SchedulePanelProps): Re
         body: JSON.stringify({ ...schedule, enabled: false }),
       });
       const data = await resp.json();
-      if (!resp.ok || !data.ok) throw new Error(data.error || `HTTP ${resp.status}`);
+      if (!resp.ok || !data.ok) {
+        if (resp.status === 403) {
+          throw new Error("You're not authorised to cancel the schedule. Ask an admin to add your email to LS_ADMIN_EMAILS in Vercel.");
+        }
+        throw new Error(data.error || `HTTP ${resp.status}`);
+      }
       setSchedule({ ...schedule!, enabled: false });
       setResult({ type: "success", message: "Scheduled send cancelled" });
     } catch (err) {

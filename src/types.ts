@@ -232,6 +232,10 @@ export interface DailyState {
    *  to keep the full text visible in Outlook/Gmail preview. */
   headline: string;
   summaryBar: string;
+  /** @deprecated The Market Snapshot section was retired from the
+   *  catalogue. This field is preserved on the type for backwards
+   *  compat with persisted dailies that still hold values — nothing
+   *  reads it. Don't add new code paths that depend on it. */
   snapshot: MarketSnapshot;
   watchToday: string[];
   latam: string;
@@ -264,12 +268,10 @@ export interface DailyState {
    *  pricing date + estimated size. Renders as a small table in
    *  HTML + a clean column-aligned block in BBG. */
   bondPipeline: BondPipelineItem[];
-  /** Yesterday-in-review block — short prose (3-4 sentences) that
-   *  scores the desk's prior-day calls against today's price action.
-   *  Builds credibility with foreign institutional readers by being
-   *  publicly honest about what worked and what didn't. Free-form
-   *  so the analyst can refine the AI-generated draft. Renders
-   *  prominently above the macro section when the section is on. */
+  /** @deprecated The Yesterday in Review section was retired from
+   *  the catalogue. Field is preserved on the type for backwards
+   *  compat with persisted dailies that still hold values —
+   *  nothing reads it. Don't add new code paths that depend on it. */
   yesterdayRecap: string;
   signatures: Signature[];
   analysts: Analyst[];
