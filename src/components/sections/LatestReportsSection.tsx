@@ -87,8 +87,15 @@ export default function LatestReportsSection(): React.ReactElement | null {
         // analyst is in the catalogue, the free-text input is hidden
         // and `author` cleared so the resolved name is the single
         // source of truth.
-        const useExternal = !r.analystId && (r.author?.trim().length ?? 0) > 0;
-        const dropdownValue = r.analystId || (useExternal ? "__external__" : "");
+        // The `__external__` sentinel value is persisted into
+        // `analystId` when the user picks "External / other…" so
+        // the free-text input stays visible across re-renders even
+        // before they type. See ResearchSection for the matching
+        // pattern + downstream-renderer rationale.
+        const isExternal =
+          r.analystId === "__external__" ||
+          (!r.analystId && (r.author?.trim().length ?? 0) > 0);
+        const dropdownValue = isExternal ? "__external__" : (r.analystId ?? "");
         return (
           <div
             key={r.id}
@@ -117,9 +124,11 @@ export default function LatestReportsSection(): React.ReactElement | null {
               onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
                 const v = e.target.value;
                 if (v === "__external__") {
-                  // Switch to free-text mode — clear analystId, leave
-                  // author for the analyst to fill in below.
-                  updateListItem("latestReports", r.id, "analystId", "");
+                  // Persist the sentinel so External-mode input
+                  // stays visible after the re-render. Previously
+                  // set analystId="" which made the select snap
+                  // back to placeholder before the user could type.
+                  updateListItem("latestReports", r.id, "analystId", "__external__");
                 } else {
                   // Picking a catalogue analyst — clear the free-text
                   // fallback so the resolved name is the only source.
@@ -183,11 +192,15 @@ export default function LatestReportsSection(): React.ReactElement | null {
                 if (meta.title && !r.title.trim()) {
                   updateListItem("latestReports", r.id, "title", meta.title);
                 }
-                // Author fills only when not bound to a catalogue
-                // analyst — `analystId` resolves to the canonical
+                // Author fills only when no catalogue analyst is
+                // picked — `analystId` resolves to the canonical
                 // name on render and shouldn't be overridden by a
-                // page-level <meta name="author">.
-                if (meta.author && !r.analystId && !r.author?.trim()) {
+                // page-level <meta name="author">. The
+                // `__external__` sentinel counts as "no catalogue
+                // pick" — autofill should populate the free-text
+                // input the user has up.
+                const noCataloguePick = !r.analystId || r.analystId === "__external__";
+                if (meta.author && noCataloguePick && !r.author?.trim()) {
                   updateListItem("latestReports", r.id, "author", meta.author);
                 }
               }}

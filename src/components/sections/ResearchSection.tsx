@@ -30,11 +30,24 @@ export default function ResearchSection() {
     <Card title="Research Reports" color={BRAND.blue}>
       {researchReports.map((r) => {
         // Author dropdown logic mirrors LatestReportsSection: a
-        // catalogue analyst id wins, an "__external__" sentinel
-        // switches to a free-text fallback for visiting / partner-
-        // desk authors, blank shows the placeholder.
-        const useExternal = !r.analystId && (r.author?.trim().length ?? 0) > 0;
-        const dropdownValue = r.analystId || (useExternal ? "__external__" : "");
+        // catalogue analyst id wins, the `__external__` sentinel
+        // value (persisted into `analystId`) switches to a
+        // free-text fallback for visiting / partner-desk authors,
+        // blank shows the placeholder.
+        //
+        // Why persist the sentinel rather than rederive from
+        // `author`: picking "External / other…" before typing any
+        // text used to snap the select back to the placeholder
+        // (because `useExternal` requires `author.trim().length`).
+        // Persisting `__external__` keeps the user's choice across
+        // re-renders so the free-text input shows up immediately.
+        // Downstream renderers (generateHTML / generateBBG) already
+        // handle the sentinel via `analysts.find(a => a.id === ...)`
+        // returning undefined and falling through to `r.author`.
+        const isExternal =
+          r.analystId === "__external__" ||
+          (!r.analystId && (r.author?.trim().length ?? 0) > 0);
+        const dropdownValue = isExternal ? "__external__" : (r.analystId ?? "");
         return (
         <div key={r.id} style={{ marginBottom: 16, padding: 12, background: "#f8f9fa", borderRadius: 6, position: "relative" }}>
           <div style={{ position: "absolute", top: 8, right: 8 }}>
@@ -71,7 +84,12 @@ export default function ResearchSection() {
               onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
                 const v = e.target.value;
                 if (v === "__external__") {
-                  updateListItem("researchReports", r.id, "analystId", "");
+                  // Persist the sentinel into analystId so the
+                  // External-mode input stays visible after the
+                  // re-render. See the rationale block above the
+                  // map() — this fixes a bug where picking External
+                  // and not typing immediately snapped back.
+                  updateListItem("researchReports", r.id, "analystId", "__external__");
                 } else {
                   updateListItem("researchReports", r.id, "analystId", v);
                   if (r.author) updateListItem("researchReports", r.id, "author", "");
@@ -113,7 +131,12 @@ export default function ResearchSection() {
                 if (meta.title && !r.title.trim()) {
                   updateListItem("researchReports", r.id, "title", meta.title);
                 }
-                if (meta.author && !r.analystId && !r.author.trim()) {
+                // Autofill author only when no catalogue analyst is
+                // picked. The `__external__` sentinel counts as "no
+                // catalogue pick" — the free-text input is the
+                // target field in that case.
+                const noCataloguePick = !r.analystId || r.analystId === "__external__";
+                if (meta.author && noCataloguePick && !r.author.trim()) {
                   updateListItem("researchReports", r.id, "author", meta.author);
                 }
                 if (meta.description && !r.body.trim()) {
