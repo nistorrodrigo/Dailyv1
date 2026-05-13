@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import { BRAND } from "../../constants/brand";
 import useDailyStore from "../../store/useDailyStore";
 import { generateHTML } from "../../utils/generateHTML";
-import { toast } from "../../store/useToastStore";
+import { copyText } from "../../utils/clipboard";
 
 export default function EmailEditorTab(): React.ReactElement {
   const [html, setHtml] = useState("");
@@ -26,10 +26,7 @@ export default function EmailEditorTab(): React.ReactElement {
   };
 
   const copyHtml = () => {
-    navigator.clipboard
-      .writeText(html)
-      .then(() => toast.success("HTML copied to clipboard"))
-      .catch((err) => toast.error("Couldn't copy: " + (err as Error).message));
+    void copyText(html, { successMessage: "HTML copied to clipboard" });
   };
 
   return (

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { BRAND } from "../constants/brand";
 import { fetchSendGridLists, fetchSendGridContacts, invalidateSendGridListsCache, type SendGridList } from "../lib/sendgridApi";
 import { toast } from "../store/useToastStore";
+import { copyText } from "../utils/clipboard";
 
 interface Contact {
   email: string;
@@ -157,8 +158,10 @@ export default function ContactsPanel({ open, onClose }: ContactsPanelProps): Re
   const copySelected = () => {
     const emails = contacts.filter(c => c.selected).map(c => c.email);
     if (!emails.length) { toast.info("Select contacts first"); return; }
-    navigator.clipboard.writeText(emails.join(", "));
-    toast.success(`Copied ${emails.length} emails to clipboard`);
+    // Was: writeText fire-and-forget + always-success toast → if the
+    // clipboard write actually failed (insecure context / iframe),
+    // the analyst saw "Copied N emails" and then pasted nothing.
+    void copyText(emails.join(", "), { successMessage: `Copied ${emails.length} emails to clipboard` });
   };
 
   const exportCSV = () => {

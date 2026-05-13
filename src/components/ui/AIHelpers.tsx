@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import useDailyStore from "../../store/useDailyStore";
-import useUIStore from "../../store/useUIStore";
 import { toast } from "../../store/useToastStore";
 import { authedFetch } from "../../lib/authedFetch";
 import { estimateCost } from "./AIModelPicker";
+import { copyText } from "../../utils/clipboard";
 
 interface CopyPromptBtnProps {
   section: string;
@@ -28,17 +28,16 @@ ${currentText ? `Here is my current draft to improve or expand:\n\n${currentText
 
 Format as plain text, one block after another.`;
 
-    navigator.clipboard
-      .writeText(prompt)
-      .then(() => {
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      })
-      .catch(() => {
-        // Clipboard write can throw on insecure context / no user
-        // gesture / permissions denied. Silent swallow — `copied`
-        // stays false and the analyst sees the click did nothing.
-      });
+    // The "✓ Copied!" button state IS the success signal — suppress
+    // both the success toast (no need; UI flips) and the error toast
+    // (failure leaves the button at "Copy Prompt" which is the
+    // implicit "click did nothing" signal). Same pattern as the
+    // keyboard-shortcut `copyToClipboard` in useUIStore.
+    void copyText(prompt, { errorMessage: null }).then((ok) => {
+      if (!ok) return;
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
   };
 
   return (

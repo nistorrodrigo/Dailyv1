@@ -8,6 +8,7 @@ import { preflightReview } from "../utils/preflightReview";
 import { buildExternalReviewPrompt } from "../utils/externalReviewPrompt";
 import { toast } from "../store/useToastStore";
 import { authedFetch } from "../lib/authedFetch";
+import { copyText } from "../utils/clipboard";
 
 /** A single "to reach 10/10" item. The model returns these as objects
  *  with both the human-readable instruction and a section key the UI
@@ -265,14 +266,9 @@ export default function AIReviewPanel({ open, onClose }: { open: boolean; onClos
   // Gemini directly — frontier-tier model of their choice, no extra
   // API spend, longer context, free-form follow-up. Faster path
   // when the in-app review feels stale or the daily is long.
-  const handleCopyPrompt = async (): Promise<void> => {
-    try {
-      const prompt = buildExternalReviewPrompt(useDailyStore.getState());
-      await navigator.clipboard.writeText(prompt);
-      toast.success("Prompt copied — paste into ChatGPT or Claude");
-    } catch (err) {
-      toast.error("Couldn't copy: " + (err as Error).message);
-    }
+  const handleCopyPrompt = (): void => {
+    const prompt = buildExternalReviewPrompt(useDailyStore.getState());
+    void copyText(prompt, { successMessage: "Prompt copied — paste into ChatGPT or Claude" });
   };
 
   return (

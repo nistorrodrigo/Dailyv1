@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { UIState } from "../types";
+import { copyText } from "../utils/clipboard";
 
 interface UIActions {
   setTab: (tab: UIState["tab"]) => void;
@@ -46,22 +47,17 @@ const useUIStore = create<UIStore & UIActions>((set, get) => ({
   },
 
   copyToClipboard: (text: string, label: string) => {
-    // .catch covers insecure-context / permissions-denied / no-user-
-    // gesture scenarios where clipboard writes throw. Without it
-    // the rejection bubbles to window.onunhandledrejection and
-    // Sentry captures `NotAllowedError: Write permission denied`
-    // for every Safari-in-iframe or screen-share session.
-    navigator.clipboard
-      .writeText(text)
-      .then(() => {
-        set({ copiedLabel: label });
-        setTimeout(() => set({ copiedLabel: "" }), 2000);
-      })
-      .catch(() => {
-        // Silently swallow — UI doesn't flip to "✓ Copied" so the
-        // analyst sees the failure as "nothing happened" and can
-        // try Ctrl-C manually.
-      });
+    // `copyText` returns false on failure → `copiedLabel` stays empty
+    // and the analyst sees the click did nothing, prompting Ctrl-C.
+    // `errorMessage: null` suppresses the default toast — this action
+    // is the keyboard-shortcut path where the UI affordance (the
+    // "✓ Copied" label flip) IS the success signal; we don't want a
+    // duplicate toast on every Ctrl-Shift-C.
+    copyText(text, { errorMessage: null }).then((ok) => {
+      if (!ok) return;
+      set({ copiedLabel: label });
+      setTimeout(() => set({ copiedLabel: "" }), 2000);
+    });
   },
 
   toggleShortcutsOverlay: () => set((s) => ({ shortcutsOverlayOpen: !s.shortcutsOverlayOpen })),
