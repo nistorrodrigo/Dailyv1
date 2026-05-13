@@ -45,12 +45,18 @@ function VirtualRow({ index, style, visible, onToggle, onRemove }: RowComponentP
         borderRadius: 4,
       }}
     >
-      <input type="checkbox" checked={r.active} onChange={(e) => onToggle(r.id, e.target.checked)} />
+      <input
+        type="checkbox"
+        checked={r.active}
+        onChange={(e) => onToggle(r.id, e.target.checked)}
+        aria-label={`Toggle ${r.name || r.email} active`}
+      />
       <span style={{ flex: 1, fontSize: 12, color: r.active ? "#333" : "#999", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
         {r.name ? `${r.name} <${r.email}>` : r.email}
       </span>
       <button
         onClick={() => onRemove(r.id)}
+        aria-label={`Remove ${r.name || r.email}`}
         style={{ background: "none", border: "none", color: "#c0392b", cursor: "pointer", fontSize: 14, padding: 0 }}
       >
         {"×"}
@@ -188,12 +194,14 @@ export default function RecipientList({
                 type="checkbox"
                 checked={r.active}
                 onChange={(e) => onToggle(r.id, e.target.checked)}
+                aria-label={`Toggle ${r.name || r.email} active`}
               />
               <span style={{ flex: 1, fontSize: 12, color: r.active ? "#333" : "#999" }}>
                 {r.name ? `${r.name} <${r.email}>` : r.email}
               </span>
               <button
                 onClick={() => onRemove(r.id)}
+                aria-label={`Remove ${r.name || r.email}`}
                 style={{
                   background: "none",
                   border: "none",

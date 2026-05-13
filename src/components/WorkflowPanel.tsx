@@ -2,6 +2,7 @@ import React from "react";
 import { BRAND } from "../constants/brand";
 import useUIStore from "../store/useUIStore";
 import { useWorkflowProgress, type WorkflowStep } from "../hooks/useWorkflowProgress";
+import { usePanelEscape } from "../hooks/usePanelEscape";
 
 interface WorkflowPanelProps {
   open: boolean;
@@ -63,13 +64,18 @@ export default function WorkflowPanel({ open, onClose, onOpenSendEmail }: Workfl
     });
   };
 
+  usePanelEscape(onClose);
+
   return (
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="workflow-panel-title"
       className="fixed top-0 right-0 bottom-0 w-[400px] max-w-[100vw] bg-[var(--bg-card)] shadow-[var(--shadow-panel)] z-[1000] flex flex-col panel-slide"
     >
       <div className="flex justify-between items-center px-5 py-4" style={{ background: BRAND.navy }}>
-        <span className="text-white text-sm font-bold uppercase tracking-wider">Daily Workflow</span>
-        <button onClick={onClose} className="bg-transparent border-none text-[var(--color-sky)] text-xl cursor-pointer">
+        <span id="workflow-panel-title" className="text-white text-sm font-bold uppercase tracking-wider">Daily Workflow</span>
+        <button onClick={onClose} aria-label="Close Daily Workflow panel" className="bg-transparent border-none text-[var(--color-sky)] text-xl cursor-pointer">
           {"×"}
         </button>
       </div>

@@ -3,6 +3,7 @@ import { BRAND } from "../constants/brand";
 import { fetchSendGridLists, fetchSendGridContacts, invalidateSendGridListsCache, type SendGridList } from "../lib/sendgridApi";
 import { toast } from "../store/useToastStore";
 import { copyText } from "../utils/clipboard";
+import { usePanelEscape } from "../hooks/usePanelEscape";
 
 interface Contact {
   email: string;
@@ -206,11 +207,18 @@ export default function ContactsPanel({ open, onClose }: ContactsPanelProps): Re
   // Alphabet bar
   const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
+  usePanelEscape(onClose);
+
   return (
-    <div className="fixed top-0 right-0 bottom-0 w-[520px] max-w-[100vw] bg-[var(--bg-card)] shadow-[var(--shadow-panel)] z-[1000] flex flex-col panel-slide">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="contacts-panel-title"
+      className="fixed top-0 right-0 bottom-0 w-[520px] max-w-[100vw] bg-[var(--bg-card)] shadow-[var(--shadow-panel)] z-[1000] flex flex-col panel-slide"
+    >
       {/* Header */}
       <div className="flex justify-between items-center px-5 py-4" style={{ background: BRAND.navy }}>
-        <span className="text-white text-sm font-bold uppercase tracking-wider">
+        <span id="contacts-panel-title" className="text-white text-sm font-bold uppercase tracking-wider">
           {view === "contacts" && selectedList ? selectedList.name : view === "saved" ? "Saved Selections" : "Contact Manager"}
         </span>
         <div className="flex gap-2">
@@ -227,7 +235,7 @@ export default function ContactsPanel({ open, onClose }: ContactsPanelProps): Re
             <button onClick={() => { setView("lists"); setSelectedList(null); setContacts([]); clearFilters(); }}
               className="text-[10px] font-bold text-[var(--color-sky)] bg-transparent border border-[var(--color-sky)] rounded px-2 py-1 cursor-pointer">Back</button>
           )}
-          <button onClick={onClose} className="bg-transparent border-none text-[var(--color-sky)] text-xl cursor-pointer">{"\u00D7"}</button>
+          <button onClick={onClose} aria-label="Close Contact Manager panel" className="bg-transparent border-none text-[var(--color-sky)] text-xl cursor-pointer">{"\u00D7"}</button>
         </div>
       </div>
 
@@ -279,7 +287,7 @@ export default function ContactsPanel({ open, onClose }: ContactsPanelProps): Re
                   <div className="text-sm font-bold text-[var(--text-primary)]">{f.name}</div>
                   <div className="text-[10px] text-[var(--text-muted)]">{f.emails.length} contacts</div>
                 </div>
-                <button onClick={() => deleteSavedFilter(i)} className="text-red-500 bg-transparent border-none cursor-pointer text-sm ml-2">{"\u00D7"}</button>
+                <button onClick={() => deleteSavedFilter(i)} aria-label={`Delete saved selection ${f.name}`} className="text-red-500 bg-transparent border-none cursor-pointer text-sm ml-2">{"\u00D7"}</button>
               </div>
             ))}
           </>
@@ -387,7 +395,13 @@ export default function ContactsPanel({ open, onClose }: ContactsPanelProps): Re
                   className={`flex items-center gap-3 px-3 py-2 mb-0.5 rounded cursor-pointer transition-colors ${
                     c.selected ? "bg-blue-50 border border-blue-200" : "border border-transparent hover:bg-[var(--bg-hover)]"
                   }`}>
-                  <input type="checkbox" checked={c.selected} onChange={() => toggleOne(c.email)} className="flex-shrink-0" />
+                  <input
+                    type="checkbox"
+                    checked={c.selected}
+                    onChange={() => toggleOne(c.email)}
+                    aria-label={`Select ${c.name || c.email}`}
+                    className="flex-shrink-0"
+                  />
                   <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0" style={{ background: BRAND.blue }}>
                     {c.firstLetter}
                   </div>

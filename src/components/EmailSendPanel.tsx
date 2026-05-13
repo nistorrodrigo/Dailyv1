@@ -15,6 +15,7 @@ import { toast } from "../store/useToastStore";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import { displayNameFromUser, displayNameFromEmail } from "../utils/displayName";
 import { authedFetch } from "../lib/authedFetch";
+import { usePanelEscape } from "../hooks/usePanelEscape";
 
 interface EmailSendPanelProps {
   open: boolean;
@@ -126,6 +127,8 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
       })();
     }
   }, [open, date]);
+
+  usePanelEscape(onClose, open);
 
   if (!open) return null;
 
@@ -294,19 +297,25 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
   };
 
   return (
-    <div style={{
-      position: "fixed", top: 0, right: 0, bottom: 0, width: 400,
-      background: "var(--bg-card)", boxShadow: "var(--shadow-panel)",
-      zIndex: 1000, display: "flex", flexDirection: "column", animation: "slideInRight 0.2s ease",
-    }}>
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="email-send-panel-title"
+      style={{
+        position: "fixed", top: 0, right: 0, bottom: 0, width: 400,
+        maxWidth: "100vw",
+        background: "var(--bg-card)", boxShadow: "var(--shadow-panel)",
+        zIndex: 1000, display: "flex", flexDirection: "column", animation: "slideInRight 0.2s ease",
+      }}
+    >
       <div style={{
         background: BRAND.navy, padding: "16px 20px",
         display: "flex", justifyContent: "space-between", alignItems: "center",
       }}>
-        <span style={{ color: "#fff", fontSize: 14, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>
+        <span id="email-send-panel-title" style={{ color: "#fff", fontSize: 14, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>
           Send Email
         </span>
-        <button onClick={onClose} style={{
+        <button onClick={onClose} aria-label="Close Send Email panel" style={{
           background: "none", border: "none", color: BRAND.sky,
           fontSize: 20, cursor: "pointer",
         }}>
@@ -519,6 +528,7 @@ export default function EmailSendPanel({ open, onClose }: EmailSendPanelProps): 
             </span>
             <button
               onClick={() => setSendResult(null)}
+              aria-label="Dismiss send result"
               className="bg-transparent border-none cursor-pointer text-inherit text-lg leading-none ml-2"
             >{"\u00D7"}</button>
           </div>

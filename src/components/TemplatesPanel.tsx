@@ -5,6 +5,7 @@ import { supabase } from "../lib/supabase";
 import useDailyStore from "../store/useDailyStore";
 import type { Section, DailyState } from "../types";
 import { toast } from "../store/useToastStore";
+import { usePanelEscape } from "../hooks/usePanelEscape";
 
 interface TemplatesPanelProps {
   open: boolean;
@@ -74,20 +75,28 @@ export default function TemplatesPanel({ open, onClose }: TemplatesPanelProps): 
     }
   };
 
+  usePanelEscape(onClose);
+
   return (
-    <div style={{
-      position: "fixed", top: 0, right: 0, bottom: 0, width: 360,
-      background: "var(--bg-card)", boxShadow: "var(--shadow-panel)",
-      zIndex: 1000, display: "flex", flexDirection: "column", animation: "slideInRight 0.2s ease",
-    }}>
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="templates-panel-title"
+      style={{
+        position: "fixed", top: 0, right: 0, bottom: 0, width: 360,
+        maxWidth: "100vw",
+        background: "var(--bg-card)", boxShadow: "var(--shadow-panel)",
+        zIndex: 1000, display: "flex", flexDirection: "column", animation: "slideInRight 0.2s ease",
+      }}
+    >
       <div style={{
         background: BRAND.navy, padding: "16px 20px",
         display: "flex", justifyContent: "space-between", alignItems: "center",
       }}>
-        <span style={{ color: "#fff", fontSize: 14, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>
+        <span id="templates-panel-title" style={{ color: "#fff", fontSize: 14, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>
           Templates
         </span>
-        <button onClick={onClose} style={{
+        <button onClick={onClose} aria-label="Close Templates panel" style={{
           background: "none", border: "none", color: BRAND.sky,
           fontSize: 20, cursor: "pointer",
         }}>

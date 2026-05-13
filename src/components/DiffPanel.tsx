@@ -4,6 +4,7 @@ import { loadDaily, listDailies } from "../lib/dailyApi";
 import { supabase } from "../lib/supabase";
 import useDailyStore from "../store/useDailyStore";
 import { toast } from "../store/useToastStore";
+import { usePanelEscape } from "../hooks/usePanelEscape";
 
 interface DiffPanelProps {
   open: boolean;
@@ -118,13 +119,20 @@ export default function DiffPanel({ open, onClose }: DiffPanelProps): React.Reac
     }
   };
 
+  usePanelEscape(onClose, open);
+
   if (!open) return null;
 
   return (
-    <div className="fixed top-0 right-0 bottom-0 w-[420px] max-w-[100vw] bg-[var(--bg-card)] shadow-[var(--shadow-panel)] z-[1000] flex flex-col panel-slide">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="diff-panel-title"
+      className="fixed top-0 right-0 bottom-0 w-[420px] max-w-[100vw] bg-[var(--bg-card)] shadow-[var(--shadow-panel)] z-[1000] flex flex-col panel-slide"
+    >
       <div className="flex justify-between items-center px-5 py-4" style={{ background: BRAND.navy }}>
-        <span className="text-white text-sm font-bold uppercase tracking-wider">Compare Dailies</span>
-        <button onClick={onClose} className="bg-transparent border-none text-sky text-xl cursor-pointer">{"\u00D7"}</button>
+        <span id="diff-panel-title" className="text-white text-sm font-bold uppercase tracking-wider">Compare Dailies</span>
+        <button onClick={onClose} aria-label="Close Compare Dailies panel" className="bg-transparent border-none text-sky text-xl cursor-pointer">{"\u00D7"}</button>
       </div>
       <div className="flex-1 overflow-auto p-4">
         {!supabase && <p className="text-sm text-[var(--text-muted)] text-center p-5">Supabase required for diff.</p>}

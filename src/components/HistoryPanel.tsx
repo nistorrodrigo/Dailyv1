@@ -6,6 +6,7 @@ import { supabase } from "../lib/supabase";
 import useDailyStore from "../store/useDailyStore";
 import type { DailyState } from "../types";
 import { toast } from "../store/useToastStore";
+import { usePanelEscape } from "../hooks/usePanelEscape";
 
 interface HistoryPanelProps {
   open: boolean;
@@ -159,20 +160,28 @@ export default function HistoryPanel({ open, onClose }: HistoryPanelProps): Reac
     }
   };
 
+  usePanelEscape(onClose);
+
   return (
-    <div style={{
-      position: "fixed", top: 0, right: 0, bottom: 0, width: 360,
-      background: "var(--bg-card)", boxShadow: "var(--shadow-panel)",
-      zIndex: 1000, display: "flex", flexDirection: "column", animation: "slideInRight 0.2s ease",
-    }}>
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="history-panel-title"
+      style={{
+        position: "fixed", top: 0, right: 0, bottom: 0, width: 360,
+        maxWidth: "100vw",
+        background: "var(--bg-card)", boxShadow: "var(--shadow-panel)",
+        zIndex: 1000, display: "flex", flexDirection: "column", animation: "slideInRight 0.2s ease",
+      }}
+    >
       <div style={{
         background: BRAND.navy, padding: "16px 20px",
         display: "flex", justifyContent: "space-between", alignItems: "center",
       }}>
-        <span style={{ color: "#fff", fontSize: 14, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>
+        <span id="history-panel-title" style={{ color: "#fff", fontSize: 14, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>
           Daily History
         </span>
-        <button onClick={onClose} style={{
+        <button onClick={onClose} aria-label="Close Daily History panel" style={{
           background: "none", border: "none", color: BRAND.sky,
           fontSize: 20, cursor: "pointer",
         }}>

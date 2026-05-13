@@ -4,6 +4,7 @@ import { fetchSendGridLists, type SendGridList } from "../lib/sendgridApi";
 import { authedFetch } from "../lib/authedFetch";
 import { todayLocal, fmtRelativeTime } from "../utils/dates";
 import { displayNameFromEmail } from "../utils/displayName";
+import { usePanelEscape } from "../hooks/usePanelEscape";
 
 interface SchedulePanelProps {
   open: boolean;
@@ -172,15 +173,22 @@ export default function SchedulePanel({ open, onClose }: SchedulePanelProps): Re
     }
   };
 
+  usePanelEscape(onClose, open);
+
   if (!open) return null;
 
   const today = todayLocal();
 
   return (
-    <div className="fixed top-0 right-0 bottom-0 w-[400px] max-w-[100vw] bg-[var(--bg-card)] shadow-[var(--shadow-panel)] z-[1000] flex flex-col panel-slide">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="schedule-panel-title"
+      className="fixed top-0 right-0 bottom-0 w-[400px] max-w-[100vw] bg-[var(--bg-card)] shadow-[var(--shadow-panel)] z-[1000] flex flex-col panel-slide"
+    >
       <div className="flex justify-between items-center px-5 py-4" style={{ background: BRAND.navy }}>
-        <span className="text-white text-sm font-bold uppercase tracking-wider">Schedule Send</span>
-        <button onClick={onClose} className="bg-transparent border-none text-[var(--color-sky)] text-xl cursor-pointer">{"\u00D7"}</button>
+        <span id="schedule-panel-title" className="text-white text-sm font-bold uppercase tracking-wider">Schedule Send</span>
+        <button onClick={onClose} aria-label="Close Schedule Send panel" className="bg-transparent border-none text-[var(--color-sky)] text-xl cursor-pointer">{"\u00D7"}</button>
       </div>
       <div className="flex-1 overflow-auto p-4">
         {loading && <p className="text-sm text-[var(--text-muted)] text-center py-4">Loading...</p>}
@@ -270,6 +278,7 @@ export default function SchedulePanel({ open, onClose }: SchedulePanelProps): Re
                   <span>{schedule.sendgrid_list_name}</span>
                   <button
                     onClick={() => setSchedule({ ...schedule, sendgrid_list_id: null, sendgrid_list_name: null })}
+                    aria-label="Remove SendGrid list selection"
                     className="text-red-500 bg-transparent border-none cursor-pointer text-sm"
                   >{"\u00D7"}</button>
                 </div>
