@@ -59,3 +59,23 @@ CREATE POLICY "Allow all on recipients" ON recipients FOR ALL USING (true) WITH 
 
 ALTER TABLE daily_versions ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow all on daily_versions" ON daily_versions FOR ALL USING (true) WITH CHECK (true);
+
+-- Unique index on sg_event_id for the SendGrid webhook receiver's
+-- idempotency. SendGrid retries event delivery at-least-once, and
+-- the `onConflict: "sg_event_id" ignoreDuplicates: true` upsert in
+-- api/sendgrid-webhook.js relies on this index to no-op on retries.
+-- The column itself may already exist on the email_events table —
+-- this index is the missing piece. Run idempotently:
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_indexes WHERE indexname = 'idx_email_events_sg_event_id'
+  ) THEN
+    -- Tolerate NULLs from pre-existing rows (older inserts didn't
+    -- store sg_event_id); only future inserts get the idempotency
+    -- benefit.
+    CREATE UNIQUE INDEX idx_email_events_sg_event_id
+      ON email_events (sg_event_id)
+      WHERE sg_event_id IS NOT NULL;
+  END IF;
+END $$;
