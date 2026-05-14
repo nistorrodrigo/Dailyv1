@@ -12,6 +12,12 @@
 //
 // Both throw Error with a useful message on failure — wrap in try/catch and
 // show err.message to the user.
+//
+// All requests go through `authedFetch` — the /api/sendgrid-lists route
+// is `requireAuth`-gated (see api/sendgrid-lists.js) so raw `fetch` would
+// return 401 "Auth required" on every call.
+
+import { authedFetch } from "./authedFetch";
 
 export interface SendGridList {
   id: string;
@@ -70,7 +76,7 @@ export async function fetchSendGridLists(force = false): Promise<SendGridList[]>
     return listsCache.lists;
   }
 
-  const resp = await fetch("/api/sendgrid-lists");
+  const resp = await authedFetch("/api/sendgrid-lists");
   const data = (await parseJsonOrThrow(resp, "fetchSendGridLists")) as { ok?: boolean; lists?: SendGridList[]; error?: string };
 
   if (!resp.ok || !data.ok) {
@@ -104,7 +110,7 @@ export async function fetchSendGridContacts(
   // Step 1: kick off export
   onProgress?.("Starting export...");
   checkAborted();
-  const startResp = await fetch(`/api/sendgrid-lists?listId=${encodeURIComponent(listId)}`, { signal });
+  const startResp = await authedFetch(`/api/sendgrid-lists?listId=${encodeURIComponent(listId)}`, { signal });
   const startData = (await parseJsonOrThrow(startResp, "fetchSendGridContacts(start)")) as {
     ok?: boolean;
     exportId?: string;
@@ -130,7 +136,7 @@ export async function fetchSendGridContacts(
     onProgress?.(`Exporting contacts... (${attempt * (pollIntervalMs / 1000)}s)`);
     await new Promise((r) => setTimeout(r, pollIntervalMs));
 
-    const pollResp = await fetch(`/api/sendgrid-lists?exportId=${encodeURIComponent(exportId)}`, { signal });
+    const pollResp = await authedFetch(`/api/sendgrid-lists?exportId=${encodeURIComponent(exportId)}`, { signal });
     const pollData = (await parseJsonOrThrow(pollResp, "fetchSendGridContacts(poll)")) as {
       ok?: boolean;
       status?: string;

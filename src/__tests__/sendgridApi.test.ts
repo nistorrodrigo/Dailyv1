@@ -37,7 +37,9 @@ describe("fetchSendGridLists", () => {
 
     const result = await fetchSendGridLists();
     expect(result).toEqual(lists);
-    expect(fetchMock).toHaveBeenCalledWith("/api/sendgrid-lists");
+    // authedFetch passes `(url, { headers })` even when no body is set,
+    // so the second arg is always present. URL must match exactly.
+    expect(fetchMock).toHaveBeenCalledWith("/api/sendgrid-lists", expect.any(Object));
   });
 
   it("caches results for 5 minutes", async () => {
