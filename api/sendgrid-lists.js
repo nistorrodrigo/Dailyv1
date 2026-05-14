@@ -10,7 +10,22 @@ export default async function handler(req, res) {
   // emails. Now requires the same Supabase JWT the rest of /api
   // uses; rejects anonymous traffic with 401.
   const auth = await requireAuth(req);
-  if (!auth.ok) return res.status(401).json({ ok: false, error: "Auth required" });
+  if (!auth.ok) {
+    // Surface a categorical hint to help the analyst triage 401s
+    // without exposing the underlying token / email. Possible reasons:
+    //   - no-header              → client didn't attach Authorization
+    //   - malformed / empty-token → header present but not "Bearer <jwt>"
+    //   - supabase-not-configured → VITE_SUPABASE_URL/ANON_KEY missing on the server
+    //   - wrong-domain:<email>   → token validates but email not @latinsecurities.ar
+    //   - invalid / getUser-throw → JWT expired or otherwise rejected by Supabase
+    // The full `reason` is logged server-side; only the category goes
+    // to the client (strips an email if `wrong-domain:` carried one).
+    const reason = auth.reason || "unknown";
+    const category = reason.split(":")[0];
+    // eslint-disable-next-line no-console
+    console.warn("[sendgrid-lists] auth failed:", reason);
+    return res.status(401).json({ ok: false, error: "Auth required", category });
+  }
 
   const apiKey = process.env.SENDGRID_API_KEY;
   if (!apiKey) return res.status(500).json({ ok: false, error: "SENDGRID_API_KEY env var is not set on the server" });

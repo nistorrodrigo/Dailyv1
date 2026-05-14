@@ -77,10 +77,23 @@ export async function fetchSendGridLists(force = false): Promise<SendGridList[]>
   }
 
   const resp = await authedFetch("/api/sendgrid-lists");
-  const data = (await parseJsonOrThrow(resp, "fetchSendGridLists")) as { ok?: boolean; lists?: SendGridList[]; error?: string };
+  const data = (await parseJsonOrThrow(resp, "fetchSendGridLists")) as {
+    ok?: boolean;
+    lists?: SendGridList[];
+    error?: string;
+    category?: string;
+  };
 
   if (!resp.ok || !data.ok) {
-    throw new Error(data.error || `fetchSendGridLists: HTTP ${resp.status}`);
+    // When the server returns 401 "Auth required", append the failure
+    // category if it sent one — turns the opaque "Auth required" into
+    // a hint analysts can act on:
+    //   - "no-header"              → likely logged out; reload + re-auth
+    //   - "wrong-domain"           → your email isn't @latinsecurities.ar
+    //   - "supabase-not-configured" → server env vars missing
+    //   - "invalid" / "getUser-throw" → token expired; sign back in
+    const suffix = data.category ? ` (${data.category})` : "";
+    throw new Error((data.error || `fetchSendGridLists: HTTP ${resp.status}`) + suffix);
   }
 
   const lists = data.lists || [];
