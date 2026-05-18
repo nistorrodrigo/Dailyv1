@@ -4,7 +4,12 @@ import useDailyStore from "../../store/useDailyStore";
 import { Card, Inp, X, DashBtn, AutofillLinkBtn } from "../ui";
 import { BRAND } from "../../constants/brand";
 
-const is: React.CSSProperties = { padding: "6px 8px", borderRadius: 4, border: "1px solid var(--border-input)", fontSize: 12, boxSizing: "border-box" };
+// Match the typography of the `<Inp>` helper used elsewhere in this
+// section (text-[13px], px-2.5 py-2, rounded-md). The previous values
+// (12px text, 6px/8px padding, 4px radius) made the Type + Author
+// selects look 1px smaller than the Title / Body / Link inputs in the
+// same form — a subtle but visible mismatch the desk flagged.
+const is: React.CSSProperties = { padding: "8px 10px", borderRadius: 6, border: "1px solid var(--border-input)", fontSize: 13, boxSizing: "border-box" };
 const ss: React.CSSProperties = { ...is, background: "var(--bg-card)" };
 
 // Typed `as const` so the union flows through the `<option>` map

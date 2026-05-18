@@ -8,7 +8,11 @@ import { ImproveBtn, CopyPromptBtn } from "../ui/AIHelpers";
 import { rc, rb } from "../../utils/ratings";
 import { makeUrlPasteHandler } from "../../hooks/useUrlPasteHint";
 
-const is: React.CSSProperties = { padding: "6px 8px", borderRadius: 4, border: "1px solid var(--border-input)", fontSize: 12, boxSizing: "border-box" };
+// Aligned with the `<Inp>` helper (text-[13px], px-2.5 py-2, rounded-md)
+// used for Headline / Body / Link so the analyst-selector matches
+// the surrounding fields visually. See ResearchSection for the same
+// pattern + the original tightening rationale.
+const is: React.CSSProperties = { padding: "8px 10px", borderRadius: 6, border: "1px solid var(--border-input)", fontSize: 13, boxSizing: "border-box" };
 const ss: React.CSSProperties = { ...is, background: "var(--bg-card)" };
 
 export default function CorporateSection() {

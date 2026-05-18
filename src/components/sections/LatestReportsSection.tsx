@@ -8,11 +8,15 @@ import type { LatestReport } from "../../types";
 // Author input shares the editor's small-control style with the
 // rest of the grid (Inp + select inside Corporate use a sibling of
 // this shape).
+// Aligned with the `<Inp>` helper used in this section (text-[13px],
+// px-2.5 py-2, rounded-md) so the author dropdown matches the Type /
+// Title / Link inputs in the same row. See ResearchSection for the
+// matching pattern + the original tightening rationale.
 const ss: React.CSSProperties = {
-  padding: "6px 8px",
-  borderRadius: 4,
+  padding: "8px 10px",
+  borderRadius: 6,
   border: "1px solid var(--border-input)",
-  fontSize: 12,
+  fontSize: 13,
   boxSizing: "border-box",
   background: "var(--bg-card)",
 };
