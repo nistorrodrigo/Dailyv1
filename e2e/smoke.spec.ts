@@ -56,9 +56,14 @@ test.describe("smoke: tab navigation", () => {
     // fallback". We don't assert on specific tab content — that's
     // what the per-tab specs are for. We just want breadth coverage
     // here so if e.g. the AI Draft tab crashes on mount, we know.
+    //
+    // Match by `role: "tab"` — the a11y pass (b674438) added
+    // role="tab" + aria-selected to the tab strip in App.tsx so the
+    // editor's main navigation is screen-reader-discoverable.
+    // Previously matched `role: "button"`.
     const tabs = ["Analysts", "AI Draft", "Preview", "HTML Editor", "Dashboard", "Editor"];
     for (const name of tabs) {
-      await page.getByRole("button", { name, exact: true }).click();
+      await page.getByRole("tab", { name, exact: true }).click();
       // ErrorBoundary shows "Something went wrong" — the absence of
       // that string means the tab rendered.
       await expect(page.getByText(/Something went wrong/i)).not.toBeVisible();
@@ -77,9 +82,10 @@ test.describe("smoke: editor input persistence", () => {
     // Switch away and back. The store is global Zustand state, but the
     // tab wrapper has a `key={tab}` that forces remount — this checks
     // both directions: the input rehydrates from store, AND the store
-    // wasn't cleared on unmount.
-    await page.getByRole("button", { name: "Preview", exact: true }).click();
-    await page.getByRole("button", { name: "Editor", exact: true }).click();
+    // wasn't cleared on unmount. Tab buttons are role="tab" since the
+    // a11y pass — see the comment in the tab-navigation spec above.
+    await page.getByRole("tab", { name: "Preview", exact: true }).click();
+    await page.getByRole("tab", { name: "Editor", exact: true }).click();
 
     await expect(page.getByLabel("Date")).toHaveValue("2026-12-31");
   });
