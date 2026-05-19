@@ -301,7 +301,7 @@ export type StateWithFlows = DailyState & {
 };
 
 export interface UIState {
-  tab: "edit" | "analysts" | "ai" | "preview" | "email-editor" | "dashboard";
+  tab: "edit" | "analysts" | "ai" | "preview" | "email-editor" | "dashboard" | "library";
   previewMode: "html" | "bbg";
   copiedLabel: string;
   saveStatus: "idle" | "saving" | "saved" | "error";

@@ -31,6 +31,7 @@ const PreviewTab = lazyWithReload(() => import("./components/sections/PreviewTab
 const DashboardTab = lazyWithReload(() => import("./components/sections/DashboardTab"));
 const AIDraftTab = lazyWithReload(() => import("./components/sections/AIDraftTab"));
 const EmailEditorTab = lazyWithReload(() => import("./components/sections/EmailEditorTab"));
+const LibraryTab = lazyWithReload(() => import("./components/sections/LibraryTab"));
 
 const tabCls = (active: boolean): string =>
   `px-5 py-2.5 cursor-pointer text-[13px] font-bold tracking-wide uppercase border-none transition-all duration-200 ${
@@ -84,6 +85,7 @@ export default function App() {
         <button role="tab" aria-selected={tab === "ai"} onClick={() => setTab("ai")} className={tabCls(tab === "ai")}>AI Draft</button>
         <button role="tab" aria-selected={tab === "preview"} onClick={() => setTab("preview")} className={tabCls(tab === "preview")}>Preview</button>
         <button role="tab" aria-selected={tab === "email-editor"} onClick={() => setTab("email-editor")} className={tabCls(tab === "email-editor")}>HTML Editor</button>
+        <button role="tab" aria-selected={tab === "library"} onClick={() => setTab("library")} className={tabCls(tab === "library")}>Library</button>
         <button role="tab" aria-selected={tab === "dashboard"} onClick={() => setTab("dashboard")} className={tabCls(tab === "dashboard")}>Dashboard</button>
       </div>
       <main id="main-content" key={tab} className="page-enter" tabIndex={-1}>
@@ -93,6 +95,7 @@ export default function App() {
           {tab === "ai" && <AIDraftTab />}
           {tab === "preview" && <PreviewTab />}
           {tab === "email-editor" && <EmailEditorTab />}
+          {tab === "library" && <LibraryTab />}
           {tab === "dashboard" && <DashboardTab />}
         </Suspense>
       </main>

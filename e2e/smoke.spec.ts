@@ -61,7 +61,7 @@ test.describe("smoke: tab navigation", () => {
     // role="tab" + aria-selected to the tab strip in App.tsx so the
     // editor's main navigation is screen-reader-discoverable.
     // Previously matched `role: "button"`.
-    const tabs = ["Analysts", "AI Draft", "Preview", "HTML Editor", "Dashboard", "Editor"];
+    const tabs = ["Analysts", "AI Draft", "Preview", "HTML Editor", "Library", "Dashboard", "Editor"];
     for (const name of tabs) {
       await page.getByRole("tab", { name, exact: true }).click();
       // ErrorBoundary shows "Something went wrong" — the absence of
