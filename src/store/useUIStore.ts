@@ -2,6 +2,23 @@ import { create } from "zustand";
 import type { UIState } from "../types";
 import { copyText } from "../utils/clipboard";
 
+/** Cross-device sync conflict — set by supabaseSync when a focus
+ *  refetch finds the server newer than the local copy AND there are
+ *  unsaved local edits. `SyncConflictModal` renders off this and
+ *  calls one of the two resolver callbacks. Non-serialisable (it
+ *  carries functions) — fine, useUIStore is not persisted. */
+export interface SyncConflict {
+  /** The date of the server daily — shown in the modal copy. */
+  serverDate: string;
+  /** ISO `updated_at` of the server version — shown as "edited X". */
+  serverUpdatedAt: string;
+  /** Overwrite the local store with the server version. */
+  onUseServer: () => void;
+  /** Discard the server version, keep local edits (next autosave
+   *  pushes them, winning the race). */
+  onKeepMine: () => void;
+}
+
 interface UIActions {
   setTab: (tab: UIState["tab"]) => void;
   setPreviewMode: (mode: UIState["previewMode"]) => void;
@@ -11,11 +28,13 @@ interface UIActions {
   copyToClipboard: (text: string, label: string) => void;
   toggleShortcutsOverlay: () => void;
   setShortcutsOverlayOpen: (open: boolean) => void;
+  setSyncConflict: (conflict: SyncConflict | null) => void;
 }
 
 interface UIStore extends UIState {
   lastSavedAt: number | null;
   shortcutsOverlayOpen: boolean;
+  syncConflict: SyncConflict | null;
 }
 
 const useUIStore = create<UIStore & UIActions>((set, get) => ({
@@ -26,6 +45,7 @@ const useUIStore = create<UIStore & UIActions>((set, get) => ({
   lastSavedAt: null,
   darkMode: localStorage.getItem("ls-dark-mode") === "1",
   shortcutsOverlayOpen: false,
+  syncConflict: null,
 
   setTab: (tab: UIState["tab"]) => set({ tab }),
   setPreviewMode: (mode: UIState["previewMode"]) => set({ previewMode: mode }),
@@ -62,6 +82,8 @@ const useUIStore = create<UIStore & UIActions>((set, get) => ({
 
   toggleShortcutsOverlay: () => set((s) => ({ shortcutsOverlayOpen: !s.shortcutsOverlayOpen })),
   setShortcutsOverlayOpen: (open: boolean) => set({ shortcutsOverlayOpen: open }),
+
+  setSyncConflict: (conflict: SyncConflict | null) => set({ syncConflict: conflict }),
 }));
 
 export default useUIStore;

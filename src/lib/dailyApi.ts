@@ -44,6 +44,31 @@ export async function loadDaily(date: string): Promise<DailyRecord | null> {
   return data;
 }
 
+/**
+ * Load the single most-recently-updated daily, regardless of date.
+ *
+ * This is the cross-device sync anchor: "the daily I'm working on"
+ * is defined as "the row touched most recently on any device", so
+ * both the phone and the laptop converge on the same row when they
+ * open the app. Keying off `updated_at` (not `date`) means a Monday
+ * morning open still shows Friday's daily until the analyst starts
+ * Monday's — which matches the desk's mental model.
+ *
+ * `maybeSingle()` returns null (not an error) when the table is
+ * empty — the very first run before any daily is saved.
+ */
+export async function loadMostRecentDaily(): Promise<DailyRecord | null> {
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from("dailies")
+    .select("*")
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
 export async function listDailies(limit: number = 30): Promise<DailyListItem[]> {
   if (!supabase) return [];
   const { data, error } = await supabase

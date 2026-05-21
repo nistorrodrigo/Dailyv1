@@ -10,6 +10,7 @@ import type { UIState } from "./types";
 import Header from "./components/Header";
 import Toaster from "./components/Toaster";
 import KeyboardShortcutsOverlay from "./components/KeyboardShortcutsOverlay";
+import SyncConflictModal from "./components/SyncConflictModal";
 import OfflineBanner from "./components/OfflineBanner";
 import EditorTab from "./components/sections/EditorTab";
 
@@ -101,6 +102,7 @@ export default function App() {
       </main>
       <Toaster />
       <KeyboardShortcutsOverlay />
+      <SyncConflictModal />
     </div>
   );
 }
