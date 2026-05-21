@@ -133,12 +133,12 @@ export function preflightReview(state: StateWithFlows, now: Date = new Date()): 
     }
   }
 
-  // ── Watch today ───────────────────────────────────────────────
+  // ── What to Watch This Week ───────────────────────────────────
   const watchOn = state.sections.find((s) => s.key === "watchToday")?.on;
   if (watchOn) {
-    const filled = state.watchToday?.filter((x) => x?.trim()).length || 0;
+    const filled = state.watchToday?.filter((x) => x?.text?.trim()).length || 0;
     if (filled === 0) {
-      issues.push("What to Watch Today section is toggled on but has no items.");
+      issues.push("What to Watch This Week section is toggled on but has no items.");
     }
   }
 

@@ -122,8 +122,8 @@ export const DEFAULT_STATE: DailyState & { flows: { global: string; local: strin
     blue: "",
   },
 
-  // What to Watch Today
-  watchToday: [""],
+  // What to Watch This Week — one empty structured bullet to start.
+  watchToday: [{ text: "" }],
 
   // LatAm Context
   latam: "",

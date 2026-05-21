@@ -100,6 +100,18 @@ export function migrateState(
   // compiles; this migration just stops persisting the stale data.
   delete cleanedPersisted.snapshot;
   delete cleanedPersisted.yesterdayRecap;
+
+  // `watchToday` was upgraded from `string[]` to `WatchItem[]`
+  // (each bullet can carry an optional date + Buenos Aires time).
+  // Persisted dailies from before the upgrade hold bare strings —
+  // wrap each into `{ text }`. An already-migrated array (objects)
+  // passes through untouched. Non-array / missing falls through to
+  // the DEFAULT_STATE value via the spread below.
+  if (Array.isArray(cleanedPersisted.watchToday)) {
+    cleanedPersisted.watchToday = (cleanedPersisted.watchToday as unknown[]).map((w) =>
+      typeof w === "string" ? { text: w } : w,
+    );
+  }
   return {
     ...DEFAULT_STATE,
     ...(cleanedPersisted as Partial<DailyStore>),

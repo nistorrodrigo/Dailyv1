@@ -65,7 +65,7 @@ describe("generateBBG", () => {
   });
 
   it("includes watch items when set", () => {
-    const state = { ...DEFAULT_STATE, watchToday: ["BCRA auction at 11am"] };
+    const state = { ...DEFAULT_STATE, watchToday: [{ text: "BCRA auction at 11am" }] };
     const bbg = generateBBG(state);
     expect(bbg).toContain("WHAT TO WATCH");
     expect(bbg).toContain("BCRA auction");

@@ -140,3 +140,57 @@ export const fmtRelativeTime = (iso: string | null | undefined, now: Date = new 
   // Past 24h, fall through to an absolute date.
   return new Date(iso).toLocaleString();
 };
+
+/**
+ * Convert a Buenos Aires wall-clock time into US-Eastern + London
+ * display times — used by the "What to Watch This Week" bullets so
+ * the analyst types one time and foreign PMs see all three zones.
+ *
+ * Argentina (ART) is a fixed UTC-3 with no daylight saving, so a
+ * BUE time + date pins an exact UTC instant with no ambiguity. ET
+ * and London DO observe DST, which is why the reference `isoDate`
+ * matters — the same 11:00 BUE maps to a different ET clock time in
+ * January vs. July. We let `Intl` / the host's IANA timezone
+ * database do the DST arithmetic rather than hard-coding offset
+ * tables (which rot whenever a government changes the rules).
+ *
+ * When `isoDate` is absent or malformed we fall back to
+ * `todayLocal()` — good enough for the "this week" window the
+ * section covers; the error is at most a one-hour offset right at a
+ * DST boundary.
+ *
+ * Returns `null` for a missing / malformed time so callers guard
+ * inline. Output is 12-hour with AM/PM, e.g. `{ et: "10:00 AM",
+ * london: "3:00 PM" }`.
+ */
+export const bueTimeToZones = (
+  hhmm: string | null | undefined,
+  isoDate?: string | null,
+): { et: string; london: string } | null => {
+  if (!hhmm || typeof hhmm !== "string") return null;
+  const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm.trim());
+  if (!m) return null;
+  const hour = parseInt(m[1], 10);
+  const minute = parseInt(m[2], 10);
+  if (Number.isNaN(hour) || hour < 0 || hour > 23) return null;
+  if (Number.isNaN(minute) || minute < 0 || minute > 59) return null;
+
+  const dateStr = isoDate && /^\d{4}-\d{2}-\d{2}$/.test(isoDate) ? isoDate : todayLocal();
+  const [y, mo, d] = dateStr.split("-").map(Number);
+
+  // BUE wall-clock → UTC instant: ART is UTC-3, so UTC = BUE + 3h.
+  // `Date.UTC` rolls `hour + 3 >= 24` into the next calendar day
+  // automatically, so a late-evening BUE time converts correctly.
+  const instant = new Date(Date.UTC(y, mo - 1, d, hour + 3, minute));
+  if (Number.isNaN(instant.getTime())) return null;
+
+  const fmt = (tz: string): string =>
+    instant.toLocaleTimeString("en-US", {
+      timeZone: tz,
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+
+  return { et: fmt("America/New_York"), london: fmt("Europe/London") };
+};

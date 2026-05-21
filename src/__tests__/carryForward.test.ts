@@ -10,7 +10,7 @@ const yesterdayState = {
   ...DEFAULT_STATE,
   date: "2026-04-29",
   summaryBar: "YESTERDAY's summary line",
-  watchToday: ["YESTERDAY's first watch", "YESTERDAY's second watch"],
+  watchToday: [{ text: "YESTERDAY's first watch" }, { text: "YESTERDAY's second watch" }],
   macroBlocks: [
     { id: "m1", title: "FX / BCRA", body: "YESTERDAY's macro body", lsPick: "YESTERDAY's pick" },
   ],

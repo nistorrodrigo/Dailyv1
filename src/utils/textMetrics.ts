@@ -58,7 +58,7 @@ export function getDailyTextMetrics(s: DailyState): TextMetrics {
   // persisted dailies but it doesn't render anywhere, so it
   // shouldn't inflate the reading-time estimate.
   add("marketComment", countWords(s.marketComment));
-  add("watch", (s.watchToday || []).reduce((acc, w) => acc + countWords(w), 0));
+  add("watch", (s.watchToday || []).reduce((acc, w) => acc + countWords(w.text), 0));
   add("latam", countWords(s.latam));
 
   s.macroBlocks.forEach((b) => {

@@ -151,7 +151,7 @@ export function useWorkflowProgress(): {
     {
       id: "watchToday",
       label: sectionOn("watchToday") ? "What to Watch populated" : "What to Watch (skipped)",
-      done: !sectionOn("watchToday") || (s.watchToday || []).some((w) => w?.trim()),
+      done: !sectionOn("watchToday") || (s.watchToday || []).some((w) => w?.text?.trim()),
       hint: "3-5 bullets of upcoming catalysts. The call-to-action of the daily.",
       anchor: "section-watchToday",
       estMinutes: 3,

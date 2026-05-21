@@ -125,7 +125,7 @@ describe("preflightReview", () => {
       corpBlocks: [
         { id: "1", tickers: ["YPF"], headline: "YPF 1Q", analystId: "a1", body: "Beat on production", link: "", newsLinks: [] },
       ],
-      watchToday: ["BCRA decision at 5pm", "Treasury auction"],
+      watchToday: [{ text: "BCRA decision at 5pm" }, { text: "Treasury auction" }],
       signatures: [{ id: "1", name: "Rodrigo Nistor", role: "Sales", email: "rodrigo@latinsecurities.ar" }],
     });
     const issues = preflightReview(state, fixedNow);

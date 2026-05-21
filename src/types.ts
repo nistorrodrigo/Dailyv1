@@ -199,6 +199,30 @@ export interface KeyEvent {
   event: string;
 }
 
+/** A single "What to Watch This Week" bullet. Originally a bare
+ *  string; upgraded to a structured row so the desk can pin a
+ *  specific date + time to time-sensitive items (auctions, data
+ *  prints, central-bank decisions).
+ *
+ *  Date and time are both optional — a generic bullet ("Congress
+ *  vote expected this week") still renders as plain text. When a
+ *  time IS set, it's the Buenos Aires wall-clock time (ART, fixed
+ *  UTC-3); the renderer derives the Eastern + London equivalents
+ *  via `bueTimeToZones` so foreign PMs don't have to do the maths.
+ *  ET and London are NOT stored — they're always derived, so a
+ *  DST-table update fixes historical dailies for free. */
+export interface WatchItem {
+  /** Free-text description. Always present (may be empty while the
+   *  analyst is mid-type). */
+  text: string;
+  /** ISO date YYYY-MM-DD from the calendar picker. Optional. Also
+   *  used as the reference date for DST-correct ET/London
+   *  conversion when `timeBUE` is set. */
+  date?: string;
+  /** Buenos Aires wall-clock time, "HH:MM" 24h. Optional. */
+  timeBUE?: string;
+}
+
 export interface ChartImage {
   base64: string;
   data?: string;
@@ -237,7 +261,11 @@ export interface DailyState {
    *  compat with persisted dailies that still hold values — nothing
    *  reads it. Don't add new code paths that depend on it. */
   snapshot: MarketSnapshot;
-  watchToday: string[];
+  /** "What to Watch This Week" bullets. Upgraded from `string[]` to
+   *  structured `WatchItem[]` so each bullet can carry an optional
+   *  date + Buenos Aires time. Persisted dailies from before the
+   *  upgrade are migrated string→{text} on load (see migrateState). */
+  watchToday: WatchItem[];
   latam: string;
   macroBlocks: MacroBlock[];
   equityPicks: EquityPick[];

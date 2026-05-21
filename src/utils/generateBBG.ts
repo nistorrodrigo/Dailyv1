@@ -1,4 +1,4 @@
-import { formatDate, fmtEventDate, fmtTime } from "./dates";
+import { formatDate, fmtEventDate, fmtTime, bueTimeToZones } from "./dates";
 import { resolveCorporateBlock } from "./ratings";
 import { fmtUpside } from "./prices";
 import type { DailyState, NewsLink } from "../types";
@@ -73,10 +73,20 @@ export function generateBBG(s: DailyState): string {
   // are preserved for backwards compat but no longer rendered.
 
   // ─── WHAT TO WATCH (this week) ─────────────────────────────
-  const watchItems = (s.watchToday || []).filter((w: string) => w.trim());
+  // Each WatchItem may carry an optional date + Buenos Aires time;
+  // when set, prefix the bullet with "Date · HH:MM BUE (ET · London)".
+  const watchItems = (s.watchToday || []).filter((w) => w.text?.trim());
   if (isOn(s, "watchToday") && watchItems.length) {
     L.push("", "⚡ WHAT TO WATCH THIS WEEK");
-    watchItems.forEach((w: string) => L.push(`• ${w}`));
+    watchItems.forEach((w) => {
+      const zones = bueTimeToZones(w.timeBUE, w.date);
+      const dateLabel = w.date ? fmtEventDate(w.date) : "";
+      const bueLabel = w.timeBUE ? fmtTime(w.timeBUE) + " BUE" : "";
+      const metaMain = [dateLabel, bueLabel].filter(Boolean).join(" · ");
+      const zoneStr = zones ? ` (${zones.et} ET · ${zones.london} London)` : "";
+      const prefix = metaMain ? `${metaMain}${zoneStr} — ` : "";
+      L.push(`• ${prefix}${w.text}`);
+    });
   }
 
   // ─── MARKET COMMENT (free-form prose block) ──────────────

@@ -1,6 +1,6 @@
 import { BRAND } from "../constants/brand";
 import { getEmailLogoUrl } from "./emailLogoUrl";
-import { formatDate, fmtEventDate, fmtTime } from "./dates";
+import { formatDate, fmtEventDate, fmtTime, bueTimeToZones } from "./dates";
 import { rc, rb, ra, resolveCorporateBlock } from "./ratings";
 import { fmtUpside, upsideColor, calcUpside } from "./prices";
 import { nl2br, escapeHtml, safeUrl } from "./text";
@@ -234,10 +234,21 @@ function generateHTMLImpl(s: DailyState, mode: string = "full", template: string
   // are preserved on the type for backwards compat with persisted
   // dailies that still hold those values; nothing renders them now.
 
-  // WHAT TO WATCH (this week) — bullet list of free-text items;
-  // each entry escaped before interpolation.
-  const watchItems = (s.watchToday || []).filter((w: string) => w.trim());
-  const watchToday = s.sections.find(x => x.key === "watchToday")?.on && watchItems.length ? secHdr("What to Watch This Week") + '<tr><td style="padding:0 40px 8px;">' + watchItems.map((w: string) => '<div style="padding:6px 0;font-size:13.5px;line-height:1.55;color:' + DS.text + ';"><span style="color:#e67e22;font-weight:700;margin-right:8px;">&#9656;</span>' + escapeHtml(w) + '</div>').join("") + '</td></tr>' : "";
+  // WHAT TO WATCH (this week) — bullet list of WatchItems. Each
+  // bullet may carry an optional date + Buenos Aires time; when set,
+  // we render a bold date/BUE prefix plus the auto-derived ET +
+  // London times in muted parens. Bullets with no date/time render
+  // as plain text (the pre-upgrade behaviour). All free-text escaped.
+  const watchItems = (s.watchToday || []).filter((w) => w.text?.trim());
+  const watchToday = s.sections.find(x => x.key === "watchToday")?.on && watchItems.length ? secHdr("What to Watch This Week") + '<tr><td style="padding:0 40px 8px;">' + watchItems.map((w) => {
+    const zones = bueTimeToZones(w.timeBUE, w.date);
+    const dateLabel = w.date ? fmtEventDate(w.date) : "";
+    const bueLabel = w.timeBUE ? fmtTime(w.timeBUE) + " BUE" : "";
+    const metaMain = [dateLabel, bueLabel].filter(Boolean).join(" · ");
+    const metaZones = zones ? ' <span style="color:' + DS.textMuted + ';font-weight:400;">(' + escapeHtml(zones.et) + ' ET · ' + escapeHtml(zones.london) + ' London)</span>' : '';
+    const metaHtml = metaMain ? '<strong style="color:' + DS.navy + ';">' + escapeHtml(metaMain) + '</strong>' + metaZones + ' — ' : '';
+    return '<div style="padding:6px 0;font-size:13.5px;line-height:1.55;color:' + DS.text + ';"><span style="color:#e67e22;font-weight:700;margin-right:8px;">&#9656;</span>' + metaHtml + escapeHtml(w.text) + '</div>';
+  }).join("") + '</td></tr>' : "";
 
   // MARKET COMMENT — single free-form prose block.
   const marketComment = s.sections.find(x => x.key === "marketComment")?.on && s.marketComment?.trim()
